@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Charity Events API - PROG2002 A3</title>
+  <style>
+    :root {
+      --ink: #14303a;
+      --muted: #5b7480;
+      --brand: #0f7b6c;
+      --surface: #f4f8f7;
+      --line: #d7e3e0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 2.5rem 1.25rem 4rem;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--surface);
+      line-height: 1.55;
+    }
+    main { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.9rem; margin: 0 0 .35rem; }
+    p.lede { color: var(--muted); margin: 0 0 2rem; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    caption { text-align: left; font-weight: bold; padding: .75rem 0; }
+    th, td { border: 1px solid var(--line); padding: .6rem .75rem; text-align: left; vertical-align: top; }
+    th { background: #e8f1ef; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
+    code { font-family: Consolas, "Courier New", monospace; font-size: .92rem; }
+    a { color: var(--brand); }
+    .note { margin-top: 2rem; padding: 1rem 1.25rem; background: #fff; border-left: 4px solid var(--brand); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Charity Events API</h1>
+    <p class="lede">
+      PROG2002 Web Development II &mdash; Assessment 3.
+      Node.js + Express + MySQL. Read-only endpoints for the client website, plus
+      the write endpoints that back event registration and the admin website.
+    </p>
+
+    <table>
+      <caption>Read endpoints &mdash; used by the client website</caption>
+      <thead>
+        <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>GET</td><td><a href="/api/health"><code>/api/health</code></a></td><td>Service and database health check</td></tr>
+        <tr><td>GET</td><td><a href="/api"><code>/api</code></a></td><td>Machine readable index of this API</td></tr>
+        <tr><td>GET</td><td><a href="/api/events"><code>/api/events</code></a></td><td>Filtered list of active events (home + search)</td></tr>
+        <tr><td>GET</td><td><a href="/api/events/upcoming"><code>/api/events/upcoming</code></a></td><td>Current and upcoming events, soonest first</td></tr>
+        <tr><td>GET</td><td><a href="/api/events/1"><code>/api/events/:id</code></a></td><td>Full detail, tickets and goal progress for one event</td></tr>
+        <tr><td>GET</td><td><a href="/api/categories"><code>/api/categories</code></a></td><td>Category filter options with event counts</td></tr>
+        <tr><td>GET</td><td><a href="/api/locations"><code>/api/locations</code></a></td><td>Location filter options with event counts</td></tr>
+        <tr><td>GET</td><td><a href="/api/organization"><code>/api/organization</code></a></td><td>Organisation featured on the home page</td></tr>
+        <tr><td>GET</td><td><a href="/api/stats"><code>/api/stats</code></a></td><td>Headline numbers for the home page</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <caption>Registration endpoints &mdash; Assessment 3</caption>
+      <thead>
+        <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>GET</td><td><a href="/api/events/1/registrations"><code>/api/events/:id/registrations</code></a></td><td>Registrations recorded against one event</td></tr>
+        <tr><td>POST</td><td><code>/api/events/:id/registrations</code></td><td>Register an attendee for an event</td></tr>
+        <tr><td>GET</td><td><a href="/api/registrations"><code>/api/registrations</code></a></td><td>Every registration, newest first</td></tr>
+        <tr><td>GET</td><td><a href="/api/registrations/1"><code>/api/registrations/:id</code></a></td><td>One registration</td></tr>
+        <tr><td>PUT</td><td><code>/api/registrations/:id</code></td><td>Change a registration</td></tr>
+        <tr><td>DELETE</td><td><code>/api/registrations/:id</code></td><td>Remove a registration</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <caption>Admin endpoints &mdash; used by the staff website</caption>
+      <thead>
+        <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>GET</td><td><a href="/api/admin/events"><code>/api/admin/events</code></a></td><td>Every event, including suspended and cancelled</td></tr>
+        <tr><td>GET</td><td><a href="/api/admin/events/1"><code>/api/admin/events/:id</code></a></td><td>One event with its ticket types and registrations</td></tr>
+        <tr><td>GET</td><td><a href="/api/admin/reference-data"><code>/api/admin/reference-data</code></a></td><td>Categories, locations and organisations for the forms</td></tr>
+        <tr><td>POST</td><td><code>/api/events</code></td><td>Create an event</td></tr>
+        <tr><td>PUT</td><td><code>/api/events/:id</code></td><td>Update an event</td></tr>
+        <tr><td>DELETE</td><td><code>/api/events/:id</code></td><td>Delete an event (refused with 409 if it has registrations)</td></tr>
+        <tr><td>POST</td><td><code>/api/admin/events</code></td><td>Create an event (same handler)</td></tr>
+        <tr><td>PUT</td><td><code>/api/admin/events/:id</code></td><td>Update an event (same handler)</td></tr>
+        <tr><td>DELETE</td><td><code>/api/admin/events/:id</code></td><td>Delete an event (same handler)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <strong>Two write paths, one implementation.</strong>
+      The admin website sends its create, update and delete requests to the plain
+      RESTful paths (<code>/api/events</code>), while the <code>/api/admin/events</code>
+      paths exist so the admin website can also GET the events the public API hides.
+      Both sets of write routes call the same controller functions, so there is
+      exactly one implementation of each rule and no chance of the two drifting apart.
+    </div>
+
+    <div class="note">
+      <strong>Client website:</strong> start it separately and open
+      <code>http://localhost:5500/index.html</code>. The admin website is at
+      <code>http://localhost:5500/admin/index.html</code>.
+      <br />
+      <strong>Search example:</strong>
+      <code>/api/events?state=all&amp;city=Lismore&amp;category=1&amp;from=2026-09-01</code>
+      <br />
+      <strong>Written with:</strong> HTML, CSS and plain JavaScript only (no CSS or
+      JS framework, no templating engine). Express serves this API and nothing
+      else; the pages are static files sent as they are.
+    </div>
+  </main>
+</body>
+</html>
