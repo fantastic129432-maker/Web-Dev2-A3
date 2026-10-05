@@ -1,0 +1,59 @@
+# MySQL setup artefacts (large or machine specific, never part of the submission)
+mysql/
+.mysql-install/
+start-mysql.cmd
+stop-mysql.cmd
+
+# Local one-click launcher. It is a convenience for this machine only: the
+# documented entry point is `node tools/start-all.mjs`, which the README
+# describes and which needs no batch file. Keeping it untracked also keeps
+# Batchfile out of the GitHub language bar, which otherwise reports it as a
+# language used in the project.
+start.cmd
+
+# Dependencies
+node_modules/
+
+# Environment files - never commit real credentials
+.env
+.env.local
+*.env
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Build and submission artefacts
+*.zip
+dist/
+_check-api/
+_check-clientside/
+usernameA2-api/
+usernameA2-clientside/
+# A3 archives land in dist/ (ignored above) but the folder name is also listed
+# here in case a run is pointed at the project root with --out .
+usernameA3-api/
+usernameA3-clientside/
+usernameA3-adminside/
+
+# The report is submitted to Blackboard as a document, not through this
+# repository, and it carries the student's name and number. It stays on the
+# machine but out of the history, so this rule stops `git add -A` picking it up
+# again. Remove the rule if you would rather keep the report in the repository.
+docs/*.docx
+~$*.docx
+
+# Editors and operating systems
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary folders used while running the project
+.tmp/
+.pip/
+.npmcache/
+.npmtmp/
+.edge-profile/
