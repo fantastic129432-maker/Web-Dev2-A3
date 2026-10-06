@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Formal gala dinner table setting">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#123a52"/>
+      <stop offset="1" stop-color="#2c6d84"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <g opacity="0.5" fill="#ffe6b8">
+    <circle cx="90" cy="60" r="4"/><circle cx="140" cy="40" r="3"/><circle cx="200" cy="72" r="4"/>
+    <circle cx="300" cy="45" r="3"/><circle cx="380" cy="70" r="4"/><circle cx="460" cy="38" r="3"/>
+    <circle cx="540" cy="66" r="4"/><circle cx="580" cy="120" r="3"/>
+  </g>
+  <g stroke="#ffe6b8" stroke-width="3" opacity="0.45" fill="none">
+    <path d="M0 96h640"/>
+  </g>
+  <g>
+    <path d="M250 196c0-30 24-50 52-50s52 20 52 50z" fill="#ffe6b8"/>
+    <rect x="296" y="192" width="12" height="52" fill="#ffe6b8"/>
+    <rect x="270" y="242" width="64" height="10" rx="5" fill="#ffe6b8"/>
+  </g>
+  <g fill="#f0a04b">
+    <path d="M170 150c0-16 12-28 28-28s28 12 28 28v18h-56z"/>
+    <rect x="192" y="166" width="12" height="52" fill="#f0a04b"/>
+    <rect x="172" y="216" width="52" height="9" rx="4" fill="#f0a04b"/>
+  </g>
+  <g fill="#f0a04b" opacity="0.9">
+    <path d="M420 150c0-16 12-28 28-28s28 12 28 28v18h-56z"/>
+    <rect x="442" y="166" width="12" height="52" fill="#f0a04b"/>
+    <rect x="422" y="216" width="52" height="9" rx="4" fill="#f0a04b"/>
+  </g>
+  <rect x="0" y="262" width="640" height="98" fill="#0d2b3c" opacity="0.55"/>
+  <g fill="#e9f4f8" opacity="0.9">
+    <ellipse cx="320" cy="292" rx="180" ry="16"/>
+  </g>
+  <g fill="#0f7b6c">
+    <circle cx="200" cy="286" r="12"/>
+    <circle cx="320" cy="280" r="12"/>
+    <circle cx="440" cy="286" r="12"/>
+  </g>
+</svg>

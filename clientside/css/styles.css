@@ -1,0 +1,1674 @@
+/* ==========================================================================
+   PROG2002 Web Development II - Assessment 2
+   Charity Events website - stylesheet
+   File: css/styles.css
+   --------------------------------------------------------------------------
+   Structure
+     1.  Design tokens (colours, spacing, typography)
+     2.  Base / reset
+     3.  Layout helpers
+     4.  Buttons and badges
+     5.  Header, navigation, footer
+     6.  Home page (hero, mission, stats, event grid)
+     7.  Event card
+     8.  Search page (filter form, results)
+     9.  Event detail page (hero, tickets, goal progress)
+     11. Loading / empty / error states
+     12. Responsive rules and accessibility helpers
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Design tokens
+   ========================================================================== */
+:root {
+  /* Brand: a calm teal for trust, warm amber for the "give" accent. */
+  --brand-900: #08453c;
+  --brand-700: #0f7b6c;
+  --brand-500: #17a08c;
+  --brand-100: #e3f3f0;
+  --accent-600: #d97a1a;
+  --accent-500: #f0a04b;
+  --accent-100: #fdf1e3;
+
+  /* Foreground for text placed on a bright accent fill (the filled buttons,
+     the category chip, the upcoming badge). Defined per theme on purpose: a
+     token that flips cannot be paired with another token that also flips. */
+  --on-brand: #ffffff;
+
+  /* Fill for the amber chip and the secondary button. Amber is too light to
+     carry white text at 4.5:1, so the light theme darkens the fill and the dark
+     theme brightens it and uses dark ink instead. */
+  --chip-bg: #a85a0c;
+
+  --ink-900: #10242b;
+  --ink-700: #2c4a53;
+  --ink-500: #5b7480;
+  --ink-300: #9db1b8;
+
+  --surface-0: #ffffff;
+  --surface-50: #f6faf9;
+  --surface-100: #eef5f3;
+  --line: #d7e3e0;
+
+  --danger: #b3261e;
+  --danger-bg: #fdecea;
+  --success: #1b6e3c;
+  --success-bg: #e8f6ee;
+  --warning: #8a6100;
+  --warning-bg: #fdf3dc;
+
+  --radius-sm: 6px;
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(16, 36, 43, 0.08), 0 1px 3px rgba(16, 36, 43, 0.06);
+  --shadow: 0 6px 18px rgba(16, 36, 43, 0.1);
+  --shadow-lg: 0 18px 40px rgba(16, 36, 43, 0.16);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --font-body: Arial, "Helvetica Neue", Helvetica, sans-serif;
+
+  --container: 1180px;
+}
+
+/* ==========================================================================
+   1b. Dark theme
+   --------------------------------------------------------------------------
+   The whole palette is expressed as custom properties, so the dark theme is one
+   block of overrides rather than a second set of component rules. The attribute
+   is written by js/theme.js (and, before the first paint, by a small inline
+   script in each page's head, which is why there is no flash of white).
+
+   A few components are not driven by tokens alone - the hero gradient, the
+   header's translucent background and the white form controls - and those are
+   adjusted in the block below.
+   ========================================================================== */
+[data-theme='dark'] {
+  /* Brand colours are lifted so they stay legible on a dark surface. */
+  --brand-900: #7fd8c8;
+  --brand-700: #35b9a1;
+  --brand-500: #1c9482;
+  --brand-100: #123b36;
+  --accent-600: #e08a2e;
+  --accent-500: #f0a04b;
+  --accent-100: #3a2a16;
+
+  /* On a bright teal or amber fill, deep ink reads; white does not. */
+  --on-brand: #06201d;
+  --chip-bg: #f0a04b;
+
+  --ink-900: #eef4f3;
+  --ink-700: #c5d3d2;
+  --ink-500: #93a8a7;
+  --ink-300: #6b7f7e;
+
+  --surface-0: #16211f;
+  --surface-50: #101917;
+  --surface-100: #1c2725;
+  --line: #2c3a38;
+
+  --danger: #f2857c;
+  --danger-bg: #351c19;
+  --success: #74d39a;
+  --success-bg: #16301f;
+  --warning: #e6c06a;
+  --warning-bg: #322915;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* The header sits on a translucent light surface in the light theme. */
+[data-theme='dark'] .site-header {
+  background: rgba(16, 25, 23, 0.92);
+}
+
+[data-theme='dark'] .hero .hero__eyebrow {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* The hero keeps its identity but darkens, because the white body text and the
+   white buttons rely on a dark backdrop for contrast. */
+[data-theme='dark'] .hero {
+  background-color: #041512;
+  background-image: linear-gradient(
+    120deg,
+    rgba(6, 32, 29, 0.98) 0%,
+    rgba(9, 53, 47, 0.96) 55%,
+    rgba(12, 72, 63, 0.94) 100%
+  );
+}
+
+/* Cards, panels and the hero inset use --surface-0, which is dark above; these
+   elements were also relying on a white default. */
+[data-theme='dark'] .event-card,
+[data-theme='dark'] .panel,
+[data-theme='dark'] .info-card,
+[data-theme='dark'] .stat,
+[data-theme='dark'] .filter-panel,
+[data-theme='dark'] .state {
+  background: var(--surface-0);
+}
+
+[data-theme='dark'] .ticket {
+  background: var(--surface-100);
+}
+
+[data-theme='dark'] .checkbox-grid {
+  background: var(--surface-50);
+}
+
+/* Form controls were explicitly white. */
+[data-theme='dark'] input[type='text'],
+[data-theme='dark'] input[type='search'],
+[data-theme='dark'] input[type='date'],
+[data-theme='dark'] input[type='number'],
+[data-theme='dark'] input[type='email'],
+[data-theme='dark'] select,
+[data-theme='dark'] textarea,
+[data-theme='dark'] .filter-chip,
+[data-theme='dark'] .site-nav__toggle,
+[data-theme='dark'] .button--outline {
+  background: var(--surface-100);
+  color: var(--ink-900);
+  border-color: var(--line);
+}
+
+/* A date field renders a light calendar icon; invert it so it stays visible. */
+[data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.75);
+}
+
+/* The button that sits on the dark hero is white in both themes: white text on
+   white would be invisible, so only the hover state changes. */
+[data-theme='dark'] .button--on-dark {
+  background: #ffffff;
+  color: #06201d;
+  border-color: #ffffff;
+}
+[data-theme='dark'] .button--on-dark:hover,
+[data-theme='dark'] .button--on-dark:focus-visible {
+  background: var(--accent-500);
+  color: #2b1600;
+  border-color: var(--accent-500);
+}
+
+[data-theme='dark'] .brand,
+[data-theme='dark'] .brand__text strong,
+[data-theme='dark'] .site-nav__link,
+[data-theme='dark'] .event-card__title a {
+  color: var(--ink-900);
+}
+
+[data-theme='dark'] .site-nav__link:hover {
+  background: var(--surface-100);
+}
+
+[data-theme='dark'] .site-nav__link--active {
+  color: var(--brand-900);
+  background: var(--brand-100);
+}
+
+[data-theme='dark'] .progress__track {
+  background: var(--surface-100);
+}
+
+
+/* Event artwork is drawn on light backgrounds; a slight dim keeps it from
+   glaring against the dark card. */
+[data-theme='dark'] .event-card__media img,
+[data-theme='dark'] .event-hero__media img {
+  filter: brightness(0.88) saturate(0.95);
+}
+
+/*
+ * The footer is a dark block in BOTH themes.
+ *
+ * In the light theme its background is var(--brand-900), a deep teal. The dark
+ * theme inverts that token to a light teal (so headings stay readable on dark
+ * surfaces), which would turn the footer into a bright panel with white text on
+ * it - effectively invisible. The footer therefore pins its own background and
+ * keeps the light-on-dark text it was designed for.
+ */
+[data-theme='dark'] .site-footer {
+  background: #071a18;
+  color: #d9ece8;
+  border-top: 1px solid var(--line);
+}
+
+[data-theme='dark'] .site-footer h3 {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .site-footer p,
+[data-theme='dark'] .site-footer__status {
+  color: #b9d8d2;
+}
+
+[data-theme='dark'] .site-footer a {
+  color: #d9ece8;
+}
+
+[data-theme='dark'] .site-footer a:hover {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .site-footer__bottom {
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme='dark'] .site-footer__status.is-online { color: #8fe0b6; }
+[data-theme='dark'] .site-footer__status.is-warning { color: #f6cf88; }
+[data-theme='dark'] .site-footer__status.is-offline { color: #f3a6a1; }
+
+/* A past-event badge used a light grey that glares against a dark card, and a
+   heading that links out of a card needs the inverted brand colour.
+   --ink-900 is light in this theme, which is what keeps the pair readable: the
+   light theme's --ink-900 (near black) would be invisible here. */
+[data-theme='dark'] .badge--past {
+  background: var(--surface-100);
+  color: var(--ink-900);
+}
+
+[data-theme='dark'] .event-card__title a {
+  color: var(--brand-900);
+}
+
+
+/* ==========================================================================
+   2. Base / reset
+   ========================================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/*
+ * No `scroll-behavior: smooth` here on purpose.
+ *
+ * A smooth scroll animation is cancelled when the document height changes while
+ * it runs, and the home page grows each time an event image loads. With smooth
+ * behaviour enabled, a link such as index.html#about could stop part way down
+ * the page with the About section still off screen. Jump links are positioned
+ * instantly instead, which is also what the JavaScript in js/nav.js does.
+ * Users who prefer less motion get instant positioning anyway, so nothing is
+ * lost by removing the animation.
+ */
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink-900);
+  background: var(--surface-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-body);
+  line-height: 1.25;
+  color: var(--brand-900);
+  margin: 0 0 var(--space-3);
+}
+
+h1 { font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.9rem); }
+h2 { font-size: clamp(1.5rem, 1.2rem + 1vw, 2.1rem); }
+h3 { font-size: 1.2rem; }
+
+p { margin: 0 0 var(--space-4); }
+a { color: var(--brand-700); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; display: block; }
+ul { margin: 0 0 var(--space-4); padding-left: 1.15rem; }
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   3. Layout helpers
+   ========================================================================== */
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.section {
+  padding: var(--space-8) 0;
+}
+
+.section--tint {
+  background: var(--surface-0);
+  border-block: 1px solid var(--line);
+}
+
+.section__head {
+  max-width: 720px;
+  margin-bottom: var(--space-6);
+}
+
+.section__eyebrow {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand-700);
+  margin-bottom: var(--space-2);
+}
+
+.section__lead {
+  color: var(--ink-500);
+  font-size: 1.05rem;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.grid--events {
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+}
+
+.grid--stats {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.grid--two {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   4. Buttons and badges
+   ========================================================================== */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0.7rem 1.35rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--brand-700);
+  /* --on-brand rather than #fff: the dark theme inverts --brand-700 to a light
+     teal, so white text measured 2.4:1 there. Pairing one flipping token with
+     another flipping token does not help - both have to move together, which is
+     exactly what --on-brand does. */
+  color: var(--on-brand);
+  font-weight: bold;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.button:hover {
+  background: var(--brand-900);
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.button:active { transform: translateY(0); }
+
+.button--secondary {
+  background: var(--chip-bg);
+  /* Same reasoning as the primary button. */
+  color: var(--on-brand);
+}
+.button--secondary:hover { background: var(--ink-700); color: var(--surface-0); }
+
+.button--ghost {
+  background: transparent;
+  color: var(--brand-700);
+  border-color: var(--brand-500);
+}
+.button--ghost:hover {
+  background: var(--brand-100);
+  color: var(--brand-900);
+}
+
+/*
+ * Button variant for dark backgrounds (the green hero banner).
+ *
+ * The default variant is a teal fill and --ghost paints teal text, so both
+ * almost disappear against the hero gradient. This single variant is used by
+ * every button that sits on the hero: a solid white fill with dark teal text,
+ * which keeps the contrast ratio high. Both hero actions therefore look
+ * identical, as requested. On hover they invert to the amber accent so the
+ * button still gives clear feedback.
+ */
+.button--on-dark {
+  background: #ffffff;
+  color: var(--brand-900);
+  border-color: #ffffff;
+}
+.button--on-dark:hover,
+.button--on-dark:focus-visible {
+  background: var(--accent-500);
+  color: #4a2600;
+  border-color: var(--accent-500);
+}
+
+.button--outline {
+  background: #fff;
+  color: var(--ink-700);
+  border-color: var(--line);
+}
+.button--outline:hover {
+  background: var(--surface-100);
+  color: var(--ink-900);
+}
+
+.button--small {
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+}
+
+.button--block { width: 100%; }
+
+.button[disabled],
+.button[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--surface-100);
+  color: var(--ink-700);
+}
+
+/* --brand-100 flips to a dark teal and --brand-900 to a light one, so the pair
+   stayed low contrast in the dark theme. A solid fill with --on-brand works in
+   both. */
+.badge--upcoming { background: var(--brand-700); color: var(--on-brand); }
+.badge--ongoing  { background: var(--success-bg); color: var(--success); }
+/* --ink-900, not --ink-500. This is 12px bold text, which WCAG measures as
+   normal text and therefore holds to 4.5:1; the muted ink measured 4.27:1 on
+   this background. The failure only surfaced once the admin pages were added to
+   tools/check-contrast.mjs, because the admin site uses this badge for a
+   suspended event. The darker ink measures about 13:1. */
+.badge--past     { background: #eceff1; color: var(--ink-900); }
+
+.chip {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--on-brand);
+  font-size: 0.78rem;
+  font-weight: bold;
+}
+
+.price {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--ink-700);
+}
+.price--free { color: var(--success); }
+.price--closed { color: var(--ink-500); font-weight: normal; }
+
+/* ==========================================================================
+   4b. Settings: theme and language controls
+   --------------------------------------------------------------------------
+   Two compact controls in the header. The language picker is a native <select>
+   because it is keyboard accessible and behaves correctly on phones without
+   extra code, and the theme switch is a single button that cycles
+   light -> dark -> system so the header does not grow a three-way control.
+   ========================================================================== */
+.site-header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-bar__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.settings-bar__label {
+  font-size: 0.78rem;
+  color: var(--ink-500);
+  white-space: nowrap;
+}
+
+/* The visible text of the theme button is the current setting, so it doubles as
+   a status indicator: "Theme: Dark". */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-0);
+  color: var(--ink-700);
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.theme-toggle:hover {
+  border-color: var(--brand-500);
+  color: var(--brand-900);
+}
+.theme-toggle__icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.language-select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-0);
+  color: var(--ink-700);
+  font-size: 0.8rem;
+  width: auto;
+  min-width: 0;
+  max-width: 10.5rem;
+}
+
+/* The note that explains only the interface is translated, shown while the
+   visitor has picked a language other than English. */
+.settings-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ink-500);
+  text-align: right;
+}
+.settings-note[hidden] { display: none; }
+
+/* ==========================================================================
+   5. Header, navigation, footer
+   ========================================================================== */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-5);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--brand-900);
+}
+.brand:hover { text-decoration: none; }
+.brand__mark { display: flex; }
+.brand__text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand__text strong { font-size: 1.05rem; }
+.brand__text small { color: var(--ink-500); font-size: 0.78rem; }
+
+.site-nav__list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-nav__link {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--ink-700);
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+.site-nav__link:hover { background: var(--surface-100); text-decoration: none; }
+.site-nav__link--active { color: var(--brand-700); background: var(--brand-100); }
+
+.site-nav__toggle {
+  display: none;
+  background: var(--surface-0);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.7rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.site-footer {
+  margin-top: var(--space-8);
+  background: var(--brand-900);
+  color: #d9ece8;
+  padding: var(--space-7) 0 var(--space-5);
+}
+
+.site-footer__inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-6);
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.site-footer h3 { color: #fff; font-size: 1rem; }
+.site-footer p { color: #b9d8d2; font-size: 0.92rem; }
+.site-footer ul { list-style: none; padding: 0; }
+.site-footer li { margin-bottom: var(--space-2); }
+.site-footer a { color: #d9ece8; }
+.site-footer a:hover { color: #fff; }
+
+.site-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+  align-items: center;
+  max-width: var(--container);
+  margin: var(--space-6) auto 0;
+  padding: var(--space-4) var(--space-5) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.85rem;
+}
+.site-footer__bottom p { margin: 0; }
+.site-footer__status { color: #b9d8d2; }
+.site-footer__status.is-online { color: #8fe0b6; }
+.site-footer__status.is-warning { color: #f6cf88; }
+.site-footer__status.is-offline { color: #f3a6a1; }
+
+/* Breadcrumb used on the detail and search pages */
+.breadcrumb {
+  font-size: 0.88rem;
+  /* --ink-700 rather than --ink-500: the breadcrumb sits on the tinted page
+     header, where the lighter grey measured 4.3:1. */
+  color: var(--ink-700);
+  margin: var(--space-5) 0 0;
+}
+.breadcrumb ol { display: flex; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
+.breadcrumb li + li::before { content: "/"; margin-right: var(--space-2); color: var(--ink-300); }
+
+/* ==========================================================================
+   6. Home page
+   ========================================================================== */
+.hero {
+  /* The gradient is the visual treatment; this base colour is what the white
+     hero text actually sits on, and it is also the fallback when gradients are
+     unavailable. Without it the computed background is the page colour, which
+     made the hero text measure 1.05:1 in a contrast check. */
+  background-color: var(--brand-900);
+  background-image: linear-gradient(
+    120deg,
+    rgba(8, 69, 60, 0.94) 0%,
+    rgba(15, 123, 108, 0.9) 55%,
+    rgba(23, 160, 140, 0.85) 100%
+  );
+  color: var(--on-brand);
+  padding: var(--space-8) 0;
+}
+
+.hero__inner {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: var(--space-7);
+  align-items: center;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.hero h1 { color: #fff; }
+.hero__eyebrow {
+  display: inline-block;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  /* The hero is a dark surface in both themes, so this label is pinned to a
+     light colour rather than inheriting one that flips with the theme. */
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.78rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-4);
+}
+.hero__lead { color: #d8efeb; font-size: 1.1rem; max-width: 56ch; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+
+.hero__panel {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  backdrop-filter: blur(4px);
+}
+.hero__panel h2 { color: #fff; font-size: 1.15rem; }
+.hero__panel ul { list-style: none; padding: 0; margin: 0; }
+.hero__panel li {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e4f5f2;
+  font-size: 0.95rem;
+}
+.hero__panel li:last-child { border-bottom: 0; }
+.hero__panel strong { color: #fff; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+.stat {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.stat__value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--brand-700);
+  line-height: 1.1;
+}
+.stat__label { color: var(--ink-500); font-size: 0.9rem; }
+
+.info-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.info-card h3 { margin-top: 0; }
+.info-card ul { color: var(--ink-700); }
+
+.contact-list { list-style: none; padding: 0; }
+.contact-list li {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 0.95rem;
+}
+.contact-list li:last-child { border-bottom: 0; }
+.contact-list span:first-child {
+  min-width: 90px;
+  color: var(--ink-500);
+  font-weight: bold;
+}
+
+/* ==========================================================================
+   7. Event card
+   ========================================================================== */
+.event-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.event-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.event-card--past { opacity: 0.94; }
+.event-card--past .event-card__media img { filter: grayscale(0.45); }
+
+.event-card__media {
+  position: relative;
+  display: block;
+  background: var(--surface-100);
+
+  /*
+   * The 16:9 box is declared HERE, on the container, not on the image.
+   *
+   * Why it has to be the container: the markup writes
+   *   <img src="..." width="640" height="360">
+   * Browsers derive an automatic aspect ratio for replaced elements from those
+   * attributes, and an explicit CSS `height` wins over it. With the ratio on the
+   * img alone, the used height resolved to 360px (the attribute value) instead of
+   * scaling with width:100% - measured 359x360, so the 16:9 artwork was squashed
+   * into a square. Putting the ratio on the container fixes the box, and the img
+   * then fills it exactly.
+   *
+   * Two further lines, each fixing a problem seen on the live site:
+   *
+   *   flex: 0 0 auto  - .event-card is a column flexbox inside a grid row, so the
+   *                     card is stretched to the tallest card in the row (measured
+   *                     802px) and this box was stretched with it. Without this,
+   *                     the box grows past its 16:9 height. The leftover space is
+   *                     absorbed by .event-card__body, which has flex: 1.
+   *
+   *   overflow: hidden - keeps the rounded card corners clean if the image is
+   *                      ever fractionally larger than the box.
+   */
+  flex: 0 0 auto;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.event-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.event-card__media .badge {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.event-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  flex: 1;
+}
+.event-card__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.event-card__title { margin: 0; font-size: 1.15rem; }
+.event-card__title a { color: var(--brand-900); }
+.event-card__summary { margin: 0; color: var(--ink-500); font-size: 0.95rem; }
+
+.event-card__details { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.event-card__details li { display: grid; grid-template-columns: 62px 1fr; gap: var(--space-2); font-size: 0.9rem; }
+.event-card__label { color: var(--ink-500); font-weight: bold; }
+.event-card__value { color: var(--ink-700); }
+
+.event-card__footer {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--line);
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* ==========================================================================
+   8. Search page
+   ========================================================================== */
+.page-header {
+  background: var(--brand-100);
+  border-bottom: 1px solid var(--line);
+  padding: var(--space-7) 0 var(--space-6);
+}
+.page-header h1 { margin-bottom: var(--space-2); }
+.page-header p { color: var(--ink-700); max-width: 70ch; margin: 0; }
+
+.search-layout {
+  display: grid;
+  grid-template-columns: 330px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+  padding: var(--space-7) 0;
+}
+
+.filter-panel {
+  position: sticky;
+  top: 96px;
+  /* A sticky panel that is taller than the window pins its own bottom below the
+     fold. The Search button lives at that bottom, so on a laptop it could not
+     be scrolled into reach at all: from scrollY 500 to 2200 its viewport
+     position never changed, and the only way to run a second search was to
+     scroll to the very bottom of the page. Capping the panel to the window and
+     letting it scroll internally keeps it sticky and keeps every control
+     reachable. dvh is used where it is supported so mobile browser chrome
+     cannot reintroduce the problem. */
+  max-height: calc(100vh - 96px - var(--space-5));
+  max-height: calc(100dvh - 96px - var(--space-5));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  background: var(--surface-0);
+}
+
+.filter-panel h2 { font-size: 1.1rem; margin-bottom: var(--space-2); }
+.filter-panel__hint { color: var(--ink-500); font-size: 0.86rem; }
+
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--space-5);
+}
+fieldset:last-of-type { margin-bottom: var(--space-4); }
+
+legend,
+.field > label,
+.field-label {
+  display: block;
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: var(--ink-900);
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.field { margin-bottom: var(--space-4); }
+.field__hint { color: var(--ink-500); font-size: 0.8rem; margin: var(--space-1) 0 0; }
+
+/*
+ * The format line shown above a native date field.
+ *
+ * A native <input type="date"> paints its own placeholder in the language of
+ * the operating system, and that text cannot be changed from HTML, CSS or
+ * JavaScript (verified: lang on the input, on an ancestor and dir="ltr" all
+ * have no effect in Chromium). On a Chinese Windows it reads 年/月/日. Rather
+ * than replace the native control - which would lose the built-in picker and
+ * validation - the accepted format is stated here in English, which is the
+ * usual solution and works in every browser.
+ */
+.field__format {
+  margin: 0 0 var(--space-2);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--brand-700);
+  font-weight: bold;
+}
+
+input[type='text'],
+input[type='search'],
+input[type='date'],
+input[type='number'],
+input[type='email'],
+select,
+textarea {
+  width: 100%;
+  /* Form controls have a browser-defined intrinsic minimum width (a date input
+     is roughly 130px). Without min-width:0 a grid or flex parent refuses to
+     shrink below it and the control overflows its container, which is what
+     happened to the From/To date fields in the narrow filter panel. */
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  /* Token rather than #fff so the controls follow the dark theme. */
+  background: var(--surface-0);
+}
+input:focus,
+select:focus,
+textarea:focus { border-color: var(--brand-500); }
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-1);
+  max-height: 230px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-50);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.checkbox:hover { background: var(--surface-100); }
+.checkbox input { width: auto; margin: 0; }
+.checkbox__count { margin-left: auto; color: var(--ink-500); font-size: 0.8rem; }
+
+.radio-row { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.radio-row .checkbox { background: transparent; padding-left: 0; }
+
+.field-message { display: block; margin-top: var(--space-2); font-size: 0.85rem; min-height: 1.1rem; }
+.field-message--error { color: var(--danger); }
+.field-message--info { color: var(--ink-500); }
+.field-message--success { color: var(--success); }
+
+.filter-actions { display: grid; gap: var(--space-2); }
+
+/* The panel scrolls internally on short windows, so pin the action row to the
+   bottom of it. Without this the Search button sits below the panel's own fold
+   and the visitor has to work out that the panel scrolls. The opaque background
+   stops the fields showing through as they pass behind it, and the hard shadow
+   paints the same colour over the panel's bottom padding so nothing peeks out
+   under the buttons. The panel's own overflow clips that shadow, so it cannot
+   spill outside the border. */
+.filter-panel .filter-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface-0);
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-1);
+  box-shadow: 0 var(--space-5) 0 var(--surface-0);
+}
+
+.chip-list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.chip-list__label { font-size: 0.85rem; color: var(--ink-500); align-self: center; }
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.82rem;
+  color: var(--ink-700);
+  cursor: pointer;
+}
+.filter-chip:hover { border-color: var(--brand-500); color: var(--brand-900); }
+.filter-chip span[aria-hidden='true'] { color: var(--danger); font-weight: bold; }
+
+.results-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-4);
+}
+.results-head h2 { margin: 0; font-size: 1.25rem; }
+.results-count { color: var(--ink-500); font-size: 0.9rem; }
+
+.sort-control { display: flex; align-items: center; gap: var(--space-2); font-size: 0.88rem; }
+.sort-control select { width: auto; padding: 0.4rem 0.6rem; }
+
+/* ==========================================================================
+   9. Event detail page
+   ========================================================================== */
+.event-hero {
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--line);
+  padding: var(--space-6) 0 var(--space-7);
+}
+.event-hero__grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: var(--space-7);
+  align-items: center;
+}
+.event-hero__meta { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-3); }
+.event-hero h1 { margin-bottom: var(--space-4); }
+.event-hero__lead { font-size: 1.08rem; color: var(--ink-700); }
+.event-hero__media {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+
+  /*
+   * Same rule as the event cards: declare the ratio on the box, not on the img.
+   *
+   * The markup for this image writes width="720" height="450", and an explicit
+   * CSS height on a replaced element beats the automatic ratio derived from
+   * those attributes - so a ratio set on the img resolved to a fixed pixel
+   * height instead of scaling with the column width. With the ratio here the box
+   * is correct and the img simply fills it.
+   */
+  aspect-ratio: 16 / 10;
+}
+.event-hero__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.fact-list { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: grid; gap: var(--space-3); }
+.fact-list li { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); font-size: 0.95rem; }
+.fact-list dt, .fact-list__label { color: var(--ink-500); font-weight: bold; }
+.fact-list__value { color: var(--ink-900); }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: var(--space-7);
+  align-items: start;
+  padding: var(--space-7) 0;
+}
+
+.prose h2 { margin-top: var(--space-6); }
+.prose h2:first-child { margin-top: 0; }
+.prose p { color: var(--ink-700); }
+
+.side-column { display: grid; gap: var(--space-5); position: sticky; top: 96px; }
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+.panel h2, .panel h3 { margin-top: 0; font-size: 1.1rem; }
+.panel--accent { border-top: 4px solid var(--accent-500); }
+.panel--brand { border-top: 4px solid var(--brand-700); }
+
+.progress__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+  color: var(--ink-500);
+  margin-bottom: var(--space-2);
+}
+.progress__percent { font-weight: bold; color: var(--brand-700); }
+.progress__track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-100);
+  overflow: hidden;
+}
+.progress__fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-500), var(--accent-500));
+  transition: width 0.8s ease;
+}
+.progress__amounts { margin: var(--space-3) 0 0; font-size: 0.9rem; color: var(--ink-700); }
+.progress__amounts strong { color: var(--brand-900); font-size: 1.05rem; }
+.progress__meta { margin: var(--space-1) 0 0; font-size: 0.8rem; color: var(--ink-700); }
+.progress--compact .progress__header { font-size: 0.78rem; }
+.progress--compact .progress__track { height: 8px; }
+.progress--compact .progress__amounts { font-size: 0.82rem; }
+
+.ticket-list { list-style: none; padding: 0; margin: 0 0 var(--space-4); display: grid; gap: var(--space-3); }
+.ticket {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-50);
+}
+.ticket__name { font-weight: bold; }
+.ticket__desc { display: block; color: var(--ink-500); font-size: 0.84rem; font-weight: normal; }
+.ticket__price { font-weight: bold; color: var(--brand-900); white-space: nowrap; }
+.ticket--free {
+  border-color: var(--brand-500);
+  /* A left accent bar instead of a tinted fill: the tint flipped to near-black
+     in the dark theme and swallowed the ticket description inside it. */
+  background: var(--surface-50);
+  border-left: 4px solid var(--brand-500);
+}
+.ticket__availability { display: block; font-size: 0.78rem; color: var(--ink-500); font-weight: normal; }
+
+
+.registration-form { margin-top: var(--space-5); border-top: 1px dashed var(--line); padding-top: var(--space-5); }
+.registration-form h3 { margin-bottom: var(--space-2); }
+/*
+ * Two side-by-side fields (the From/To date pair on the search page and the
+ * name/email pair on the registration form).
+ *
+ * auto-fit + minmax(160px, 1fr) rather than 1fr 1fr, for two reasons:
+ *   * a bare 1fr refuses to shrink below the content's intrinsic minimum width,
+ *     and a date input is about 130px wide, so in the 330px filter panel the
+ *     two date fields pushed past the panel border (the reported bug);
+ *   * auto-fit collapses the pair to a single column automatically when the
+ *     container is too narrow, so no media query is needed for this rule.
+ * The controls themselves also carry min-width: 0, which is what actually
+ * allows the tracks to shrink.
+ */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+/* ==========================================================================
+   ========================================================================== */
+
+
+
+
+/* ==========================================================================
+   11. Loading / empty / error states
+   ========================================================================== */
+.state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-7) var(--space-5);
+  background: var(--surface-0);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+.state h3 { margin-bottom: var(--space-2); }
+.state p { color: var(--ink-500); margin: 0; }
+.state--error { border-color: #f0c3bf; background: var(--danger-bg); }
+.state--error h3 { color: var(--danger); }
+.state--error p { color: #7c2d28; }
+.state__details { text-align: left; max-width: 520px; margin: var(--space-3) auto 0; color: #7c2d28; }
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto var(--space-3);
+  border: 3px solid var(--surface-100);
+  border-top-color: var(--brand-700);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
+  .event-card, .button, .progress__fill { transition: none; }
+  html { scroll-behavior: auto; }
+}
+
+.skeleton {
+  /* The mid stop is a token so the shimmer does not flash white in dark mode. */
+  background: linear-gradient(
+    90deg,
+    var(--surface-100) 25%,
+    var(--surface-0) 50%,
+    var(--surface-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius-sm);
+  min-height: 1rem;
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ==========================================================================
+   11b. Assessment 3 additions
+   --------------------------------------------------------------------------
+   Four new pieces of interface: the registrations table on the event page, the
+   weather panel, the registration page layout, and the confirmation screen.
+
+   Everything here is built from the design tokens declared in section 1, and
+   the dark theme in section 1b re-declares those tokens - so none of these
+   rules needs its own [data-theme='dark'] override, and none of them hardcodes
+   #fff. That is the difference between a component that survives the theme
+   switch and one that does not.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Registrations table (event detail page)
+
+   The brief calls for a list of tickets purchased, sorted by purchase date.
+   A real <table> is used rather than a list of cards because the data is
+   genuinely tabular: every registration has the same fields, and a reader
+   compares them across rows.
+   -------------------------------------------------------------------------- */
+.registrations { margin-top: var(--space-6); }
+
+.registrations__lead {
+  color: var(--ink-700);
+  margin-bottom: var(--space-4);
+}
+
+.registrations__empty {
+  padding: var(--space-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-50);
+  color: var(--ink-700);
+}
+
+/* The horizontal scroll container. A table with six columns cannot shrink
+   below its content, so on a phone it scrolls sideways inside this box rather
+   than pushing the whole page wide. */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 640px;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.data-table thead th {
+  background: var(--surface-100);
+  color: var(--ink-900);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.data-table tbody tr:last-child th,
+.data-table tbody tr:last-child td { border-bottom: 1px solid var(--line); }
+
+.data-table tbody tr:hover { background: var(--surface-50); }
+
+/* The row header is the attendee's name, so it carries the emphasis the first
+   column would otherwise need. */
+.data-table tbody th {
+  font-weight: bold;
+  color: var(--ink-900);
+}
+
+.data-table__primary { display: block; }
+
+.data-table__secondary {
+  display: block;
+  margin-top: var(--space-1);
+  font-weight: normal;
+  font-size: 0.82rem;
+  color: var(--ink-500);
+  word-break: break-word;
+}
+
+/* Numbers line up on the right, which is what makes a column of money
+   readable. font-variant-numeric keeps the digits the same width. */
+.data-table .is-numeric {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table tfoot th,
+.data-table tfoot td {
+  background: var(--surface-100);
+  border-bottom: none;
+  font-weight: bold;
+  color: var(--ink-900);
+}
+
+/* --------------------------------------------------------------------------
+   Weather panel (optional Open-Meteo forecast)
+   -------------------------------------------------------------------------- */
+.weather { margin-top: var(--space-6); }
+
+.weather__lead { color: var(--ink-700); }
+
+.weather__loading { color: var(--ink-500); font-style: italic; }
+
+.weather__card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand-500);
+  border-radius: var(--radius);
+  background: var(--surface-50);
+}
+
+/* A wet forecast changes the accent, so the day's outlook reads at a glance
+   without reading the text. */
+.weather__card--wet { border-left-color: var(--accent-500); }
+
+.weather__glyph { font-size: 2.6rem; line-height: 1; }
+
+.weather__summary { display: grid; gap: var(--space-1); }
+
+.weather__code { font-weight: bold; font-size: 1.05rem; color: var(--ink-900); }
+
+.weather__temps { color: var(--ink-700); }
+
+.weather__details {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+  color: var(--ink-700);
+  font-size: 0.9rem;
+}
+
+.weather__hint { margin-top: var(--space-3); color: var(--ink-700); font-size: 0.9rem; }
+
+.weather__credit { margin-top: var(--space-1); color: var(--ink-500); font-size: 0.78rem; }
+
+/* --------------------------------------------------------------------------
+   Registration page
+   -------------------------------------------------------------------------- */
+.registration-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* The summary is the narrower column and sticks while the form scrolls, so the
+   visitor can always see what they are registering for. */
+.registration-summary { position: sticky; top: 96px; }
+
+.registration-summary__media img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-3);
+}
+
+.registration-summary__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.registration-summary h3 { margin-bottom: var(--space-2); }
+
+.registration-summary .fact-list { margin: var(--space-3) 0; }
+
+.registration-form-card { min-width: 0; }
+
+.registration-form-card h3 {
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px dashed var(--line);
+  color: var(--ink-900);
+}
+
+.registration-form-card h3:first-of-type { margin-top: var(--space-2); }
+
+.registration-total {
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-100);
+  color: var(--ink-900);
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A submission in progress: the button is disabled and must look it. */
+.registration-form-card .button[disabled] {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* The link from the public footer to the separate admin website. Styled as a
+   quiet outline button so it is discoverable without competing with the
+   visitor-facing calls to action. */
+.site-footer__admin-link {
+  display: inline-block;
+  margin-top: var(--space-3);
+  padding: 0.35rem 0.85rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.site-footer__admin-link:hover,
+.site-footer__admin-link:focus-visible {
+  background: var(--surface-100);
+  color: var(--ink-900);
+}
+
+/* --------------------------------------------------------------------------
+   Confirmation screen
+   -------------------------------------------------------------------------- */
+.confirmation {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.confirmation__glyph {
+  width: 3.5rem;
+  height: 3.5rem;
+  line-height: 3.5rem;
+  margin: 0 auto var(--space-4);
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success);
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.confirmation__lead { font-size: 1.1rem; color: var(--ink-900); }
+
+/* The receipt is a definition-list in spirit, so it is left aligned even
+   though the card is centred. */
+.confirmation__receipt {
+  text-align: left;
+  margin: var(--space-5) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-50);
+}
+
+.confirmation__receipt li { padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+.confirmation__receipt li:last-child { border-bottom: none; }
+
+.confirmation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+/* ==========================================================================
+   12. Responsive rules
+   ========================================================================== */
+@media (max-width: 1000px) {
+  .search-layout { grid-template-columns: 1fr; }
+  /* Stacked layout: the panel is no longer sticky, so it must not cap its own
+     height or scroll internally - the whole page scrolls instead. */
+  .filter-panel { position: static; max-height: none; overflow: visible; }
+  .detail-grid { grid-template-columns: 1fr; gap: var(--space-6); }
+  .side-column { position: static; }
+  .hero__inner { grid-template-columns: 1fr; }
+  .event-hero__grid { grid-template-columns: 1fr; }
+  /* A3: the event summary stacks above the form. */
+  .registration-layout { grid-template-columns: 1fr; gap: var(--space-5); }
+  .registration-summary { position: static; }
+}
+
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  .section { padding: var(--space-7) 0; }
+  .site-nav__toggle { display: block; }
+  .site-nav {
+    display: none;
+    width: 100%;
+    order: 3;
+    padding-bottom: var(--space-3);
+  }
+  .site-nav--open { display: block; }
+  .site-nav__list { flex-direction: column; align-items: stretch; gap: var(--space-1); }
+  .site-nav__link { padding: 0.6rem 0.75rem; }
+  .site-header__inner { flex-wrap: wrap; }
+  .form-row { grid-template-columns: 1fr; }
+  .fact-list li { grid-template-columns: 1fr; gap: var(--space-1); }
+  .site-footer__bottom { flex-direction: column; align-items: flex-start; }
+  /* A3: the table keeps its column layout and scrolls inside .table-wrap
+     instead of collapsing, because a stacked table is unreadable. */
+  .data-table { min-width: 560px; font-size: 0.86rem; }
+  .data-table th, .data-table td { padding: var(--space-2) var(--space-3); }
+  .weather__card { gap: var(--space-4); }
+  .confirmation__actions .button { width: 100%; }
+}
+
+@media (max-width: 520px) {
+  .container, .site-header__inner, .hero__inner, .site-footer__inner { padding-inline: var(--space-4); }
+  .event-card__details li { grid-template-columns: 1fr; }
+  .brand__text small { display: none; }
+}
+
+@media print {
+  .site-header, .site-footer, .filter-panel, .button { display: none !important; }
+  body { background: #fff; }
+  .event-card, .panel { box-shadow: none; border-color: #999; }
+}
