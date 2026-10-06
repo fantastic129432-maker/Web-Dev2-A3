@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Live music stage at a charity concert">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b1055"/>
+      <stop offset="1" stop-color="#7b2f9e"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd166" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ffd166" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <g>
+    <polygon points="150,0 250,0 200,300 90,300" fill="url(#beam)"/>
+    <polygon points="380,0 470,0 560,300 450,300" fill="url(#beam)"/>
+  </g>
+  <g fill="#ffd166">
+    <circle cx="200" cy="120" r="10"/>
+    <circle cx="330" cy="86" r="10"/>
+    <circle cx="470" cy="132" r="10"/>
+  </g>
+  <g fill="#ffffff" opacity="0.95">
+    <path d="M300 150c8-16 26-16 34 0 8-16 26-16 34 0 6 12-6 26-34 44-28-18-40-32-34-44z"/>
+  </g>
+  <g transform="translate(240 200)">
+    <rect x="0" y="0" width="14" height="80" rx="6" fill="#ffe6b8"/>
+    <path d="M14 0c26 2 30 12 34 22-16-4-24-2-34 2z" fill="#f0a04b"/>
+    <ellipse cx="6" cy="84" rx="24" ry="16" fill="#ffe6b8"/>
+  </g>
+  <g fill="#12082e" opacity="0.85">
+    <circle cx="150" cy="286" r="20"/>
+    <path d="M132 306h36l8 54h-52z"/>
+    <circle cx="260" cy="292" r="18"/>
+    <path d="M244 310h32l6 50h-44z"/>
+    <circle cx="392" cy="288" r="20"/>
+    <path d="M374 308h36l8 52h-52z"/>
+    <circle cx="496" cy="294" r="17"/>
+    <path d="M480 311h32l6 49h-44z"/>
+  </g>
+  <rect x="0" y="330" width="640" height="30" fill="#12082e" opacity="0.9"/>
+</svg>

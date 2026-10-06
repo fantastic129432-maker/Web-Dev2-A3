@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Framed artworks hanging in an exhibition">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4efe6"/>
+      <stop offset="1" stop-color="#ded4c4"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#wall)"/>
+  <rect y="298" width="640" height="62" fill="#8a7a63" opacity="0.35"/>
+  <g>
+    <rect x="70" y="70" width="150" height="180" rx="6" fill="#7b4b2a"/>
+    <rect x="84" y="84" width="122" height="152" fill="#ffffff"/>
+    <rect x="84" y="140" width="122" height="96" fill="#3f8fa8"/>
+    <circle cx="145" cy="118" r="18" fill="#f2c14e"/>
+    <path d="M84 190c22-18 40-6 60-20s42 8 62-4v70H84z" fill="#2f7a4f"/>
+  </g>
+  <g>
+    <rect x="245" y="52" width="150" height="200" rx="6" fill="#4a4a4a"/>
+    <rect x="259" y="66" width="122" height="172" fill="#ffffff"/>
+    <g stroke="#d9663f" stroke-width="7" fill="none">
+      <path d="M275 210c18-60 34-40 46-92"/>
+      <path d="M300 220c10-48 30-30 44-84"/>
+    </g>
+    <circle cx="345" cy="106" r="14" fill="#8e5cc4"/>
+  </g>
+  <g>
+    <rect x="420" y="86" width="150" height="170" rx="6" fill="#8a6a3a"/>
+    <rect x="434" y="100" width="122" height="142" fill="#ffffff"/>
+    <g fill="#20536b">
+      <rect x="448" y="196" width="24" height="46"/>
+      <rect x="480" y="166" width="24" height="76"/>
+      <rect x="512" y="140" width="24" height="102"/>
+    </g>
+    <circle cx="500" cy="126" r="16" fill="#f0a04b"/>
+  </g>
+  <rect x="0" y="0" width="640" height="26" fill="#b9a58a" opacity="0.5"/>
+</svg>
