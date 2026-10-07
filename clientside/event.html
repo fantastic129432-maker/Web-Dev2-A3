@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Full details, ticket prices and fundraising progress for a charity event." />
+  <title>Event details | Unity Heart Foundation</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="images/community.svg" type="image/svg+xml" />
+</head>
+<body>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="main">
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li><a href="index.html" data-i18n="nav.home">Home</a></li>
+          <li><a href="search.html" data-i18n="nav.search">Search Events</a></li>
+          <li aria-current="page" id="breadcrumb-event" data-i18n="event.breadcrumb">Event details</li>
+        </ol>
+      </nav>
+    </div>
+
+    <!-- Whole page content is rendered here by js/event.js once the
+         event id in the URL has been used to call GET /api/events/:id -->
+    <div id="event-root" aria-live="polite">
+      <div class="container section">
+        <div class="state state--loading">
+          <div class="spinner" aria-hidden="true"></div>
+          <p data-i18n="event.loading">Loading the event details...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script type="module" src="js/event.js"></script>
+</body>
+</html>
