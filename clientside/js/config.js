@@ -6,7 +6,7 @@
  *
  * If you run the API on a different port, change API_BASE_URL here only.
  */
-export const API_BASE_URL = 'https://24832481.it.scu.edu.au/charity-events-api/api';
+export const API_BASE_URL = 'https://24832546.it.scu.edu.au/charity-events-api/api';
 
 /**
  * The admin website, which is part of the same deployment.

@@ -1,0 +1,38 @@
+{
+  "name": "prog2002-a3-charity-events",
+  "version": "2.0.0",
+  "private": true,
+  "description": "PROG2002 Web Development II - Assessment 3: complete dynamic website (MySQL + NodeJS/Express REST API + client-side website + admin-side website)",
+  "author": "<your name> (<your SCU username>)",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node tools/start-all.mjs",
+    "test": "node tests/run-tests.js",
+    "test:mysql": "node -e \"process.env.TEST_DATA_SOURCE='mysql';require('./tests/run-tests.js')\"",
+    "db:load": "node tools/load-database.mjs",
+    "db:dump": "node tools/export-database-dump.mjs",
+    "db:dump:check": "node tools/export-database-dump.mjs --check",
+    "db:cpanel": "node tools/export-cpanel-sql.mjs",
+    "db:cpanel:check": "node tools/export-cpanel-sql.mjs --check",
+    "deploy:configure": "node tools/configure-deployment.mjs",
+    "deploy:local": "node tools/configure-deployment.mjs --local",
+    "deploy:verify": "node tools/verify-deployment.mjs",
+    "zip": "node tools/make-submission-zips.mjs",
+    "check:refs": "node tools/audit-references.mjs",
+    "check:encoding": "node tools/find-encoding-damage.mjs",
+    "check:secrets": "node tools/check-no-secrets.mjs",
+    "check:contrast": "node tools/check-contrast.mjs",
+    "check:translations": "node tools/check-translations.mjs",
+    "check:theme": "node tools/sync-theme-snippet.mjs --check",
+    "check:frameworks": "node tools/check-no-frameworks.mjs",
+    "start:api": "node api/server.js",
+    "start:client": "node clientside/serve-clientside.js",
+    "generate:local-data": "node tools/generate-local-data.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}
