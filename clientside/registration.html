@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Register for a charity event: choose your ticket type, how many you need, and confirm your place." />
+  <title>Event registration | Unity Heart Foundation</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="images/community.svg" type="image/svg+xml" />
+</head>
+<body>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="main">
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li><a href="index.html" data-i18n="nav.home">Home</a></li>
+          <li><a href="search.html" data-i18n="nav.search">Search Events</a></li>
+          <li><a href="event.html" id="breadcrumb-event" data-i18n="event.breadcrumb">Event details</a></li>
+          <li aria-current="page" data-i18n="form.title">Register for an event</li>
+        </ol>
+      </nav>
+    </div>
+
+    <!-- The event summary, the form and the confirmation are all rendered by
+         js/registration.js, which reads ?id=<eventId> from the query string and
+         calls GET /api/events/:id plus GET /api/events/:id/registrations. -->
+    <div id="registration-root" aria-live="polite">
+      <div class="container section">
+        <div class="state state--loading">
+          <div class="spinner" aria-hidden="true"></div>
+          <p data-i18n="event.loading">Loading the event details...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script type="module" src="js/registration.js"></script>
+</body>
+</html>

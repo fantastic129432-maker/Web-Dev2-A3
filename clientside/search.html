@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Search charity events by date, location and category, then open an event to see the full details." />
+  <title>Search charity events | Unity Heart Foundation</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="images/community.svg" type="image/svg+xml" />
+</head>
+<body>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="main">
+    <section class="page-header">
+      <div class="container">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="index.html" data-i18n="nav.home">Home</a></li>
+            <li aria-current="page" data-i18n="search.breadcrumb">Search events</li>
+          </ol>
+        </nav>
+        <h1 data-i18n="search.title">Search charity events</h1>
+        <p data-i18n="search.lead">
+          Choose any combination of date, location and category. You can select
+          more than one category at a time, or leave everything blank to see every
+          upcoming event.
+        </p>
+      </div>
+    </section>
+
+    <div class="container">
+      <div class="search-layout">
+        <!-- ==============================================================
+             FILTER FORM
+             Native HTML controls only: date inputs for dates, a text input
+             with suggestions for the location, checkboxes for categories.
+             js/search.js reads these controls and builds the API query.
+             ============================================================== -->
+        <section class="filter-panel" aria-labelledby="filter-heading">
+          <h2 id="filter-heading" data-i18n="search.filtersHeading">Filter events</h2>
+          <p class="filter-panel__hint" data-i18n="search.filtersHint">All criteria are optional. Select one or many.</p>
+
+          <form id="search-form" novalidate>
+            <!-- Criterion 1: date -->
+            <fieldset>
+              <legend data-i18n="search.when">1. When</legend>
+              <div class="form-row">
+                <div class="field">
+                  <label for="filter-from" data-i18n="search.fromDate">From date</label>
+                  <!--
+                    The placeholder inside a native date field is drawn by the
+                    browser in the language of the operating system, and cannot
+                    be changed from HTML, CSS or JavaScript. On a
+                    Chinese-language Windows it reads 年/月/日, so the accepted
+                    format is stated here in English instead.
+                  -->
+                  <p class="field__format" id="filter-from-format" data-i18n="search.dateFormat">Format: yyyy-mm-dd</p>
+                  <input
+                    type="date"
+                    id="filter-from"
+                    name="from"
+                    lang="en-AU"
+                    aria-describedby="filter-from-format" />
+                </div>
+                <div class="field">
+                  <label for="filter-to" data-i18n="search.toDate">To date</label>
+                  <p class="field__format" id="filter-to-format" data-i18n="search.dateFormat">Format: yyyy-mm-dd</p>
+                  <input
+                    type="date"
+                    id="filter-to"
+                    name="to"
+                    lang="en-AU"
+                    aria-describedby="filter-to-format" />
+                </div>
+              </div>
+              <p class="field__hint" data-i18n="search.dateHint">Leave blank for any date. Example: 2026-10-01</p>
+            </fieldset>
+
+            <!-- Criterion 2: location -->
+            <fieldset>
+              <legend data-i18n="search.where">2. Where</legend>
+              <div class="field">
+                <label for="filter-city" data-i18n="search.city">City or town</label>
+                <input
+                  type="text"
+                  id="filter-city"
+                  name="city"
+                  list="city-options"
+                  placeholder="Start typing, e.g. Lis"
+                  data-i18n-attr="placeholder:search.cityPlaceholder"
+                  autocomplete="off" />
+                <datalist id="city-options"></datalist>
+                <p class="field__hint" data-i18n="search.cityHint">Suggestions come from the events in the database.</p>
+              </div>
+            </fieldset>
+
+            <!-- Criterion 3: category -->
+            <fieldset>
+              <legend data-i18n="search.what">3. What kind of event</legend>
+              <div class="checkbox-grid" id="category-options">
+                <p class="field__hint" data-i18n="search.categoriesLoading">Loading categories...</p>
+              </div>
+            </fieldset>
+
+            <!-- Extra options -->
+            <fieldset>
+              <legend data-i18n="search.other">4. Other options</legend>
+              <label class="checkbox">
+                <input type="checkbox" id="filter-free" name="isFree" />
+                <span data-i18n="search.freeOnly">Only free events</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="filter-include-past" name="includePast" />
+                <span data-i18n="search.includePast">Include past events</span>
+              </label>
+              <div class="field" style="margin-top: 0.75rem;">
+                <label for="filter-keyword" data-i18n="search.keyword">Keyword</label>
+                <input
+                  type="search"
+                  id="filter-keyword"
+                  name="keyword"
+                  placeholder="Event, cause or venue"
+                  data-i18n-attr="placeholder:search.keywordPlaceholder" />
+              </div>
+            </fieldset>
+
+            <div class="filter-actions">
+              <button type="submit" class="button button--block" id="search-button" data-i18n="search.submit">
+                Search events
+              </button>
+              <button type="button" class="button button--outline button--block" id="clear-filters" data-i18n="search.clear">
+                Clear filters
+              </button>
+            </div>
+
+            <!-- Messages produced by DOM manipulation, not alert() -->
+            <p class="field-message" id="form-message" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <!-- ==============================================================
+             RESULTS
+             ============================================================== -->
+        <section aria-labelledby="results-heading">
+          <div class="results-head">
+            <h2 id="results-heading" data-i18n="search.resultsHeading">Matching events</h2>
+            <p class="results-count" id="results-count" aria-live="polite"></p>
+          </div>
+
+          <div class="chip-list" id="active-filters"></div>
+
+          <div class="results-head">
+            <p class="results-count">
+              <span id="results-hint" data-i18n="search.resultsHint">Choose your filters and select Search events.</span>
+            </p>
+            <p class="sort-control">
+              <label for="results-sort" data-i18n="search.sortLabel">Sort by</label>
+              <select id="results-sort">
+                <option value="date-asc" data-i18n="home.sortDateAsc">Date (soonest first)</option>
+                <option value="date-desc" data-i18n="home.sortDateDesc">Date (latest first)</option>
+                <option value="name-asc" data-i18n="home.sortNameAsc">Event name (A&ndash;Z)</option>
+                <option value="name-desc" data-i18n="search.sortNameDesc">Event name (Z&ndash;A)</option>
+                <option value="goal-desc" data-i18n="search.sortGoalDesc">Biggest goal first</option>
+                <option value="progress-desc" data-i18n="home.sortProgressDesc">Closest to goal</option>
+              </select>
+            </p>
+          </div>
+
+          <!-- Event cards are inserted here by js/search.js -->
+          <div class="grid grid--events" id="results-list" aria-live="polite">
+            <div class="state state--empty">
+              <h3 data-i18n="search.idleTitle">Nothing searched yet</h3>
+              <p data-i18n="search.idleHint">Use the filters on the left, or press Search events to list everything upcoming.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script type="module" src="js/search.js"></script>
+</body>
+</html>
