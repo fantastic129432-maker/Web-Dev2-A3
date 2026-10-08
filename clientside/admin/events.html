@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="The complete list of charity events, including suspended and cancelled ones." />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Events | Charity Events administration</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="icon" href="../images/community.svg" type="image/svg+xml" />
+</head>
+<body class="admin-body">
+  <header class="admin-header" id="admin-header"></header>
+  <nav class="admin-nav" id="admin-nav" aria-label="Administration"></nav>
+
+  <main id="main" class="admin-main">
+    <div class="admin-container">
+      <div class="page-header admin-page-header">
+        <h1 data-i18n="events.heading" id="admin-page-heading">All events</h1>
+        <p data-i18n="events.lead" class="section__lead" id="admin-page-lead">
+          Includes suspended and cancelled events, which the public website deliberately hides.
+        </p>
+      </div>
+
+      <!-- Feedback for a delete attempt lands here: success, or the 409 that
+           explains why an event with registrations cannot be removed. -->
+      <div id="events-feedback" aria-live="polite"></div>
+
+      <form class="admin-filters" id="events-filters">
+        <div class="field">
+          <label data-i18n="events.filterStatus" for="filter-status">Status</label>
+          <select id="filter-status" name="publishStatus">
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-i18n="events.filterState" for="filter-state">Time</label>
+          <select id="filter-state" name="state">
+            <option value="all">All dates</option>
+            <option value="upcoming">Upcoming or ongoing</option>
+            <option value="past">Past</option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-i18n="events.filterKeyword" for="filter-keyword">Search</label>
+          <input
+            type="search"
+            id="filter-keyword"
+            name="keyword"
+            placeholder="Event name, venue or city"
+            autocomplete="off"
+          />
+        </div>
+        <div class="admin-filters__actions">
+          <button data-i18n="events.applyFilters" class="button" type="submit">Apply</button>
+          <button data-i18n="events.clearFilters" class="button button--outline" type="button" id="events-clear">Clear</button>
+        </div>
+      </form>
+
+      <p class="admin-count" id="events-count" role="status"></p>
+
+      <!-- The event table is built by admin/js/events.js. -->
+      <div id="events-table" aria-live="polite"></div>
+    </div>
+  </main>
+
+  <footer class="admin-footer">
+    <div class="admin-container admin-footer__inner">
+      <p data-i18n="admin.footerNote">PROG2002 Assessment 3 &middot; Charity Events administration</p>
+      <p id="admin-datasource"></p>
+      <p>&copy; <span id="admin-year">2026</span> Unity Heart Foundation</p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/events.js"></script>
+</body>
+</html>

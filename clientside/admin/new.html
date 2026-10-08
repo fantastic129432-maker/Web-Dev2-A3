@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Create a new charity event, including its ticket types." />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Add event | Charity Events administration</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="icon" href="../images/community.svg" type="image/svg+xml" />
+</head>
+<body class="admin-body">
+  <header class="admin-header" id="admin-header"></header>
+  <nav class="admin-nav" id="admin-nav" aria-label="Administration"></nav>
+
+  <main id="main" class="admin-main">
+    <div class="admin-container">
+      <div class="page-header admin-page-header">
+        <h1 data-i18n="form.newHeading" id="admin-page-heading">Add a charity event</h1>
+        <p class="section__lead" id="admin-page-lead" data-i18n="form.newLead">
+          Fill in the details below. Fields marked with an asterisk are required, and the form is
+          validated before anything is sent to the API.
+        </p>
+      </div>
+
+      <!-- The form itself is built by admin/js/event-editor.js once the
+           organisation, category and venue lists have been loaded from
+           GET /api/admin/reference-data. Building it after the lists arrive is
+           what makes the three dropdowns real selects rather than text boxes
+           that invite a foreign key error. -->
+      <div id="event-form-root" aria-live="polite">
+        <div class="state state--loading">
+          <div class="spinner" aria-hidden="true"></div>
+          <p data-i18n="admin.loading">Loading the form...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer class="admin-footer">
+    <div class="admin-container admin-footer__inner">
+      <p data-i18n="admin.footerNote">PROG2002 Assessment 3 &middot; Charity Events administration</p>
+      <p id="admin-datasource"></p>
+      <p>&copy; <span id="admin-year">2026</span> Unity Heart Foundation</p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/new-event.js"></script>
+</body>
+</html>

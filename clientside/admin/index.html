@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Staff area for managing charity events and the registrations recorded against them." />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Dashboard | Charity Events administration</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="icon" href="../images/community.svg" type="image/svg+xml" />
+</head>
+<body class="admin-body">
+  <header class="admin-header" id="admin-header"></header>
+  <nav class="admin-nav" id="admin-nav" aria-label="Administration"></nav>
+
+  <main id="main" class="admin-main">
+    <div class="admin-container">
+      <div class="page-header admin-page-header">
+        <h1 id="admin-page-heading" data-i18n="dash.heading">Overview</h1>
+        <p class="section__lead" id="admin-page-lead" data-i18n="dash.lead">
+          Every event in the system, whatever its publishing status.
+        </p>
+      </div>
+
+      <!-- Populated by admin/js/dashboard.js from /api/admin/events and
+           /api/registrations. -->
+      <div id="dashboard-stats" aria-live="polite"></div>
+      <div id="dashboard-recent" aria-live="polite"></div>
+
+      <section class="panel admin-quick" aria-labelledby="quick-heading">
+        <h2 id="quick-heading" data-i18n="dash.quickHeading">What do you want to do?</h2>
+        <div class="admin-quick__links">
+          <a class="admin-quick__card" href="new.html">
+            <strong data-i18n="dash.quickNew">Add a new charity event</strong>
+            <span data-i18n="dash.quickNewHint">Create an event with its ticket types.</span>
+          </a>
+          <a class="admin-quick__card" href="update.html">
+            <strong data-i18n="dash.quickUpdate">Update an existing event</strong>
+            <span data-i18n="dash.quickUpdateHint">Change the details and see its registrations.</span>
+          </a>
+          <a class="admin-quick__card" href="registrations.html">
+            <strong data-i18n="dash.quickRegistrations">Review the registrations</strong>
+            <span data-i18n="dash.quickRegistrationsHint">Who has registered, for what, and how many tickets.</span>
+          </a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="admin-footer">
+    <div class="admin-container admin-footer__inner">
+      <p data-i18n="admin.footerNote">PROG2002 Assessment 3 &middot; Charity Events administration</p>
+      <p id="admin-datasource"></p>
+      <p>&copy; <span id="admin-year">2026</span> Unity Heart Foundation</p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>
