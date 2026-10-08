@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Every registration recorded against a charity event." />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Registrations | Charity Events administration</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="icon" href="../images/community.svg" type="image/svg+xml" />
+</head>
+<body class="admin-body">
+  <header class="admin-header" id="admin-header"></header>
+  <nav class="admin-nav" id="admin-nav" aria-label="Administration"></nav>
+
+  <main id="main" class="admin-main">
+    <div class="admin-container">
+      <div class="page-header admin-page-header">
+        <h1 data-i18n="registrations.heading" id="admin-page-heading">Registrations</h1>
+        <p data-i18n="registrations.lead" class="section__lead" id="admin-page-lead">
+          Every registration, newest first. Filter by event, or search by name and email.
+        </p>
+      </div>
+
+      <div id="registrations-feedback" aria-live="polite"></div>
+
+      <form class="admin-filters" id="registrations-filters">
+        <div class="field">
+          <label data-i18n="registrations.filterEvent" for="filter-event">Event</label>
+          <select id="filter-event" name="eventId">
+            <option value="">All events</option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-i18n="registrations.filterKeyword" for="filter-keyword">Search</label>
+          <input
+            type="search"
+            id="filter-keyword"
+            name="keyword"
+            placeholder="Attendee name or email"
+            autocomplete="off"
+          />
+        </div>
+        <div class="admin-filters__actions">
+          <button data-i18n="registrations.applyFilters" class="button" type="submit">Apply</button>
+          <button data-i18n="registrations.clearFilters" class="button button--outline" type="button" id="registrations-clear">Clear</button>
+        </div>
+      </form>
+
+      <p class="admin-count" id="registrations-count" role="status"></p>
+
+      <!-- The registration table is built by admin/js/registrations.js. -->
+      <div id="registrations-table" aria-live="polite"></div>
+    </div>
+  </main>
+
+  <footer class="admin-footer">
+    <div class="admin-container admin-footer__inner">
+      <p data-i18n="admin.footerNote">PROG2002 Assessment 3 &middot; Charity Events administration</p>
+      <p id="admin-datasource"></p>
+      <p>&copy; <span id="admin-year">2026</span> Unity Heart Foundation</p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/registrations.js"></script>
+</body>
+</html>

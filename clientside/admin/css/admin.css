@@ -1,0 +1,599 @@
+/* ==========================================================================
+   admin/css/admin.css
+   --------------------------------------------------------------------------
+   The admin website's own stylesheet.
+
+   It is imported AFTER ../css/styles.css, so the design tokens, the dark theme,
+   the buttons, the form controls, the panel, the badges, the data-table and the
+   state blocks all come from the public site's stylesheet unchanged. Only what
+   is genuinely different about an admin interface is declared here:
+
+     * a denser layout with a full-width content area rather than a marketing
+       container,
+     * a persistent top menu (the brief requires the menu on every admin page),
+     * statistic tiles,
+     * a filter bar,
+     * a denser table with a row of actions,
+     * the banner and confirmation-dialog styles used for destructive actions.
+
+   Nothing here hardcodes a colour: every value is a token from section 1 of
+   styles.css, which is what makes the light/dark toggle work on these pages
+   too. The only exception is the danger button tint, which reuses the existing
+   --danger / --danger-bg pair.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Shell
+   -------------------------------------------------------------------------- */
+.admin-body {
+  background: var(--surface-50);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.admin-container {
+  width: min(1440px, 100% - 3rem);
+  margin-inline: auto;
+}
+
+.admin-header {
+  background: var(--brand-900);
+  color: var(--on-brand);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/*
+ * The header needs its OWN dark-theme rule; it cannot lean on the brand token.
+ *
+ * --brand-900 means "the strongest brand colour for the current theme", and in
+ * the dark theme that is a LIGHT teal (#7fd8c8) because it is meant to sit on a
+ * dark page as an accent. This header uses it the other way round - as a dark
+ * band behind light text - so in the dark theme the whole header turned pale and
+ * the page opened with a light strip above a dark interface. That is exactly
+ * what it looked like before this rule existed.
+ *
+ * Both halves have to be pinned, not just the background:
+ *
+ *   background  #08453c is --brand-900's LIGHT-theme value, reused because that
+ *               IS the intended header colour. Keeping the header identical in
+ *               both themes is the point - it is application chrome, not page
+ *               content.
+ *   color       --on-brand flips to a dark ink (#06201d) in the dark theme,
+ *               because there it means "text on a light brand fill". Overriding
+ *               only the background would have left dark text on a dark band.
+ *               Setting the colour here lets every child that inherits from the
+ *               header - the brand text, the tagline, the theme toggle - come
+ *               along, without touching the toggle's hover rule, which is
+ *               already written against a white overlay.
+ *
+ * styles.css has always carried the equivalent override for the public header
+ * for the same reason; admin.css has no other dark-theme rules, so this is the
+ * only one.
+ */
+[data-theme='dark'] .admin-header {
+  background: #08453c;
+}
+
+/*
+ * The individual pieces inside the header are pinned too.
+ *
+ * Every one of them set its own colour from a brand token - --on-brand for the
+ * brand name and the theme toggle, --brand-100 for the tagline and the public
+ * link - and in the dark theme both of those resolve to dark inks, because there
+ * they mean "text on a light brand fill". Pinning only the header left dark text
+ * on the dark band: the contrast checker measured 1.1:1 to 1.6:1 against the
+ * 4.5:1 minimum, which is effectively invisible.
+ *
+ * The theme-toggle HOVER rule is deliberately left alone: it paints a white
+ * overlay, so its translucent colour and the existing hover background already
+ * agree.
+ */
+[data-theme='dark'] .admin-brand__text strong { color: #ffffff; }
+[data-theme='dark'] .admin-brand__text small { color: rgba(255, 255, 255, 0.82); }
+[data-theme='dark'] .admin-link { color: rgba(255, 255, 255, 0.86); }
+[data-theme='dark'] .admin-theme-toggle { color: rgba(255, 255, 255, 0.92); }
+[data-theme='dark'] .admin-lang-select { color: rgba(255, 255, 255, 0.92); }
+
+.admin-header__inner {
+  width: min(1440px, 100% - 3rem);
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  flex-wrap: wrap;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--on-brand);
+  text-decoration: none;
+}
+
+/*
+ * The brand mark is the only place the admin header uses a lighter fill, and it
+ * carries a glyph rather than text. --brand-700 keeps it distinct from the
+ * header while giving the glyph enough contrast: white on --brand-500 measured
+ * 3.26:1, which the contrast checker rejected. --brand-700 measures 5.2:1.
+ */
+.admin-brand__mark {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--brand-700);
+  font-size: 1.2rem;
+}
+
+.admin-brand__text { display: grid; line-height: 1.2; }
+.admin-brand__text strong { font-size: 1rem; }
+.admin-brand__text small {
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-100);
+}
+
+.admin-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.admin-link {
+  color: var(--brand-100);
+  font-size: 0.88rem;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.admin-link:hover, .admin-link:focus-visible {
+  color: var(--on-brand);
+  border-bottom-color: currentColor;
+}
+
+/*
+ * The two header controls: the language picker and the theme button.
+ *
+ * They share a rule so they cannot drift apart visually. The language picker is
+ * a <select>, which brings its own background and arrow, so it overrides just
+ * those two properties below.
+ */
+.admin-theme-toggle,
+.admin-lang-select {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--on-brand);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.admin-theme-toggle:hover { background: rgba(255, 255, 255, 0.12); }
+
+.admin-lang-select {
+  padding-right: 0.5rem;
+  /*
+   * A native <select> is as wide as its longest option, which pushed the link
+   * and the theme button onto their own lines and made the header three rows
+   * tall. Sizing it to the content plus a little room keeps the three controls
+   * on one row at every width the header is used at.
+   */
+  width: auto;
+  max-width: 10rem;
+  /* A native <select> paints its own field background; keep it transparent so
+     the header colour shows through, and let the option list use the OS theme. */
+  background-color: transparent;
+  color-scheme: dark;
+}
+
+/* The dropdown itself is drawn by the OS, so it needs opaque colours of its own
+   rather than the translucent ones the closed control uses. */
+.admin-lang-select option {
+  background: #08453c;
+  color: #ffffff;
+}
+
+/* The menu. Sticky, because the brief asks for navigation on every page and a
+   long event table should never hide it. */
+.admin-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-nav__list {
+  width: min(1440px, 100% - 3rem);
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  list-style: none;
+  padding: 0;
+}
+
+.admin-nav__link {
+  display: block;
+  padding: 0.85rem var(--space-4);
+  color: var(--ink-700);
+  text-decoration: none;
+  font-size: 0.92rem;
+  border-bottom: 3px solid transparent;
+}
+.admin-nav__link:hover { color: var(--brand-700); background: var(--surface-50); }
+.admin-nav__link--active {
+  color: var(--brand-900);
+  font-weight: bold;
+  border-bottom-color: var(--brand-500);
+}
+
+.admin-main { flex: 1; padding: var(--space-6) 0 var(--space-8); }
+
+/*
+ * The admin page heading.
+ *
+ * Deliberately NOT using the public site's `.page-header`: that class paints a
+ * `--brand-100` tinted band, and in the dark theme `--brand-100` is a dark teal
+ * while the heading inherits `--ink-900`, which is near-black. The result was
+ * dark text on a dark band - unreadable, and exactly the kind of thing that only
+ * shows up when a component is moved into a context it was not designed for.
+ * The admin heading is therefore plain text on the page background.
+ */
+html body.admin-body .page-header.admin-page-header {
+  margin-bottom: var(--space-5);
+  background: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 var(--space-4);
+}
+html body.admin-body .admin-page-header h1 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.9rem;
+  color: var(--ink-900);
+}
+html body.admin-body .admin-page-header p {
+  color: var(--ink-700);
+  max-width: 80ch;
+  margin: 0;
+}
+
+.admin-footer {
+  border-top: 1px solid var(--line);
+  background: var(--surface-0);
+  padding: var(--space-4) 0;
+  color: var(--ink-500);
+  font-size: 0.82rem;
+}
+.admin-footer__inner {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.admin-footer p { margin: 0; }
+
+/* --------------------------------------------------------------------------
+   2. Statistic tiles (dashboard)
+   -------------------------------------------------------------------------- */
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.admin-stats--secondary { margin-bottom: var(--space-6); }
+
+.admin-stat {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ink-300);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-stat--brand { border-left-color: var(--brand-500); }
+.admin-stat--ok { border-left-color: var(--success); }
+.admin-stat--warn { border-left-color: var(--warning); }
+.admin-stat--muted { border-left-color: var(--ink-300); }
+
+.admin-stat__value {
+  font-size: 1.75rem;
+  font-weight: bold;
+  line-height: 1.1;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-stat__label {
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.admin-stat__note {
+  font-size: 0.72rem;
+  color: var(--ink-500);
+  font-style: italic;
+}
+
+.admin-quick { margin-top: var(--space-5); }
+
+.admin-quick__links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-quick__card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-50);
+  color: var(--ink-900);
+  text-decoration: none;
+}
+.admin-quick__card:hover, .admin-quick__card:focus-visible {
+  border-color: var(--brand-500);
+  background: var(--surface-100);
+}
+.admin-quick__card span { color: var(--ink-700); font-size: 0.88rem; }
+
+/* --------------------------------------------------------------------------
+   3. Filter bar
+   -------------------------------------------------------------------------- */
+.admin-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-items: end;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+  margin-bottom: var(--space-4);
+}
+
+.admin-filters .field { margin-bottom: 0; }
+
+.admin-filters__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.admin-count {
+  color: var(--ink-700);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-3);
+}
+
+/* --------------------------------------------------------------------------
+   4. Tables
+   -------------------------------------------------------------------------- */
+/* The public .data-table rules are reused; the admin table is denser and its
+   last column holds a row of buttons. */
+.data-table--admin { min-width: 900px; font-size: 0.88rem; }
+
+.data-table--admin th,
+.data-table--admin td { padding: var(--space-3); }
+
+.cell-stack { display: grid; gap: 2px; }
+.cell-stack__primary { font-weight: bold; color: var(--ink-900); }
+.cell-stack__secondary { font-weight: normal; font-size: 0.78rem; color: var(--ink-500); }
+
+.cell-badges { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.row-actions .button { white-space: nowrap; }
+
+/*
+ * A destructive button.
+ *
+ * Outlined rather than filled. An earlier revision used a solid `--danger`
+ * fill, and with a Delete button on every one of eleven rows the page became a
+ * wall of red: the emphasis landed on the most dangerous action instead of on
+ * the data. The outline keeps the affordance and the colour cue while letting
+ * the event names stay the focus.
+ */
+.button--danger {
+  background: var(--surface-0);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.button--danger:hover:not([disabled]) {
+  background: var(--danger);
+  /* --on-brand, not #fff: the token means "text on a filled brand-strength
+     control" and is defined as white in BOTH themes, so it reads correctly
+     whichever theme is active and states the intent. A bare #fff would be
+     invisible to the theme system even though it happens to work here. */
+  color: var(--on-brand);
+}
+.button--danger[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* Only the confirmation dialog needs a filled destructive button, because
+   there the destructive choice should be the obvious one. */
+.confirm-panel .button--danger {
+  background: var(--danger);
+  color: var(--on-brand);
+  border-color: var(--danger);
+}
+.confirm-panel .button--danger:hover { filter: brightness(1.08); }
+
+/* --------------------------------------------------------------------------
+   5. Banners (feedback)
+   -------------------------------------------------------------------------- */
+.banner {
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ink-300);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+  margin-bottom: var(--space-4);
+}
+
+.banner__title { margin: 0 0 var(--space-2); font-size: 1.05rem; }
+.banner__message { margin: 0; }
+.banner__details { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
+.banner__details li { margin-bottom: var(--space-1); }
+.banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.banner--info { border-left-color: var(--brand-500); background: var(--brand-100); }
+.banner--success { border-left-color: var(--success); background: var(--success-bg); }
+.banner--warning { border-left-color: var(--warning); background: var(--warning-bg); }
+.banner--error { border-left-color: var(--danger); background: var(--danger-bg); }
+
+/* A banner used inside a panel keeps the panel's padding rather than adding a
+   second box around itself. */
+.banner--inline {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  font-size: 0.9rem;
+}
+
+/* --------------------------------------------------------------------------
+   6. Event form
+   -------------------------------------------------------------------------- */
+.admin-form__heading {
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 1.05rem;
+}
+
+.admin-form__heading:first-of-type { margin-top: var(--space-2); }
+
+.admin-form__heading-spaced { margin-top: var(--space-6); }
+
+.admin-form .field { margin-bottom: var(--space-4); }
+
+/* A checkbox on its own line, with the label after the box. */
+.field--inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.field--inline label { margin: 0; }
+.field--inline .field-message { flex-basis: 100%; }
+
+.admin-form__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+/* The repeating ticket-tier block. */
+.ticket-rows { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+
+.ticket-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.ticket-row .field-message { grid-column: 1 / -1; }
+
+/* --------------------------------------------------------------------------
+   7. Update page
+   -------------------------------------------------------------------------- */
+.admin-picker { margin-bottom: var(--space-5); padding: var(--space-4) var(--space-5); }
+.admin-picker .form-row { margin-bottom: 0; }
+
+.admin-edit__header h2 { margin-bottom: var(--space-1); }
+.admin-edit__header p { color: var(--ink-500); margin: 0; font-size: 0.9rem; }
+
+/* --------------------------------------------------------------------------
+   8. Confirmation dialog
+   -------------------------------------------------------------------------- */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(16, 36, 43, 0.6);
+}
+
+.confirm-panel {
+  width: min(460px, 100%);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+  box-shadow: var(--shadow-lg);
+}
+
+.confirm-panel__title { margin: 0 0 var(--space-3); font-size: 1.15rem; }
+.confirm-panel__body { margin: 0 0 var(--space-5); color: var(--ink-700); }
+
+.confirm-panel__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   9. Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .admin-container,
+  .admin-header__inner,
+  .admin-nav__list { width: min(1440px, 100% - 2rem); }
+
+  .ticket-row { grid-template-columns: 1fr 1fr; }
+  .ticket-row .button { grid-column: 1 / -1; justify-self: start; }
+
+  .admin-header__inner { padding: var(--space-2) 0; }
+  .admin-nav__link { padding: 0.7rem var(--space-3); font-size: 0.86rem; }
+}
+
+@media (max-width: 600px) {
+  .admin-container,
+  .admin-header__inner,
+  .admin-nav__list { width: min(1440px, 100% - 1.5rem); }
+
+  .admin-filters { grid-template-columns: 1fr; }
+  .admin-stats { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .admin-stat__value { font-size: 1.4rem; }
+  .row-actions { justify-content: flex-start; }
+  .confirm-panel__actions { flex-direction: column-reverse; }
+  .confirm-panel__actions .button { width: 100%; }
+}
+
+@media print {
+  .admin-header, .admin-nav, .admin-footer, .admin-filters, .row-actions { display: none !important; }
+  .admin-body { background: #fff; }
+}

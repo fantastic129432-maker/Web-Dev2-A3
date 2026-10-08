@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Update an existing charity event and review its registrations." />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Update event | Charity Events administration</title>
+  <!-- theme-boot -->
+  <script>(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-preference',p);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();</script>
+  <!-- /theme-boot -->
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="icon" href="../images/community.svg" type="image/svg+xml" />
+</head>
+<body class="admin-body">
+  <header class="admin-header" id="admin-header"></header>
+  <nav class="admin-nav" id="admin-nav" aria-label="Administration"></nav>
+
+  <main id="main" class="admin-main">
+    <div class="admin-container">
+      <div class="page-header admin-page-header">
+        <h1 data-i18n="form.editHeading" id="admin-page-heading">Update a charity event</h1>
+        <p data-i18n="form.editLead" class="section__lead" id="admin-page-lead">
+          Choose an event, change what you need, and save. Only the fields you change are sent.
+        </p>
+      </div>
+
+      <!-- Choosing the event comes first: everything below depends on it. -->
+      <section class="panel admin-picker" aria-labelledby="picker-heading">
+        <h2 data-i18n="form.selectEvent" id="picker-heading">Choose an event</h2>
+        <div class="form-row">
+          <div class="field">
+            <!--
+              The label names the field ("Event"); the heading above says what to
+              do with it. Both pointed at form.selectEvent at first, which made the
+              label read "Choose an event" - the instruction, not the field name.
+            -->
+            <label data-i18n="state.event" for="event-picker">Event</label>
+            <select id="event-picker" name="eventId">
+              <option value="" data-i18n="form.selectEventPlaceholder">Select an event to update</option>
+            </select>
+            <p class="field__hint" data-i18n="form.selectEventHint">
+              Every event is listed, including suspended and cancelled ones.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div id="events-feedback" aria-live="polite"></div>
+
+      <!-- The edit form and the registration panel are both rendered by
+           admin/js/event-editor.js for the chosen event. -->
+      <div id="event-form-root" aria-live="polite">
+        <div class="state state--empty">
+          <h3 data-i18n="update.emptyHeading">No event chosen yet</h3>
+          <p data-i18n="update.emptyHint">Pick an event above to load its details and its registrations.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="admin-footer">
+    <div class="admin-container admin-footer__inner">
+      <p data-i18n="admin.footerNote">PROG2002 Assessment 3 &middot; Charity Events administration</p>
+      <p id="admin-datasource"></p>
+      <p>&copy; <span id="admin-year">2026</span> Unity Heart Foundation</p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/update-event.js"></script>
+</body>
+</html>
