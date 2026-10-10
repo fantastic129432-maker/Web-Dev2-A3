@@ -47,9 +47,17 @@ const CHECK_ONLY = process.argv.includes('--check');
 /**
  * Remove the banner and the `USE`/`DROP DATABASE` preamble from one source file,
  * so the dump has exactly one banner and one preamble.
+ *
+ * Line endings are normalised to LF first. Without this the dump inherited
+ * whatever the checkout used: on Windows git rewrites the sources to CRLF, so
+ * the assembled file came out with CRLF in the copied blocks and LF in the
+ * blocks this script writes itself. The content was correct either way, but the
+ * `--check` comparison is a byte comparison, so a dump generated on Windows and
+ * a dump generated on Linux were different files, and one of the two always
+ * reported the other as STALE.
  */
 function stripPreamble(sql) {
-  let text = sql;
+  let text = sql.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
   // A leading /* ... */ or -- ... banner block ends at the first statement.
   text = text.replace(/^(?:--[^\n]*\n|\s*\n)+/, '');

@@ -1,0 +1,19 @@
+# Line-ending policy.
+#
+# This file exists so that a machine's checkout setting cannot change what the
+# repository contains.
+#
+# Why it is needed: the project is developed on Windows, where git's
+# core.autocrlf often rewrites LF to CRLF on checkout. That turned
+# database/charityevents_db.sql - which tools/export-database-dump.mjs writes
+# with mixed endings - into an all-CRLF file on Windows, and
+# `node tools/export-database-dump.mjs --check` then reported it as STALE on
+# every machine except the one that generated it. The dump's content was
+# correct; only its line endings differed, and the check compares bytes.
+#
+# Only the database scripts are pinned here. They are the files the project
+# compares byte for byte, and pinning just them keeps this change from
+# rewriting the line endings of every other file in the repository.
+
+# The database scripts and the dump assembled from them.
+database/*.sql text eol=lf
