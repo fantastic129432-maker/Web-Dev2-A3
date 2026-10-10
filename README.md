@@ -476,7 +476,6 @@ Full parameter list, sample responses and status codes:
 
 | File | Contents |
 | --- | --- |
-| `docs/PLAN.md` | Requirements extracted from the brief and the task plan |
 | `docs/database-design.md` | ERD, table dictionary, design justification |
 | `docs/api-documentation.md` | Every endpoint, parameter and response |
 | `docs/project-report.md` | Project report - **answer the prompts in your own words** |
