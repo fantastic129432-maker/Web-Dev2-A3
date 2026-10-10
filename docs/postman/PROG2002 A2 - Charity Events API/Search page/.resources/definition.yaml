@@ -1,3 +1,0 @@
-$kind: collection
-description: The filter endpoints. GET /api/events is the endpoint described in detail in the report.
-order: 3000

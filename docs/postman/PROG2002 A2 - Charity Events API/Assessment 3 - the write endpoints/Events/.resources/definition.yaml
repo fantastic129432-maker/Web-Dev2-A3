@@ -1,8 +1,0 @@
-$kind: collection
-description: >-
-  The full C.R.U.D. cycle on /api/events: create, update, read the stored row back,
-  and delete. The requests that are expected to fail are here too - the 400 for a
-  missing field, the 400 for an empty update body, the 404 for an unknown id and the
-  409 for the blocked delete - because each one is a statement about this resource.
-  The requests run in order and pass newEventId along in a collection variable.
-order: 6100

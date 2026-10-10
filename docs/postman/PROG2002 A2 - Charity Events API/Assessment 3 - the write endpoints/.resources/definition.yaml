@@ -1,8 +1,0 @@
-$kind: collection
-description: >-
-  Assessment 3 - the write endpoints, in the order they have to run. Create an event,
-  register an attendee for it, prove the delete is refused while that registration
-  exists, then delete the registration and the event. Every id is passed along in a
-  collection variable, so the folder can be run from top to bottom and leaves the
-  database as it found it.
-order: 6000

@@ -1,8 +1,0 @@
-$kind: http-request
-name: /categories  (filter options)
-description: The eight categories with a count of the active events in each. This is what builds the category checkboxes.
-url: "{{baseUrl}}/categories"
-method: GET
-headers:
-  Accept: application/json
-order: 5000

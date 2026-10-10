@@ -1,8 +1,0 @@
-$kind: http-request
-name: /locations  (filter options)
-description: The venues that currently host at least one active event. This is what suggests city names in the search field.
-url: "{{baseUrl}}/locations"
-method: GET
-headers:
-  Accept: application/json
-order: 6000

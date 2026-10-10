@@ -19,12 +19,38 @@
  * edited in place. Run tools/postman-yaml-to-collection.mjs afterwards to
  * regenerate the exportable JSON.
  *
+ * That YAML layout is NOT part of the repository. One of its request files has
+ * a 263-character path inside a normal checkout, over the 260-character limit
+ * Windows still applies to most tools, so cloning the repository failed with
+ * "Filename too long" for anyone without long paths enabled system-wide. What
+ * the repository keeps is the exported
+ * docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json, which is
+ * the file a reader imports. This script therefore only works on a machine
+ * where the YAML layout has been restored by importing the JSON back into
+ * Postman; it says so rather than failing with a stack trace.
+ *
  * Usage: node tools/fix-postman-collection.mjs
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
 const COLLECTION_DIR = path.resolve('docs/postman/PROG2002 A2 - Charity Events API');
+
+/*
+ * The YAML layout this script edits is not in the repository (see the note at
+ * the top of the file), so stop with an explanation instead of letting
+ * readdirSync throw ENOENT several lines later.
+ */
+if (!fs.existsSync(COLLECTION_DIR)) {
+  console.error('The Postman YAML layout is not present:');
+  console.error(`  ${COLLECTION_DIR}`);
+  console.error('');
+  console.error('The repository keeps only the exported collection:');
+  console.error('  docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json');
+  console.error('Import that into Postman to recreate the YAML layout, then run this');
+  console.error('script again. Nothing was changed.');
+  process.exit(1);
+}
 
 /* ------------------------------------------------------------------ */
 /* 1. Read and rewrite the YAML files                                 */

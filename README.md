@@ -315,8 +315,8 @@ earns its place:
 | `configure-deployment.mjs` | Points `API_BASE_URL` and `CORS_ORIGIN` at the cPanel host before packaging (`--local` puts them back) |
 | `verify-deployment.mjs` | Checks a finished deployment over HTTP: health reports MySQL, public list hides the suspended event, admin list shows it, registrations come back newest-first, a delete with registrations is refused with 409, and both websites load |
 | `sync-theme-snippet.mjs` | Keeps the inline theme script in step with `js/theme.js` |
-| `postman-yaml-to-collection.mjs` | Re-exports the Postman collection from its YAML storage |
-| `fix-postman-collection.mjs` | Repairs the collection after an edit in the Postman UI |
+| `postman-yaml-to-collection.mjs` | Re-exports the Postman collection from its YAML storage. Only useful after importing that YAML back from Postman - see the note below the table |
+| `fix-postman-collection.mjs` | Repairs the collection after an edit in the Postman UI. Same condition: it edits the YAML layout, which is not kept in the repository |
 | `check-no-secrets.mjs` | Refuses to publish a repository containing a real credential |
 | `check-contrast.mjs` | Measures every text element against WCAG AA in both themes |
 | `check-translations.mjs` | Fails if the four dictionaries differ or a key is missing |
@@ -324,6 +324,23 @@ earns its place:
 | `audit-references.mjs` | Fails if documentation points at a file that does not exist |
 | `find-encoding-damage.mjs` | Detects text mangled by an encoding round trip |
 | `download-mysql-parallel.mjs` | Downloads the official MySQL ZIP with parallel range requests |
+
+### About the Postman files
+
+The repository keeps the **exported collection**:
+
+```
+docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json
+```
+
+That is the file to import into Postman, and it is complete on its own.
+
+Postman's own editing layout - one YAML file per request, under
+`docs/postman/<collection>/<Folder>/` - is **not** kept, because one of those
+files needs a 263-character path inside a normal checkout. Windows still applies
+a 260-character limit to most tools, so `git clone` failed for anyone who had
+not enabled long paths system-wide. Import the JSON into Postman to recreate the
+layout on your own machine; the two tools above then work as before.
 
 ---
 
