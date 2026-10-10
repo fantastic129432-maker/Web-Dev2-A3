@@ -64,7 +64,15 @@ const MISSING_MARKERS = [];
 /** Read the snippet straight out of js/theme.js so there is one source. */
 function readSnippet() {
   const source = fs.readFileSync(path.join(CLIENT, 'js', 'theme.js'), 'utf8');
-  const match = source.match(/export const EARLY_THEME_SNIPPET\s*=\s*([\s\S]*?);\n/);
+  const match =   /*
+   * The terminator must allow CRLF.
+   *
+   * It ended in `;\n`, which assumes the file is checked out with LF endings.
+   * On a Windows checkout - core.autocrlf rewrites the file - the statement
+   * ends in `;\r\n`, so the match failed and the tool reported
+   * "EARLY_THEME_SNIPPET was not found in js/theme.js" for a line that was
+   * sitting right there. `\r?\n` accepts either ending.
+   */  source.match(/export const EARLY_THEME_SNIPPET\s*=\s*([\s\S]*?);\r?\n/);
   if (!match) throw new Error('EARLY_THEME_SNIPPET was not found in js/theme.js');
 
   // The literal is a series of concatenated string literals; evaluate it.

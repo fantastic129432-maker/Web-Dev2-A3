@@ -1,19 +1,53 @@
 # Line-ending policy.
 #
 # This file exists so that a machine's checkout setting cannot change what the
-# repository contains.
+# repository contains, or what the project's own checks see.
 #
 # Why it is needed: the project is developed on Windows, where git's
-# core.autocrlf often rewrites LF to CRLF on checkout. That turned
-# database/charityevents_db.sql - which tools/export-database-dump.mjs writes
-# with mixed endings - into an all-CRLF file on Windows, and
-# `node tools/export-database-dump.mjs --check` then reported it as STALE on
-# every machine except the one that generated it. The dump's content was
-# correct; only its line endings differed, and the check compares bytes.
+# core.autocrlf rewrites LF to CRLF on checkout. Two of the project's checks
+# compare a file on disk against content the project generates, and both were
+# fooled by that rewrite:
 #
-# Only the database scripts are pinned here. They are the files the project
-# compares byte for byte, and pinning just them keeps this change from
-# rewriting the line endings of every other file in the repository.
+#   tools/export-database-dump.mjs --check
+#       compared database/charityevents_db.sql against the file it would
+#       assemble, and reported STALE on any machine whose checkout differed
+#       from the one that generated it.
+#
+#   tools/sync-theme-snippet.mjs --check
+#       compared the inline theme snippet in each page against the one in
+#       js/theme.js, and reported every page as OUT OF DATE for the same
+#       reason.
+#
+# In both cases the content was correct and only the line endings differed.
+# Pinning the files these checks read makes the comparison independent of the
+# checkout. The blobs in the repository are already LF, so this adds no churn;
+# it only stops the working copy from being rewritten.
 
 # The database scripts and the dump assembled from them.
 database/*.sql text eol=lf
+
+# The pages and the client modules. tools/sync-theme-snippet.mjs reads the
+# pages and js/theme.js, and the test suite loads the pages into jsdom.
+*.html text eol=lf
+
+# The client and server JavaScript, and the tooling.
+*.js   text eol=lf
+*.mjs  text eol=lf
+*.css  text eol=lf
+
+# Data files read by the tooling.
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+
+# Batch files are Windows-only, so they keep Windows endings.
+*.cmd text eol=crlf
+
+# Binary assets: never rewritten.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.zip  binary
+*.docx binary
+*.pdf  binary
