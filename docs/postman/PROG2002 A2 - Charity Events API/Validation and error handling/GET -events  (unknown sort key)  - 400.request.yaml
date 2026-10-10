@@ -1,0 +1,27 @@
+$kind: http-request
+name: /events  (unknown sort key)  -> 400
+description: EXPECTED TO FAIL with 400. The sort parameter is chosen from a fixed list rather than interpolated into the SQL, so an injection attempt is rejected before any query runs.
+url: "{{baseUrl}}/events?sort=date;DROP TABLE events"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: sort
+    value: date;DROP TABLE events
+    description: An attempt to inject SQL through the sort parameter.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      // The nested pm.sendRequest() that used to be here is asynchronous and is not
+      // allowed inside pm.test(), so Postman recorded it as an error instead of a
+      // result. The injection attempt is proven harmless by this response - the sort
+      // parameter is refused before any SQL runs - and by the request "All events -
+      // table intact after an injection attempt" in the folder "Health", which reads
+      // the row count afterwards.
+      pm.test('the sort parameter is named in the error', () => {
+        const details = pm.response.json().error.details;
+        pm.expect(details.some((entry) => entry.field === 'sort')).to.be.true;
+      });
+    language: text/javascript
+order: 3000

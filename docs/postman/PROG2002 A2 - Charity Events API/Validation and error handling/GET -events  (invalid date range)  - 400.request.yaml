@@ -1,0 +1,24 @@
+$kind: http-request
+name: /events  (invalid date range)  -> 400
+description: EXPECTED TO FAIL with 400. The response names the field that was wrong, which is what lets the search page show a message beside the form.
+url: "{{baseUrl}}/events?from=2026-12-01&to=2026-01-01"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: from
+    value: 2026-12-01
+  - key: to
+    value: 2026-01-01
+    description: Earlier than from, which is refused.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      pm.test('the envelope reports failure', () => pm.expect(pm.response.json().success).to.be.false);
+      pm.test('the offending field is named', () => {
+        const details = pm.response.json().error.details;
+        pm.expect(details.some((entry) => entry.field === 'to')).to.be.true;
+      });
+    language: text/javascript
+order: 1000

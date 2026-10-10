@@ -1,0 +1,31 @@
+$kind: http-request
+name: DELETE /events/{{newEventId}}  (blocked while it has registrations)
+description: >-
+  EXPECTED TO FAIL with 409, and it has to be here rather than with the other /events
+  requests: the brief requires an event to be deleted only when it has not yet received
+  any registrations, and the registration this folder created is what proves it. Read
+  the message and error.details.registrationCount - they tell staff what to do instead,
+  which is to suspend the event. Section 10 of docs/api-documentation.md describes the
+  API check, the transaction and the foreign key behind this answer.
+url: "{{baseUrl}}/events/{{newEventId}}"
+method: DELETE
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 409 Conflict', () => pm.response.to.have.status(409));
+      const body = pm.response.json();
+      pm.test('the envelope reports failure', () => pm.expect(body.success).to.be.false);
+
+      pm.test('the conflict names the event and the number of registrations', () => {
+        const details = body.error.details;
+        pm.expect(details.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));
+        pm.expect(details.registrationCount).to.be.above(0);
+      });
+
+      pm.test('the alternative to deleting is offered', () => {
+        pm.expect(body.error.details.suggestion).to.eql('suspend-instead');
+      });
+    language: text/javascript
+order: 6270

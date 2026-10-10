@@ -1,0 +1,33 @@
+$kind: http-request
+name: POST /events  (no body, no Content-Type)  -> 400
+description: >-
+  EXPECTED TO FAIL with 400. This request was written in Assessment 2 to document that
+  no write route existed, and Assessment 3 added one, so it now documents the next
+  thing worth seeing: a POST that arrives with no body and no Content-Type is answered
+  with the complete "required" list rather than a crash or a silent success. Every
+  required field is named at once, which is the same error.details array the admin
+  form paints beside its controls.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      const body = pm.response.json();
+
+      pm.test('the empty body is treated as every field missing', () => {
+        const fields = body.error.details.map((entry) => entry.field);
+        ['organizationId', 'categoryId', 'locationId', 'eventName', 'eventDate']
+          .forEach((field) => pm.expect(fields).to.include(field));
+      });
+
+      pm.test('every detail entry has a field and a message', () => {
+        body.error.details.forEach((entry) => {
+          pm.expect(entry.field).to.be.a('string');
+          pm.expect(entry.message).to.be.a('string');
+        });
+      });
+    language: text/javascript
+order: 6000

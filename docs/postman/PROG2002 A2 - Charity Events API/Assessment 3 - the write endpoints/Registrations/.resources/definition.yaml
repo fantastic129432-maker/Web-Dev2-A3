@@ -1,0 +1,9 @@
+$kind: collection
+description: >-
+  Registrations, the A3 resource that makes the delete rule worth demonstrating. A
+  registration only exists inside an event, so it is created by posting to the event's
+  sub-collection and addressed by its own URL afterwards. The folder registers against
+  the event created in the sibling folder "Events", reads the registration back, edits
+  it, and deletes it - which is what unblocks the event so that the last request of the
+  collection can delete it with a 204.
+order: 6200

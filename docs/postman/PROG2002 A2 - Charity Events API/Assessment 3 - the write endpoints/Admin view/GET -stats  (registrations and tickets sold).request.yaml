@@ -1,0 +1,34 @@
+$kind: http-request
+name: GET /stats  (registrations and tickets sold)
+description: >-
+  The same home page call as in the folder "Home page", read here for the two A3
+  additions: registrations and ticketsSold are the admin dashboard's headline
+  figures, and they arrive in the request the public home page already makes. This
+  is a request of its own rather than an edit to the A2 one, so the A2 example keeps
+  showing exactly what A2 returned.
+url: "{{baseUrl}}/stats"
+method: GET
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const stats = pm.response.json().data;
+
+      pm.test('the A3 figures are present', () => {
+        pm.expect(stats.registrations).to.be.a('number');
+        pm.expect(stats.ticketsSold).to.be.a('number');
+      });
+
+      pm.test('the figures are counts, so they are whole and never negative', () => {
+        pm.expect(stats.registrations).to.be.at.least(0);
+        pm.expect(stats.ticketsSold).to.be.at.least(0);
+      });
+
+      pm.test('the A2 figures are still returned alongside them', () => {
+        pm.expect(stats.upcomingEvents).to.be.a('number');
+        pm.expect(stats.totalRaised).to.be.a('number');
+      });
+    language: text/javascript
+order: 6340

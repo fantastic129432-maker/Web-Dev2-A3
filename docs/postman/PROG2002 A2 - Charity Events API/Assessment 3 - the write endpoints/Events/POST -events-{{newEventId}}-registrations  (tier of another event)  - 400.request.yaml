@@ -1,0 +1,37 @@
+$kind: http-request
+name: POST /events/{{newEventId}}/registrations  (tier of another event)  -> 400
+description: >-
+  EXPECTED TO FAIL with 400. Ticket type 1 belongs to event 1, not to the event this
+  run created, so the request is refused with the offending field named. The same
+  rule is enforced a second time by a composite foreign key on the registrations
+  table, which is why the tier cannot be recorded against the wrong event even if
+  this check were bypassed.
+url: "{{baseUrl}}/events/{{newEventId}}/registrations"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "attendeeName": "Wrong Tier",
+      "attendeeEmail": "postman.a3.wrong.tier@example.com",
+      "ticketTypeId": 1,
+      "ticketsPurchased": 1
+    }
+  options:
+    raw:
+      language: json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      const body = pm.response.json();
+
+      pm.test('the tier is named as the field that was wrong', () => {
+        pm.expect(body.error.message).to.contain('is not offered by this event');
+        pm.expect(body.error.details.some((entry) => entry.field === 'ticketTypeId')).to.be.true;
+      });
+    language: text/javascript
+order: 6150

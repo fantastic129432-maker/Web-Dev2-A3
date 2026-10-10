@@ -1,0 +1,54 @@
+$kind: http-request
+name: GET /admin/events  (every event, suspended included)
+description: >-
+  "Displays a complete list of all registered events, regardless of their status."
+  The public list cannot do that because it reads vw_public_events; this route reads
+  vw_all_events. The keyword filter is set to "suspended" so the result is exactly
+  the row the public API answers 404 for - the clearest way to show the difference
+  between the two views in a single response.
+url: "{{baseUrl}}/admin/events?publishStatus=all&state=all&keyword=suspended&limit=100"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: publishStatus
+    value: all
+    description: active | suspended | cancelled | all. Defaults to all on this route.
+  - key: state
+    value: all
+    description: upcoming | ongoing | past | all. Defaults to all here, unlike /events.
+  - key: keyword
+    value: suspended
+    description: Matches the event name, so the suspended row is the result.
+  - key: limit
+    value: "100"
+    description: The largest page the API allows.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+
+      pm.test('the admin view is identified in the meta', () => {
+        pm.expect(body.meta.view).to.eql('admin');
+        pm.expect(body.meta.appliedFilters.publishStatus).to.eql('all');
+      });
+
+      pm.test('a suspended event is included, which the public list would hide', () => {
+        pm.expect(body.data.some((event) => event.status === 'suspended')).to.be.true;
+      });
+
+      pm.test('the suspended event is the one the public API answers 404 for', () => {
+        const suspended = body.data.find((event) => event.status === 'suspended');
+        pm.expect(String(suspended.eventId)).to.eql(pm.collectionVariables.get('suspendedId'));
+      });
+
+      pm.test('every row carries the counts the admin table shows', () => {
+        body.data.forEach((event) => {
+          pm.expect(event.status).to.be.oneOf(['active', 'suspended', 'cancelled']);
+          pm.expect(event.registrationCount).to.be.a('number');
+          pm.expect(event.ticketsSold).to.be.a('number');
+        });
+      });
+    language: text/javascript
+order: 6310

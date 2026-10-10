@@ -1,0 +1,8 @@
+$kind: collection
+description: >-
+  One rule, on its own: a registration may not ask for more tickets than the chosen
+  tier has left. It needs an event whose tier is genuinely nearly full, so it creates
+  its own small event (capacity 1) rather than borrowing the main one, proves the 400,
+  and deletes the event again. The folder runs after "Registrations" so that the amounts
+  it reports are not confused with the registrations made there.
+order: 6400

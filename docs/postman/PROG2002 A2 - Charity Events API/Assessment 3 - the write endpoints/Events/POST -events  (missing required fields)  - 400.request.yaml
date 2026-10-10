@@ -1,0 +1,54 @@
+$kind: http-request
+name: POST /events  (missing required fields)  -> 400
+description: >-
+  EXPECTED TO FAIL with 400. The body is missing almost every required field, and the
+  response lists all of them at once rather than stopping at the first, which is what
+  lets the admin form paint each message beside its own control in a single pass.
+  error.details is an array here - the shape the client iterates over.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "organizationId": 1,
+      "eventName": "X"
+    }
+  options:
+    raw:
+      language: json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      const body = pm.response.json();
+
+      pm.test('the envelope reports failure with a message', () => {
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.error.message).to.contain('could not be saved');
+      });
+
+      pm.test('error.details is an array of field objections', () => {
+        const details = body.error.details;
+        pm.expect(details).to.be.an('array');
+        pm.expect(details.length).to.be.above(0);
+        details.forEach((entry) => {
+          pm.expect(entry.field).to.be.a('string');
+          pm.expect(entry.message).to.be.a('string');
+        });
+      });
+
+      pm.test('every missing required field is reported at once', () => {
+        const fields = body.error.details.map((entry) => entry.field);
+        ['categoryId', 'locationId', 'shortDescription', 'description', 'purpose', 'eventDate']
+          .forEach((field) => pm.expect(fields).to.include(field));
+      });
+
+      pm.test('the value that was too short is named too', () => {
+        pm.expect(body.error.details.some((entry) => entry.field === 'eventName')).to.be.true;
+      });
+    language: text/javascript
+order: 6130

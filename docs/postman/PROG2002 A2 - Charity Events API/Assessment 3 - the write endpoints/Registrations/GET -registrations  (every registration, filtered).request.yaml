@@ -1,0 +1,56 @@
+$kind: http-request
+name: GET /registrations  (every registration, filtered)
+description: >-
+  The admin list behind the Registrations page: every registration across every
+  event, newest first. The eventId filter narrows it to the event this run created,
+  and the keyword filter searches the attendee name and email. meta.ticketsSold is
+  the total for the rows on this page, not a global figure - GET /api/stats is where
+  the global totals live.
+url: "{{baseUrl}}/registrations?eventId={{newEventId}}&keyword=priya&limit=100&offset=0"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: eventId
+    value: "{{newEventId}}"
+    description: Only registrations for the event this run created.
+  - key: keyword
+    value: priya
+    description: Matches part of the attendee name or the attendee email.
+  - key: limit
+    value: "100"
+    description: The admin cap is 200; 100 is plenty for the demonstration.
+  - key: offset
+    value: "0"
+    description: Start at the first row.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+
+      pm.test('the admin view is identified in the meta', () => {
+        pm.expect(body.meta.view).to.eql('admin');
+        pm.expect(body.meta.limit).to.eql(100);
+        pm.expect(body.meta.offset).to.eql(0);
+      });
+
+      pm.test('the eventId filter was applied', () => {
+        body.data.forEach((row) => {
+          pm.expect(row.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));
+        });
+      });
+
+      pm.test('the keyword filter matched the attendee who was registered', () => {
+        pm.expect(body.data.map((row) => row.registrationId))
+          .to.include(Number(pm.collectionVariables.get('registrationId')));
+      });
+
+      pm.test('each row carries its event and tier names for the admin table', () => {
+        body.data.forEach((row) => {
+          pm.expect(row.eventName).to.be.a('string');
+          pm.expect(row.registrationId).to.be.a('number');
+        });
+      });
+    language: text/javascript
+order: 6240

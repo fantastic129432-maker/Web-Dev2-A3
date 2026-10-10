@@ -1,0 +1,14 @@
+$kind: http-request
+name: /events/11  (suspended event)  -> 404
+description: EXPECTED TO FAIL with 404. Event 11 exists in the events table but its status is suspended, so the public API behaves as though it does not exist. This is the clearest single piece of evidence that the visibility rule is enforced in the database view rather than in the page.
+url: "{{baseUrl}}/events/{{suspendedId}}"
+method: GET
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 404', () => pm.response.to.have.status(404));
+      pm.test('the suspended event is not disclosed', () => pm.expect(pm.response.json().success).to.be.false);
+    language: text/javascript
+order: 4000

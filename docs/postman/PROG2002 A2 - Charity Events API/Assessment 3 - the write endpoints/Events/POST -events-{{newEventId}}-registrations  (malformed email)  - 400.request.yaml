@@ -1,0 +1,43 @@
+$kind: http-request
+name: POST /events/{{newEventId}}/registrations  (malformed email)  -> 400
+description: >-
+  EXPECTED TO FAIL with 400. The address has no @ sign, and the objection comes back
+  in the same error.details array as the event validation failure, so a client can
+  handle both with one piece of code. The body is otherwise valid, which shows the
+  check is on the field rather than on the request.
+url: "{{baseUrl}}/events/{{newEventId}}/registrations"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "attendeeName": "Bad Email",
+      "attendeeEmail": "not-an-email",
+      "ticketsPurchased": 1
+    }
+  options:
+    raw:
+      language: json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => pm.response.to.have.status(400));
+      const body = pm.response.json();
+
+      pm.test('error.details is an array and names the email field', () => {
+        const details = body.error.details;
+        pm.expect(details).to.be.an('array');
+        pm.expect(details.some((entry) => entry.field === 'attendeeEmail')).to.be.true;
+      });
+
+      pm.test('every detail entry has a field and a message', () => {
+        body.error.details.forEach((entry) => {
+          pm.expect(entry.field).to.be.a('string');
+          pm.expect(entry.message).to.be.a('string');
+        });
+      });
+    language: text/javascript
+order: 6160

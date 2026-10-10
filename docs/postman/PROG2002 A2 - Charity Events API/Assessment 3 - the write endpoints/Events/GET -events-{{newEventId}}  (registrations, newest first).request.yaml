@@ -1,0 +1,48 @@
+$kind: http-request
+name: 'GET /events/{{newEventId}}  (registrations, newest first)'
+description: >-
+  READ, the third letter of C.R.U.D. The event the folder created is read back and
+  the assertions check the A3 additions to GET /api/events/:id - the registrations
+  array, registrationCount, ticketsSold, totalTicketsSold, status and the venue
+  coordinates. Run this after the Registrations folder to see the array filled;
+  run it on its own and the array is empty. Either way it is an array, which is
+  what the detail page relies on.
+url: "{{baseUrl}}/events/{{newEventId}}"
+method: GET
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const event = pm.response.json().data;
+
+      pm.test('the read returns the event that was created', () => {
+        pm.expect(event.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));
+      });
+
+      pm.test('the A3 fields are present on the detail response', () => {
+        pm.expect(event.registrations).to.be.an('array');
+        pm.expect(event.registrationCount).to.be.a('number');
+        pm.expect(event.ticketsSold).to.be.a('number');
+        pm.expect(event.totalTicketsSold).to.be.a('number');
+        pm.expect(event.status).to.be.a('string');
+        pm.expect(event.latitude).to.be.a('number');
+        pm.expect(event.longitude).to.be.a('number');
+      });
+
+      pm.test('the registrations are newest first', () => {
+        // The list is ordered by registeredAt DESC, so each entry must be at
+        // least as recent as the one after it. ISO date-time text sorts in date
+        // order, so the comparison is a plain string test.
+        const stamps = event.registrations.map((row) => row.registeredAt);
+        pm.expect(stamps).to.eql([...stamps].sort().reverse());
+      });
+
+      pm.test('the counter agrees with the registrations that were returned', () => {
+        pm.expect(event.registrationCount).to.eql(event.registrations.length);
+        const sold = event.registrations.reduce((sum, row) => sum + row.ticketsPurchased, 0);
+        pm.expect(event.ticketsSold).to.eql(sold);
+      });
+    language: text/javascript
+order: 6180
