@@ -1,0 +1,58 @@
+$kind: collection
+description: |-
+  REST API for the charity events website.
+
+  Built for PROG2002 Web Development II, Assessment 2 (read-only) and extended for
+  Assessment 3 (the write endpoints, registrations and the admin view).
+
+  Data source : MySQL 8.4, database charityevents_db
+  Base URL    : http://localhost:3000/api
+  Offline     : with DATA_SOURCE=local the API mirrors the same seed data in memory
+
+  The A2 folders read the API. The A3 folder writes to it and is chained with
+  collection variables, so it has to run after them. Inside it:
+
+    Events                       creates the event and saves newEventId, updates
+                                 it, reads it back, and shows the 400 and the 404
+    Registrations                registers against it (saving registrationId),
+                                 proves the duplicate email is refused with a 409,
+                                 reads and edits the registration, proves the event
+                                 cannot be deleted while the registration exists
+                                 (409), deletes the registration, then deletes the
+                                 event with the 204 that the 409 was standing in
+                                 the way of
+    Validation of the ticket     creates a small event to show that a registration
+    allocation                   cannot exceed what is left of a tier, and removes
+                                 it again
+    Admin view                   the same events seen regardless of status
+
+  Within a folder the requests run in the order shown, and across folders Postman
+  runs a folder's own requests after its sub-folders - which is why the requests
+  that depend on a registration live in the folder that creates it, even though the
+  delete being refused is a statement about /events. The whole collection can be run
+  top to bottom with the Collection Runner, and it leaves the database as it found
+  it.
+
+  Folder "Validation and error handling" keeps the A2 failures. The A3 failures sit
+  beside the resource they are about - the 400s and the 404 in "Events", the
+  duplicate-registration and blocked-delete 409s in "Registrations" - because each
+  one is a statement about that resource.
+
+  Suggested demo order for the video:
+    1. Health check
+    2. Home page listing (upcoming events)
+    3. Search with all three criteria at once
+    4. The deliberately invalid date range, to show the 400 response
+    5. The suspended event, to show that it is hidden (404)
+    6. Create an event, then register for it (201 and 201)
+    7. The blocked delete (409), then delete the registration and the event (204)
+variables:
+  baseUrl: http://localhost:3000/api
+  eventId: "1"
+  suspendedId: "11"
+  postmanRunId: ""
+  newEventId: ""
+  newTicketTypeId: ""
+  registrationId: ""
+  allocationEventId: ""
+  allocationTicketTypeId: ""

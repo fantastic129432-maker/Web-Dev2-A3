@@ -1,0 +1,24 @@
+$kind: http-request
+name: DELETE /registrations/{{registrationId}}  (204, unblock the event)
+description: >-
+  Removes the registration, which is what makes the event deletable again. Deleting a
+  registration is the legitimate way to unblock an event that should genuinely
+  disappear, and the admin site warns about it rather than doing it silently. It runs
+  directly after the blocked delete, so the only difference between the 409 and the 204
+  that follows it in the folder "Events" is this row.
+url: "{{baseUrl}}/registrations/{{registrationId}}"
+method: DELETE
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 204 No Content', () => pm.response.to.have.status(204));
+      pm.test('there is no response body', () => pm.expect(pm.response.text()).to.eql(''));
+
+      pm.test('the deleted registration is named in the headers', () => {
+        pm.expect(pm.response.headers.get('X-Deleted-Registration-Id'))
+          .to.eql(pm.collectionVariables.get('registrationId'));
+      });
+    language: text/javascript
+order: 6280

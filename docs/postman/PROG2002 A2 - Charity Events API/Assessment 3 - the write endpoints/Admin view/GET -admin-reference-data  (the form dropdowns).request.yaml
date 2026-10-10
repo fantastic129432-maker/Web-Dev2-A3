@@ -1,0 +1,42 @@
+$kind: http-request
+name: GET /admin/reference-data  (the form dropdowns)
+description: >-
+  Organisations, categories and venues in one request, so the "Add event" and
+  "Update event" forms are ready after a single round trip. Unlike /api/categories
+  and /api/locations this list is not filtered by whether a row currently has a
+  public event, because staff may be about to create the first one. The three arrays
+  are what the id fields in POST /api/events are chosen from.
+url: "{{baseUrl}}/admin/reference-data"
+method: GET
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+
+      pm.test('all three lists arrive in one response', () => {
+        pm.expect(body.data.organizations).to.be.an('array');
+        pm.expect(body.data.categories).to.be.an('array');
+        pm.expect(body.data.locations).to.be.an('array');
+      });
+
+      pm.test('the ids the create body needs are present', () => {
+        pm.expect(body.data.organizations[0].organizationId).to.be.a('number');
+        pm.expect(body.data.categories[0].categoryId).to.be.a('number');
+        pm.expect(body.data.locations[0].locationId).to.be.a('number');
+      });
+
+      pm.test('the venue list carries the coordinates the admin map uses', () => {
+        pm.expect(body.data.locations[0].latitude).to.be.a('number');
+        pm.expect(body.data.locations[0].longitude).to.be.a('number');
+      });
+
+      pm.test('a venue with no public event is still offered', () => {
+        // /api/locations only lists venues that host an active event, so it has
+        // fewer rows than this list whenever a venue is waiting for its first one.
+        pm.expect(body.data.locations.length).to.be.above(0);
+      });
+    language: text/javascript
+order: 6330

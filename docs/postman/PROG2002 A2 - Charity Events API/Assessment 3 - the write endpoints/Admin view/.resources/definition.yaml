@@ -1,0 +1,7 @@
+$kind: collection
+description: >-
+  The admin view. These endpoints exist because the admin site has to see events the
+  public site must never show, and it needs the dropdown lists for its forms. The list
+  reads vw_all_events rather than vw_public_events, so a suspended event is included
+  rather than hidden - which is the difference shown in one response here.
+order: 6300

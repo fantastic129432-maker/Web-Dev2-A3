@@ -1,0 +1,15 @@
+$kind: http-request
+name: POST /events  (write method not offered)  -> 404
+description: EXPECTED TO FAIL. The brief states that POST, PUT and DELETE belong to Assessment 3, so no write route exists. This request documents that decision rather than leaving it implicit.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('the API refuses the write method', () => {
+        pm.expect([404, 405]).to.include(pm.response.code);
+      });
+    language: text/javascript
+order: 6000

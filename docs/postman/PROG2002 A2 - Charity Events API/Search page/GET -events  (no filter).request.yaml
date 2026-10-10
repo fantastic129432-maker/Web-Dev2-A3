@@ -1,0 +1,12 @@
+$kind: http-request
+name: /events  (no filter)
+description: "The default view: active events that have not finished. The state parameter defaults to upcoming."
+url: "{{baseUrl}}/events?limit=100"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: limit
+    value: "100"
+    description: The maximum the API allows, so nothing is hidden by paging.
+order: 1000

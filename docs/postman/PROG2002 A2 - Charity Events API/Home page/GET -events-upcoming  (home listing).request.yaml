@@ -1,0 +1,33 @@
+$kind: http-request
+name: /events/upcoming  (home listing)
+description: Current and upcoming active events, soonest first. Past events are excluded and suspended events are never included.
+url: "{{baseUrl}}/events/upcoming?limit=12&sort=date&direction=asc"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: limit
+    value: "12"
+    description: How many events the home page asks for.
+  - key: sort
+    value: date
+  - key: direction
+    value: asc
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('at least one event is returned', () => pm.expect(body.data.length).to.be.above(0));
+      pm.test('no past event is included', () => {
+        body.data.forEach((event) => pm.expect(event.eventState).to.not.eql('past'));
+      });
+      pm.test('suspended event 11 is not included', () => {
+        body.data.forEach((event) => pm.expect(event.eventId).to.not.eql(11));
+      });
+      pm.test('events are sorted by date ascending', () => {
+        const dates = body.data.map((event) => event.dateStart);
+        pm.expect(dates).to.eql([...dates].sort());
+      });
+    language: text/javascript
+order: 1000

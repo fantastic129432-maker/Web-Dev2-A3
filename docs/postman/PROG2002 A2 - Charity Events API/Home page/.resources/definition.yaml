@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints the home page calls when it loads.
+order: 2000

@@ -1,0 +1,8 @@
+$kind: http-request
+name: /organization  (featured charity)
+description: The organisation whose mission and contact details appear on the home page.
+url: "{{baseUrl}}/organization"
+method: GET
+headers:
+  Accept: application/json
+order: 3000

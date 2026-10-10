@@ -1,0 +1,3 @@
+$kind: collection
+description: Requests that are expected to fail. Run these in the video to show that the API validates its input and never exposes a suspended event. The A3 requests that are expected to fail live beside the resource they are about, in the folder "Assessment 3 - the write endpoints".
+order: 5000

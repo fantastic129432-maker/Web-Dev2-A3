@@ -1,0 +1,51 @@
+$kind: http-request
+name: GET /events/{{newEventId}}/registrations  (list for one event)
+description: >-
+  Every registration for one event, newest purchase first. This is the array the
+  event detail page shows, and the same rows GET /api/events/:id embeds in its
+  response. The order is registeredAt DESC, which is the brief's "sorted by the
+  latest date when the ticket was purchased".
+url: "{{baseUrl}}/events/{{newEventId}}/registrations?limit=100&offset=0"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: limit
+    value: "100"
+    description: The largest page the API allows, so nothing is hidden by paging.
+  - key: offset
+    value: "0"
+    description: Start at the first row.
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+
+      pm.test('the meta reports the event and the order', () => {
+        pm.expect(body.meta.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));
+        pm.expect(body.meta.order).to.contain('DESC');
+      });
+
+      pm.test('the registration this run created is in the list', () => {
+        pm.expect(body.data.map((row) => row.registrationId))
+          .to.include(Number(pm.collectionVariables.get('registrationId')));
+      });
+
+      pm.test('every row belongs to this event', () => {
+        body.data.forEach((row) => {
+          pm.expect(row.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));
+        });
+      });
+
+      pm.test('the list is newest first', () => {
+        const stamps = body.data.map((row) => row.registeredAt);
+        pm.expect(stamps).to.eql([...stamps].sort().reverse());
+      });
+
+      pm.test('meta.ticketsSold is the sum of the rows that were returned', () => {
+        const sold = body.data.reduce((sum, row) => sum + row.ticketsPurchased, 0);
+        pm.expect(body.meta.ticketsSold).to.eql(sold);
+      });
+    language: text/javascript
+order: 6230

@@ -1,0 +1,23 @@
+$kind: http-request
+name: /events  (past events only)
+description: The two events that have already finished. Demonstrates that past and upcoming are calculated from the dates rather than kept in a column.
+url: "{{baseUrl}}/events?state=past&sort=date&direction=desc"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: state
+    value: past
+    description: Asked for on purpose. The state is derived from the dates, not stored.
+  - key: sort
+    value: date
+  - key: direction
+    value: desc
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('every event is marked past', () => {
+        pm.response.json().data.forEach((event) => pm.expect(event.eventState).to.eql('past'));
+      });
+    language: text/javascript
+order: 4000

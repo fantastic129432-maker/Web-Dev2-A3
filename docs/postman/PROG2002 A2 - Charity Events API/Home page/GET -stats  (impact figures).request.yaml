@@ -1,0 +1,8 @@
+$kind: http-request
+name: /stats  (impact figures)
+description: Headline counts and totals for the four figures on the home page.
+url: "{{baseUrl}}/stats"
+method: GET
+headers:
+  Accept: application/json
+order: 2000

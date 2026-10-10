@@ -1,0 +1,2389 @@
+{
+  "info": {
+    "name": "PROG2002 A2 - Charity Events API",
+    "description": "REST API for the charity events website.\n\nBuilt for PROG2002 Web Development II, Assessment 2 (read-only) and extended for\nAssessment 3 (the write endpoints, registrations and the admin view).\n\nData source : MySQL 8.4, database charityevents_db\nBase URL    : http://localhost:3000/api\nOffline     : with DATA_SOURCE=local the API mirrors the same seed data in memory\n\nThe A2 folders read the API. The A3 folder writes to it and is chained with\ncollection variables, so it has to run after them. Inside it:\n\n  Events                       creates the event and saves newEventId, updates\n                               it, reads it back, and shows the 400 and the 404\n  Registrations                registers against it (saving registrationId),\n                               proves the duplicate email is refused with a 409,\n                               reads and edits the registration, proves the event\n                               cannot be deleted while the registration exists\n                               (409), deletes the registration, then deletes the\n                               event with the 204 that the 409 was standing in\n                               the way of\n  Validation of the ticket     creates a small event to show that a registration\n  allocation                   cannot exceed what is left of a tier, and removes\n                               it again\n  Admin view                   the same events seen regardless of status\n\nWithin a folder the requests run in the order shown, and across folders Postman\nruns a folder's own requests after its sub-folders - which is why the requests\nthat depend on a registration live in the folder that creates it, even though the\ndelete being refused is a statement about /events. The whole collection can be run\ntop to bottom with the Collection Runner, and it leaves the database as it found\nit.\n\nFolder \"Validation and error handling\" keeps the A2 failures. The A3 failures sit\nbeside the resource they are about - the 400s and the 404 in \"Events\", the\nduplicate-registration and blocked-delete 409s in \"Registrations\" - because each\none is a statement about that resource.\n\nSuggested demo order for the video:\n  1. Health check\n  2. Home page listing (upcoming events)\n  3. Search with all three criteria at once\n  4. The deliberately invalid date range, to show the 400 response\n  5. The suspended event, to show that it is hidden (404)\n  6. Create an event, then register for it (201 and 201)\n  7. The blocked delete (409), then delete the registration and the event (204)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "eventId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "suspendedId",
+      "value": "11",
+      "type": "string"
+    },
+    {
+      "key": "postmanRunId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newEventId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newTicketTypeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "registrationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "allocationEventId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "allocationTicketTypeId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Confirms the API is running and the database answers.",
+      "item": [
+        {
+          "name": "/health",
+          "description": "Returns the API status and the database connection details. A 503 means the API is running but MySQL is unreachable.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Returns the API status and the database connection details. A 503 means the API is running but MySQL is unreachable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('envelope reports success', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.test('database is connected', () => pm.expect(pm.response.json().data.database.connected).to.not.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "All events - table intact after an injection attempt",
+          "description": "Reads the whole event table so the previous request can be shown to have done no damage. Sent after the SQL injection attempt in the folder \"Validation and error handling\": the table still holds its 11 rows, which is the evidence that the sort parameter is validated rather than passed into the query.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?state=all&limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "all",
+                  "description": "Include events that have already finished, so every row is counted."
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "The largest page the API allows."
+                }
+              ]
+            },
+            "description": "Reads the whole event table so the previous request can be shown to have done no damage. Sent after the SQL injection attempt in the folder \"Validation and error handling\": the table still holds its 11 rows, which is the evidence that the sort parameter is validated rather than passed into the query."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('the table still holds every event', () => {",
+                  "  // Eleven rows exist in the table; ten are public because one is suspended.",
+                  "  pm.expect(pm.response.json().meta.total).to.eql(10);",
+                  "});",
+                  "pm.test('no event row was lost', () => {",
+                  "  pm.response.json().data.forEach((event) => pm.expect(event.eventId).to.be.a('number'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Home page",
+      "description": "Endpoints the home page calls when it loads.",
+      "item": [
+        {
+          "name": "/events/upcoming  (home listing)",
+          "description": "Current and upcoming active events, soonest first. Past events are excluded and suspended events are never included.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/upcoming?limit=12&sort=date&direction=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "upcoming"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "12",
+                  "description": "How many events the home page asks for."
+                },
+                {
+                  "key": "sort",
+                  "value": "date"
+                },
+                {
+                  "key": "direction",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Current and upcoming active events, soonest first. Past events are excluded and suspended events are never included."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('at least one event is returned', () => pm.expect(body.data.length).to.be.above(0));",
+                  "pm.test('no past event is included', () => {",
+                  "  body.data.forEach((event) => pm.expect(event.eventState).to.not.eql('past'));",
+                  "});",
+                  "pm.test('suspended event 11 is not included', () => {",
+                  "  body.data.forEach((event) => pm.expect(event.eventId).to.not.eql(11));",
+                  "});",
+                  "pm.test('events are sorted by date ascending', () => {",
+                  "  const dates = body.data.map((event) => event.dateStart);",
+                  "  pm.expect(dates).to.eql([...dates].sort());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/stats  (impact figures)",
+          "description": "Headline counts and totals for the four figures on the home page.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stats"
+              ]
+            },
+            "description": "Headline counts and totals for the four figures on the home page."
+          }
+        },
+        {
+          "name": "/organization  (featured charity)",
+          "description": "The organisation whose mission and contact details appear on the home page.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/organization",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "organization"
+              ]
+            },
+            "description": "The organisation whose mission and contact details appear on the home page."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search page",
+      "description": "The filter endpoints. GET /api/events is the endpoint described in detail in the report.",
+      "item": [
+        {
+          "name": "/events  (no filter)",
+          "description": "The default view: active events that have not finished. The state parameter defaults to upcoming.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "The maximum the API allows, so nothing is hidden by paging."
+                }
+              ]
+            },
+            "description": "The default view: active events that have not finished. The state parameter defaults to upcoming."
+          }
+        },
+        {
+          "name": "/events  (three criteria at once)",
+          "description": "This is the request to demonstrate in the video. It filters on date, location and category together and returns exactly one event, the Riverside Rainbow Fun Run. The meta.appliedFilters object echoes what was applied.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?state=all&city=Lismore&category=1&from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "all",
+                  "description": "Include events that have already finished."
+                },
+                {
+                  "key": "city",
+                  "value": "Lismore",
+                  "description": "Partial, case-insensitive city match."
+                },
+                {
+                  "key": "category",
+                  "value": "1",
+                  "description": "Category id 1 is Fun Run. Repeat the key or use commas for several."
+                },
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "description": "Earliest end date."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "description": "Latest start date."
+                }
+              ]
+            },
+            "description": "This is the request to demonstrate in the video. It filters on date, location and category together and returns exactly one event, the Riverside Rainbow Fun Run. The meta.appliedFilters object echoes what was applied."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('exactly one event matches', () => pm.expect(body.meta.total).to.eql(1));",
+                  "pm.test('the match is the Lismore fun run', () => {",
+                  "  pm.expect(body.data[0].eventId).to.eql(1);",
+                  "});",
+                  "pm.test('the applied filters are echoed back', () => {",
+                  "  pm.expect(body.meta.appliedFilters.city).to.eql('Lismore');",
+                  "  pm.expect(body.meta.appliedFilters.categoryIds).to.eql([1]);",
+                  "});",
+                  "pm.test('the progress figures are present', () => {",
+                  "  const event = body.data[0];",
+                  "  pm.expect(event.goalAmount).to.be.a('number');",
+                  "  pm.expect(event.raisedAmount).to.be.a('number');",
+                  "  pm.expect(event.progressPercent).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/events  (several categories)",
+          "description": "Shows that a repeated query parameter is treated as a list. The same result comes from category=1,2.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?state=all&category=1&category=2&limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "all"
+                },
+                {
+                  "key": "category",
+                  "value": "1",
+                  "description": "Fun Run. Repeating the parameter is how the search page sends a multi-select."
+                },
+                {
+                  "key": "category",
+                  "value": "2",
+                  "description": "Gala Dinner."
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "Shows that a repeated query parameter is treated as a list. The same result comes from category=1,2."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('only the requested categories are returned', () => {",
+                  "  pm.response.json().data.forEach((event) => pm.expect([1, 2]).to.include(event.categoryId));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/events  (past events only)",
+          "description": "The two events that have already finished. Demonstrates that past and upcoming are calculated from the dates rather than kept in a column.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?state=past&sort=date&direction=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "past",
+                  "description": "Asked for on purpose. The state is derived from the dates, not stored."
+                },
+                {
+                  "key": "sort",
+                  "value": "date"
+                },
+                {
+                  "key": "direction",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "The two events that have already finished. Demonstrates that past and upcoming are calculated from the dates rather than kept in a column."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('every event is marked past', () => {",
+                  "  pm.response.json().data.forEach((event) => pm.expect(event.eventState).to.eql('past'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/categories  (filter options)",
+          "description": "The eight categories with a count of the active events in each. This is what builds the category checkboxes.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            },
+            "description": "The eight categories with a count of the active events in each. This is what builds the category checkboxes."
+          }
+        },
+        {
+          "name": "/locations  (filter options)",
+          "description": "The venues that currently host at least one active event. This is what suggests city names in the search field.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "locations"
+              ]
+            },
+            "description": "The venues that currently host at least one active event. This is what suggests city names in the search field."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Event detail",
+      "item": [
+        {
+          "name": "/events/{{eventId}}  (full detail)",
+          "description": "One event in full, including its ticket tiers. This is everything the detail page needs, so the page makes a single request.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventId}}"
+              ]
+            },
+            "description": "One event in full, including its ticket tiers. This is everything the detail page needs, so the page makes a single request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const event = pm.response.json().data;",
+                  "pm.test('the full description is present', () => pm.expect(event.description.length).to.be.above(100));",
+                  "pm.test('ticket tiers are included', () => pm.expect(event.ticketTypes.length).to.be.above(1));",
+                  "pm.test('at least one tier is free', () => {",
+                  "  pm.expect(event.ticketTypes.some((ticket) => ticket.price === 0)).to.be.true;",
+                  "});",
+                  "pm.test('progress is consistent with the goal', () => {",
+                  "  const expected = Math.min(Number(((event.raisedAmount / event.goalAmount) * 100).toFixed(1)), 100);",
+                  "  pm.expect(event.progressPercent).to.eql(expected);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validation and error handling",
+      "description": "Requests that are expected to fail. Run these in the video to show that the API validates its input and never exposes a suspended event. The A3 requests that are expected to fail live beside the resource they are about, in the folder \"Assessment 3 - the write endpoints\".",
+      "item": [
+        {
+          "name": "/events  (invalid date range)  -> 400",
+          "description": "EXPECTED TO FAIL with 400. The response names the field that was wrong, which is what lets the search page show a message beside the form.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?from=2026-12-01&to=2026-01-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-12-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-01-01",
+                  "description": "Earlier than from, which is refused."
+                }
+              ]
+            },
+            "description": "EXPECTED TO FAIL with 400. The response names the field that was wrong, which is what lets the search page show a message beside the form."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('the envelope reports failure', () => pm.expect(pm.response.json().success).to.be.false);",
+                  "pm.test('the offending field is named', () => {",
+                  "  const details = pm.response.json().error.details;",
+                  "  pm.expect(details.some((entry) => entry.field === 'to')).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/events  (impossible date)  -> 400",
+          "description": "EXPECTED TO FAIL with 400. Shows that a date is checked as a real calendar date, not merely as text in the right shape.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?from=2026-13-45",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-13-45",
+                  "description": "Month 13, day 45."
+                }
+              ]
+            },
+            "description": "EXPECTED TO FAIL with 400. Shows that a date is checked as a real calendar date, not merely as text in the right shape."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/events  (unknown sort key)  -> 400",
+          "description": "EXPECTED TO FAIL with 400. The sort parameter is chosen from a fixed list rather than interpolated into the SQL, so an injection attempt is rejected before any query runs.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?sort=date;DROP TABLE events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "date;DROP TABLE events",
+                  "description": "An attempt to inject SQL through the sort parameter."
+                }
+              ]
+            },
+            "description": "EXPECTED TO FAIL with 400. The sort parameter is chosen from a fixed list rather than interpolated into the SQL, so an injection attempt is rejected before any query runs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "// The nested pm.sendRequest() that used to be here is asynchronous and is not",
+                  "// allowed inside pm.test(), so Postman recorded it as an error instead of a",
+                  "// result. The injection attempt is proven harmless by this response - the sort",
+                  "// parameter is refused before any SQL runs - and by the request \"All events -",
+                  "// table intact after an injection attempt\" in the folder \"Health\", which reads",
+                  "// the row count afterwards.",
+                  "pm.test('the sort parameter is named in the error', () => {",
+                  "  const details = pm.response.json().error.details;",
+                  "  pm.expect(details.some((entry) => entry.field === 'sort')).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/events/11  (suspended event)  -> 404",
+          "description": "EXPECTED TO FAIL with 404. Event 11 exists in the events table but its status is suspended, so the public API behaves as though it does not exist. This is the clearest single piece of evidence that the visibility rule is enforced in the database view rather than in the page.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{suspendedId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{suspendedId}}"
+              ]
+            },
+            "description": "EXPECTED TO FAIL with 404. Event 11 exists in the events table but its status is suspended, so the public API behaves as though it does not exist. This is the clearest single piece of evidence that the visibility rule is enforced in the database view rather than in the page."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('the suspended event is not disclosed', () => pm.expect(pm.response.json().success).to.be.false);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/events/abc  (not a number)  -> 400",
+          "description": "EXPECTED TO FAIL with 400. The id must be a positive whole number.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "abc"
+              ]
+            },
+            "description": "EXPECTED TO FAIL with 400. The id must be a positive whole number."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /events  (no body, no Content-Type)  -> 400",
+          "description": "EXPECTED TO FAIL with 400. This request was written in Assessment 2 to document that no write route existed, and Assessment 3 added one, so it now documents the next thing worth seeing: a POST that arrives with no body and no Content-Type is answered with the complete \"required\" list rather than a crash or a silent success. Every required field is named at once, which is the same error.details array the admin form paints beside its controls.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "description": "EXPECTED TO FAIL with 400. This request was written in Assessment 2 to document that no write route existed, and Assessment 3 added one, so it now documents the next thing worth seeing: a POST that arrives with no body and no Content-Type is answered with the complete \"required\" list rather than a crash or a silent success. Every required field is named at once, which is the same error.details array the admin form paints beside its controls."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('the empty body is treated as every field missing', () => {",
+                  "  const fields = body.error.details.map((entry) => entry.field);",
+                  "  ['organizationId', 'categoryId', 'locationId', 'eventName', 'eventDate']",
+                  "    .forEach((field) => pm.expect(fields).to.include(field));",
+                  "});",
+                  "",
+                  "pm.test('every detail entry has a field and a message', () => {",
+                  "  body.error.details.forEach((entry) => {",
+                  "    pm.expect(entry.field).to.be.a('string');",
+                  "    pm.expect(entry.message).to.be.a('string');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /events/9999  (no such event)  -> 404",
+          "description": "EXPECTED TO FAIL with 404. An update of an event that does not exist is a missing resource, not a bad request: the body is perfectly valid and the id is a valid shape. The message says there was nothing to update, which is the distinction the status code is making.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacity\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/events/9999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "9999"
+              ]
+            },
+            "description": "EXPECTED TO FAIL with 404. An update of an event that does not exist is a missing resource, not a bad request: the body is perfectly valid and the id is a valid shape. The message says there was nothing to update, which is the distinction the status code is making."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('the message names the id and says nothing was updated', () => {",
+                  "  pm.expect(body.error.message).to.contain('9999');",
+                  "  pm.expect(body.error.message).to.contain('nothing to update');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Assessment 3 - the write endpoints",
+      "description": "Assessment 3 - the write endpoints, in the order they have to run. Create an event, register an attendee for it, prove the delete is refused while that registration exists, then delete the registration and the event. Every id is passed along in a collection variable, so the folder can be run from top to bottom and leaves the database as it found it.",
+      "item": [
+        {
+          "name": "Events",
+          "description": "The full C.R.U.D. cycle on /api/events: create, update, read the stored row back, and delete. The requests that are expected to fail are here too - the 400 for a missing field, the 400 for an empty update body, the 404 for an unknown id and the 409 for the blocked delete - because each one is a statement about this resource. The requests run in order and pass newEventId along in a collection variable.",
+          "item": [
+            {
+              "name": "POST /events  (create, and save the id)",
+              "description": "Creates the event the rest of this folder works on and stores the new id in the collection variable newEventId, so every later request addresses the event this run created rather than a seeded one. The pre-request script settles one run id that the event name and the attendee email are both built from, which is what keeps the collection re-runnable: the name is always new and the email never collides with the unique key on (event_id, attendee_email).",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"organizationId\": 1,\n  \"categoryId\": 8,\n  \"locationId\": 6,\n  \"eventName\": \"Postman A3 Trivia Night {{postmanRunId}}\",\n  \"shortDescription\": \"Ten rounds, six people a table, all for the youth program.\",\n  \"description\": \"A relaxed trivia night at Lismore City Hall with a licensed bar, a raffle and a prize for the best team name.\",\n  \"purpose\": \"Fund the after-school homework club for 40 students.\",\n  \"eventDate\": \"2026-11-14\",\n  \"startTime\": \"18:30\",\n  \"endTime\": \"22:00\",\n  \"goalAmount\": 8000,\n  \"isFree\": false,\n  \"capacity\": 180,\n  \"status\": \"active\",\n  \"imageUrl\": \"community.svg\",\n  \"ticketTypes\": [\n    { \"ticketName\": \"Table of six\", \"price\": 60, \"quantityAvailable\": 30, \"description\": \"One table, six players\" },\n    { \"ticketName\": \"Single seat\", \"price\": 12, \"quantityAvailable\": null, \"description\": \"We will place you in a team\" }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events"
+                  ]
+                },
+                "description": "Creates the event the rest of this folder works on and stores the new id in the collection variable newEventId, so every later request addresses the event this run created rather than a seeded one. The pre-request script settles one run id that the event name and the attendee email are both built from, which is what keeps the collection re-runnable: the name is always new and the email never collides with the unique key on (event_id, attendee_email)."
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// One run id for the whole run. The event name and the attendee email are",
+                      "// both built from it, so a second run of the collection cannot collide with",
+                      "// the event the first run created, nor with the unique key on",
+                      "// (event_id, attendee_email). The collection variable is set here because",
+                      "// the request body is rendered after the pre-request script runs.",
+                      "pm.collectionVariables.set('postmanRunId', String(Date.now()));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201 for a created event', () => pm.response.to.have.status(201));",
+                      "const body = pm.response.json();",
+                      "pm.test('the envelope reports the creation', () => pm.expect(body.meta.created).to.be.true);",
+                      "",
+                      "pm.test('the Location header points at the new event', () => {",
+                      "  const location = pm.response.headers.get('Location');",
+                      "  pm.expect(location).to.match(/^\\/api\\/events\\/\\d+$/);",
+                      "});",
+                      "",
+                      "pm.test('the created event is returned with its id', () => {",
+                      "  pm.expect(body.data.eventId).to.be.a('number');",
+                      "  pm.expect(body.data.eventName).to.contain(pm.collectionVariables.get('postmanRunId'));",
+                      "});",
+                      "",
+                      "pm.test('the ticket tiers were created with the event', () => {",
+                      "  pm.expect(body.data.ticketTypes).to.be.an('array');",
+                      "  pm.expect(body.data.ticketTypes.length).to.eql(2);",
+                      "});",
+                      "",
+                      "pm.test('a new event starts with no registrations', () => {",
+                      "  pm.expect(body.data.registrationCount).to.eql(0);",
+                      "  pm.expect(body.data.ticketsSold).to.eql(0);",
+                      "});",
+                      "",
+                      "// The two ids every later request needs. Ownership of an event in this",
+                      "// collection is the id, so it is kept in a variable rather than typed in.",
+                      "pm.collectionVariables.set('newEventId', String(body.data.eventId));",
+                      "pm.collectionVariables.set('newTicketTypeId', String(body.data.ticketTypes[0].ticketTypeId));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "PUT /events/{{newEventId}}  (partial update, two fields)",
+              "description": "A partial update: only the fields in the body are validated and changed, so the admin form can send exactly what a member of staff edited. The other fields of the event are left alone, which the assertions check by looking at a field that was not sent.",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"goalAmount\": 9000,\n  \"capacity\": 200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}"
+                  ]
+                },
+                "description": "A partial update: only the fields in the body are validated and changed, so the admin form can send exactly what a member of staff edited. The other fields of the event are left alone, which the assertions check by looking at a field that was not sent."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200 for an updated event', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test('the envelope reports the update', () => pm.expect(body.meta.updated).to.be.true);",
+                      "",
+                      "pm.test('the event is still the one that was created', () => {",
+                      "  pm.expect(body.data.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "});",
+                      "",
+                      "pm.test('both supplied fields were changed', () => {",
+                      "  pm.expect(body.data.goalAmount).to.eql(9000);",
+                      "  pm.expect(body.data.capacity).to.eql(200);",
+                      "});",
+                      "",
+                      "pm.test('a field that was not sent is untouched', () => {",
+                      "  pm.expect(body.data.eventName).to.contain(pm.collectionVariables.get('postmanRunId'));",
+                      "  pm.expect(body.data.eventDate).to.eql('2026-11-14');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /events  (missing required fields)  -> 400",
+              "description": "EXPECTED TO FAIL with 400. The body is missing almost every required field, and the response lists all of them at once rather than stopping at the first, which is what lets the admin form paint each message beside its own control in a single pass. error.details is an array here - the shape the client iterates over.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"organizationId\": 1,\n  \"eventName\": \"X\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events"
+                  ]
+                },
+                "description": "EXPECTED TO FAIL with 400. The body is missing almost every required field, and the response lists all of them at once rather than stopping at the first, which is what lets the admin form paint each message beside its own control in a single pass. error.details is an array here - the shape the client iterates over."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the envelope reports failure with a message', () => {",
+                      "  pm.expect(body.success).to.be.false;",
+                      "  pm.expect(body.error.message).to.contain('could not be saved');",
+                      "});",
+                      "",
+                      "pm.test('error.details is an array of field objections', () => {",
+                      "  const details = body.error.details;",
+                      "  pm.expect(details).to.be.an('array');",
+                      "  pm.expect(details.length).to.be.above(0);",
+                      "  details.forEach((entry) => {",
+                      "    pm.expect(entry.field).to.be.a('string');",
+                      "    pm.expect(entry.message).to.be.a('string');",
+                      "  });",
+                      "});",
+                      "",
+                      "pm.test('every missing required field is reported at once', () => {",
+                      "  const fields = body.error.details.map((entry) => entry.field);",
+                      "  ['categoryId', 'locationId', 'shortDescription', 'description', 'purpose', 'eventDate']",
+                      "    .forEach((field) => pm.expect(fields).to.include(field));",
+                      "});",
+                      "",
+                      "pm.test('the value that was too short is named too', () => {",
+                      "  pm.expect(body.error.details.some((entry) => entry.field === 'eventName')).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "PUT /events/{{newEventId}}  (empty body)  -> 400",
+              "description": "EXPECTED TO FAIL with 400. An empty body is refused rather than treated as \"nothing to do\", because it is far more likely to be a client bug - a form that posted the wrong object, say - and a silent 200 would hide it. The refusal has no details array, which is the difference from a field-by-field failure: there was no field to object to.",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}"
+                  ]
+                },
+                "description": "EXPECTED TO FAIL with 400. An empty body is refused rather than treated as \"nothing to do\", because it is far more likely to be a client bug - a form that posted the wrong object, say - and a silent 200 would hide it. The refusal has no details array, which is the difference from a field-by-field failure: there was no field to object to."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the message tells the client what to send instead', () => {",
+                      "  pm.expect(body.error.message).to.contain('No fields were supplied');",
+                      "});",
+                      "",
+                      "pm.test('the refusal carries no per-field details', () => {",
+                      "  // A field-by-field failure lists every problem; this one had no field to",
+                      "  // object to, so there is nothing to iterate over.",
+                      "  pm.expect(body.error.details).to.be.undefined;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /events/{{newEventId}}/registrations  (tier of another event)  -> 400",
+              "description": "EXPECTED TO FAIL with 400. Ticket type 1 belongs to event 1, not to the event this run created, so the request is refused with the offending field named. The same rule is enforced a second time by a composite foreign key on the registrations table, which is why the tier cannot be recorded against the wrong event even if this check were bypassed.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"attendeeName\": \"Wrong Tier\",\n  \"attendeeEmail\": \"postman.a3.wrong.tier@example.com\",\n  \"ticketTypeId\": 1,\n  \"ticketsPurchased\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}/registrations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}",
+                    "registrations"
+                  ]
+                },
+                "description": "EXPECTED TO FAIL with 400. Ticket type 1 belongs to event 1, not to the event this run created, so the request is refused with the offending field named. The same rule is enforced a second time by a composite foreign key on the registrations table, which is why the tier cannot be recorded against the wrong event even if this check were bypassed."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the tier is named as the field that was wrong', () => {",
+                      "  pm.expect(body.error.message).to.contain('is not offered by this event');",
+                      "  pm.expect(body.error.details.some((entry) => entry.field === 'ticketTypeId')).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /events/{{newEventId}}/registrations  (malformed email)  -> 400",
+              "description": "EXPECTED TO FAIL with 400. The address has no @ sign, and the objection comes back in the same error.details array as the event validation failure, so a client can handle both with one piece of code. The body is otherwise valid, which shows the check is on the field rather than on the request.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"attendeeName\": \"Bad Email\",\n  \"attendeeEmail\": \"not-an-email\",\n  \"ticketsPurchased\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}/registrations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}",
+                    "registrations"
+                  ]
+                },
+                "description": "EXPECTED TO FAIL with 400. The address has no @ sign, and the objection comes back in the same error.details array as the event validation failure, so a client can handle both with one piece of code. The body is otherwise valid, which shows the check is on the field rather than on the request."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('error.details is an array and names the email field', () => {",
+                      "  const details = body.error.details;",
+                      "  pm.expect(details).to.be.an('array');",
+                      "  pm.expect(details.some((entry) => entry.field === 'attendeeEmail')).to.be.true;",
+                      "});",
+                      "",
+                      "pm.test('every detail entry has a field and a message', () => {",
+                      "  body.error.details.forEach((entry) => {",
+                      "    pm.expect(entry.field).to.be.a('string');",
+                      "    pm.expect(entry.message).to.be.a('string');",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /events/{{newEventId}}  (registrations, newest first)",
+              "description": "READ, the third letter of C.R.U.D. The event the folder created is read back and the assertions check the A3 additions to GET /api/events/:id - the registrations array, registrationCount, ticketsSold, totalTicketsSold, status and the venue coordinates. Run this after the Registrations folder to see the array filled; run it on its own and the array is empty. Either way it is an array, which is what the detail page relies on.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}"
+                  ]
+                },
+                "description": "READ, the third letter of C.R.U.D. The event the folder created is read back and the assertions check the A3 additions to GET /api/events/:id - the registrations array, registrationCount, ticketsSold, totalTicketsSold, status and the venue coordinates. Run this after the Registrations folder to see the array filled; run it on its own and the array is empty. Either way it is an array, which is what the detail page relies on."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const event = pm.response.json().data;",
+                      "",
+                      "pm.test('the read returns the event that was created', () => {",
+                      "  pm.expect(event.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "});",
+                      "",
+                      "pm.test('the A3 fields are present on the detail response', () => {",
+                      "  pm.expect(event.registrations).to.be.an('array');",
+                      "  pm.expect(event.registrationCount).to.be.a('number');",
+                      "  pm.expect(event.ticketsSold).to.be.a('number');",
+                      "  pm.expect(event.totalTicketsSold).to.be.a('number');",
+                      "  pm.expect(event.status).to.be.a('string');",
+                      "  pm.expect(event.latitude).to.be.a('number');",
+                      "  pm.expect(event.longitude).to.be.a('number');",
+                      "});",
+                      "",
+                      "pm.test('the registrations are newest first', () => {",
+                      "  // The list is ordered by registeredAt DESC, so each entry must be at",
+                      "  // least as recent as the one after it. ISO date-time text sorts in date",
+                      "  // order, so the comparison is a plain string test.",
+                      "  const stamps = event.registrations.map((row) => row.registeredAt);",
+                      "  pm.expect(stamps).to.eql([...stamps].sort().reverse());",
+                      "});",
+                      "",
+                      "pm.test('the counter agrees with the registrations that were returned', () => {",
+                      "  pm.expect(event.registrationCount).to.eql(event.registrations.length);",
+                      "  const sold = event.registrations.reduce((sum, row) => sum + row.ticketsPurchased, 0);",
+                      "  pm.expect(event.ticketsSold).to.eql(sold);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Registrations",
+          "description": "Registrations, the A3 resource that makes the delete rule worth demonstrating. A registration only exists inside an event, so it is created by posting to the event's sub-collection and addressed by its own URL afterwards. The folder registers against the event created in the sibling folder \"Events\", reads the registration back, edits it, and deletes it - which is what unblocks the event so that the last request of the collection can delete it with a 204.",
+          "item": [
+            {
+              "name": "POST /events/{{newEventId}}/registrations  (register, and save the id)",
+              "description": "Registers an attendee for the event this run created, and stores the new id in the collection variable registrationId. The attendee email is built from the run id the create request settled, so a second run of the folder never collides with the unique key on (event_id, attendee_email) - that collision is what the duplicate request in the folder \"Validation and error handling\" tests on purpose.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"attendeeName\": \"Priya Raman\",\n  \"attendeeEmail\": \"postman.a3.{{postmanRunId}}@example.com\",\n  \"attendeePhone\": \"0412 555 019\",\n  \"ticketTypeId\": {{newTicketTypeId}},\n  \"ticketsPurchased\": 2,\n  \"registeredAt\": \"2026-10-01\",\n  \"notes\": \"One adult and one child.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}/registrations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}",
+                    "registrations"
+                  ]
+                },
+                "description": "Registers an attendee for the event this run created, and stores the new id in the collection variable registrationId. The attendee email is built from the run id the create request settled, so a second run of the folder never collides with the unique key on (event_id, attendee_email) - that collision is what the duplicate request in the folder \"Validation and error handling\" tests on purpose."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201 for a created registration', () => pm.response.to.have.status(201));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the Location header points at the new registration', () => {",
+                      "  pm.expect(pm.response.headers.get('Location')).to.match(/^\\/api\\/registrations\\/\\d+$/);",
+                      "});",
+                      "",
+                      "pm.test('the registration is stored against the event that was created', () => {",
+                      "  pm.expect(body.data.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "  pm.expect(body.data.attendeeEmail)",
+                      "    .to.eql(`postman.a3.${pm.collectionVariables.get('postmanRunId')}@example.com`);",
+                      "});",
+                      "",
+                      "pm.test('the tier price is used to work out the total', () => {",
+                      "  pm.expect(body.data.totalAmount).to.eql(body.data.ticketPrice * body.data.ticketsPurchased);",
+                      "});",
+                      "",
+                      "pm.collectionVariables.set('registrationId', String(body.data.registrationId));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /events/{{newEventId}}/registrations  (duplicate email)  -> 409",
+              "description": "EXPECTED TO FAIL with 409. The brief's rule is that a user may register for multiple events but can only register for an event once, and this is the request that proves it. It uses exactly the email the request above registered with, so the collision is deliberate rather than accidental: a fixed address would instead make the working request fail on the second run of the collection.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"attendeeName\": \"Priya Raman\",\n  \"attendeeEmail\": \"postman.a3.{{postmanRunId}}@example.com\",\n  \"ticketsPurchased\": 1,\n  \"ticketTypeId\": {{newTicketTypeId}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}/registrations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}",
+                    "registrations"
+                  ]
+                },
+                "description": "EXPECTED TO FAIL with 409. The brief's rule is that a user may register for multiple events but can only register for an event once, and this is the request that proves it. It uses exactly the email the request above registered with, so the collision is deliberate rather than accidental: a fixed address would instead make the working request fail on the second run of the collection."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409 Conflict', () => pm.response.to.have.status(409));",
+                      "const body = pm.response.json();",
+                      "pm.test('the envelope reports failure', () => pm.expect(body.success).to.be.false);",
+                      "",
+                      "pm.test('the email is named as the field that clashed', () => {",
+                      "  pm.expect(body.error.details.field).to.eql('attendeeEmail');",
+                      "  pm.expect(body.error.details.attendeeEmail)",
+                      "    .to.eql(`postman.a3.${pm.collectionVariables.get('postmanRunId')}@example.com`);",
+                      "});",
+                      "",
+                      "pm.test('the message says the rule that was broken', () => {",
+                      "  pm.expect(body.error.message).to.contain('has already registered');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /events/{{newEventId}}/registrations  (list for one event)",
+              "description": "Every registration for one event, newest purchase first. This is the array the event detail page shows, and the same rows GET /api/events/:id embeds in its response. The order is registeredAt DESC, which is the brief's \"sorted by the latest date when the ticket was purchased\".",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}/registrations?limit=100&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}",
+                    "registrations"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "100",
+                      "description": "The largest page the API allows, so nothing is hidden by paging."
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0",
+                      "description": "Start at the first row."
+                    }
+                  ]
+                },
+                "description": "Every registration for one event, newest purchase first. This is the array the event detail page shows, and the same rows GET /api/events/:id embeds in its response. The order is registeredAt DESC, which is the brief's \"sorted by the latest date when the ticket was purchased\"."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the meta reports the event and the order', () => {",
+                      "  pm.expect(body.meta.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "  pm.expect(body.meta.order).to.contain('DESC');",
+                      "});",
+                      "",
+                      "pm.test('the registration this run created is in the list', () => {",
+                      "  pm.expect(body.data.map((row) => row.registrationId))",
+                      "    .to.include(Number(pm.collectionVariables.get('registrationId')));",
+                      "});",
+                      "",
+                      "pm.test('every row belongs to this event', () => {",
+                      "  body.data.forEach((row) => {",
+                      "    pm.expect(row.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "  });",
+                      "});",
+                      "",
+                      "pm.test('the list is newest first', () => {",
+                      "  const stamps = body.data.map((row) => row.registeredAt);",
+                      "  pm.expect(stamps).to.eql([...stamps].sort().reverse());",
+                      "});",
+                      "",
+                      "pm.test('meta.ticketsSold is the sum of the rows that were returned', () => {",
+                      "  const sold = body.data.reduce((sum, row) => sum + row.ticketsPurchased, 0);",
+                      "  pm.expect(body.meta.ticketsSold).to.eql(sold);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /registrations  (every registration, filtered)",
+              "description": "The admin list behind the Registrations page: every registration across every event, newest first. The eventId filter narrows it to the event this run created, and the keyword filter searches the attendee name and email. meta.ticketsSold is the total for the rows on this page, not a global figure - GET /api/stats is where the global totals live.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/registrations?eventId={{newEventId}}&keyword=priya&limit=100&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "registrations"
+                  ],
+                  "query": [
+                    {
+                      "key": "eventId",
+                      "value": "{{newEventId}}",
+                      "description": "Only registrations for the event this run created."
+                    },
+                    {
+                      "key": "keyword",
+                      "value": "priya",
+                      "description": "Matches part of the attendee name or the attendee email."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "100",
+                      "description": "The admin cap is 200; 100 is plenty for the demonstration."
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0",
+                      "description": "Start at the first row."
+                    }
+                  ]
+                },
+                "description": "The admin list behind the Registrations page: every registration across every event, newest first. The eventId filter narrows it to the event this run created, and the keyword filter searches the attendee name and email. meta.ticketsSold is the total for the rows on this page, not a global figure - GET /api/stats is where the global totals live."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the admin view is identified in the meta', () => {",
+                      "  pm.expect(body.meta.view).to.eql('admin');",
+                      "  pm.expect(body.meta.limit).to.eql(100);",
+                      "  pm.expect(body.meta.offset).to.eql(0);",
+                      "});",
+                      "",
+                      "pm.test('the eventId filter was applied', () => {",
+                      "  body.data.forEach((row) => {",
+                      "    pm.expect(row.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "  });",
+                      "});",
+                      "",
+                      "pm.test('the keyword filter matched the attendee who was registered', () => {",
+                      "  pm.expect(body.data.map((row) => row.registrationId))",
+                      "    .to.include(Number(pm.collectionVariables.get('registrationId')));",
+                      "});",
+                      "",
+                      "pm.test('each row carries its event and tier names for the admin table', () => {",
+                      "  body.data.forEach((row) => {",
+                      "    pm.expect(row.eventName).to.be.a('string');",
+                      "    pm.expect(row.registrationId).to.be.a('number');",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /registrations/{{registrationId}}  (one registration)",
+              "description": "One registration on its own URL, in the same shape as an element of the list. This is what a receipt page or an \"edit registration\" screen loads before it shows the form.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/registrations/{{registrationId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "registrations",
+                    "{{registrationId}}"
+                  ]
+                },
+                "description": "One registration on its own URL, in the same shape as an element of the list. This is what a receipt page or an \"edit registration\" screen loads before it shows the form."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the read returns the registration this run created', () => {",
+                      "  pm.expect(body.data.registrationId).to.eql(Number(pm.collectionVariables.get('registrationId')));",
+                      "  pm.expect(body.data.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "});",
+                      "",
+                      "pm.test('the contact details are the ones that were submitted', () => {",
+                      "  pm.expect(body.data.attendeeName).to.eql('Priya Raman');",
+                      "  pm.expect(body.data.attendeeEmail)",
+                      "    .to.eql(`postman.a3.${pm.collectionVariables.get('postmanRunId')}@example.com`);",
+                      "});",
+                      "",
+                      "pm.test('the stored total is the tier price times the tickets', () => {",
+                      "  pm.expect(body.data.totalAmount).to.eql(body.data.ticketPrice * body.data.ticketsPurchased);",
+                      "});",
+                      "",
+                      "pm.test('the registeredAt date that was sent is the one on record', () => {",
+                      "  // \"2026-10-01\" was submitted; a date without a time becomes midday.",
+                      "  pm.expect(body.data.registeredAt).to.eql('2026-10-01 12:00:00');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "PUT /registrations/{{registrationId}}  (partial update)",
+              "description": "The same partial-update rule as PUT /api/events/:id, with one addition worth showing: an explicit empty string clears an optional field. The phone number is emptied here, so the response carries attendeePhone as null and the stored row is read back in the same shape.",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ticketsPurchased\": 3,\n  \"attendeePhone\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/registrations/{{registrationId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "registrations",
+                    "{{registrationId}}"
+                  ]
+                },
+                "description": "The same partial-update rule as PUT /api/events/:id, with one addition worth showing: an explicit empty string clears an optional field. The phone number is emptied here, so the response carries attendeePhone as null and the stored row is read back in the same shape."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200 for an updated registration', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test('the envelope reports the update', () => pm.expect(body.meta.updated).to.be.true);",
+                      "",
+                      "pm.test('the field that was sent was changed', () => {",
+                      "  pm.expect(body.data.ticketsPurchased).to.eql(3);",
+                      "});",
+                      "",
+                      "pm.test('an empty string clears the optional phone number', () => {",
+                      "  pm.expect(body.data.attendeePhone).to.be.null;",
+                      "});",
+                      "",
+                      "pm.test('the total is recalculated from the stored tier price', () => {",
+                      "  pm.expect(body.data.totalAmount).to.eql(body.data.ticketPrice * 3);",
+                      "});",
+                      "",
+                      "pm.test('a field that was not sent is untouched', () => {",
+                      "  pm.expect(body.data.attendeeName).to.eql('Priya Raman');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "DELETE /events/{{newEventId}}  (blocked while it has registrations)",
+              "description": "EXPECTED TO FAIL with 409, and it has to be here rather than with the other /events requests: the brief requires an event to be deleted only when it has not yet received any registrations, and the registration this folder created is what proves it. Read the message and error.details.registrationCount - they tell staff what to do instead, which is to suspend the event. Section 10 of docs/api-documentation.md describes the API check, the transaction and the foreign key behind this answer.",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}"
+                  ]
+                },
+                "description": "EXPECTED TO FAIL with 409, and it has to be here rather than with the other /events requests: the brief requires an event to be deleted only when it has not yet received any registrations, and the registration this folder created is what proves it. Read the message and error.details.registrationCount - they tell staff what to do instead, which is to suspend the event. Section 10 of docs/api-documentation.md describes the API check, the transaction and the foreign key behind this answer."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409 Conflict', () => pm.response.to.have.status(409));",
+                      "const body = pm.response.json();",
+                      "pm.test('the envelope reports failure', () => pm.expect(body.success).to.be.false);",
+                      "",
+                      "pm.test('the conflict names the event and the number of registrations', () => {",
+                      "  const details = body.error.details;",
+                      "  pm.expect(details.eventId).to.eql(Number(pm.collectionVariables.get('newEventId')));",
+                      "  pm.expect(details.registrationCount).to.be.above(0);",
+                      "});",
+                      "",
+                      "pm.test('the alternative to deleting is offered', () => {",
+                      "  pm.expect(body.error.details.suggestion).to.eql('suspend-instead');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "DELETE /registrations/{{registrationId}}  (204, unblock the event)",
+              "description": "Removes the registration, which is what makes the event deletable again. Deleting a registration is the legitimate way to unblock an event that should genuinely disappear, and the admin site warns about it rather than doing it silently. It runs directly after the blocked delete, so the only difference between the 409 and the 204 that follows it in the folder \"Events\" is this row.",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/registrations/{{registrationId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "registrations",
+                    "{{registrationId}}"
+                  ]
+                },
+                "description": "Removes the registration, which is what makes the event deletable again. Deleting a registration is the legitimate way to unblock an event that should genuinely disappear, and the admin site warns about it rather than doing it silently. It runs directly after the blocked delete, so the only difference between the 409 and the 204 that follows it in the folder \"Events\" is this row."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 204 No Content', () => pm.response.to.have.status(204));",
+                      "pm.test('there is no response body', () => pm.expect(pm.response.text()).to.eql(''));",
+                      "",
+                      "pm.test('the deleted registration is named in the headers', () => {",
+                      "  pm.expect(pm.response.headers.get('X-Deleted-Registration-Id'))",
+                      "    .to.eql(pm.collectionVariables.get('registrationId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "DELETE /events/{{newEventId}}  (204, the event that was created)",
+              "description": "The other half of the delete rule, and the last request of the collection. The request before it - also in the folder \"Registrations\" - removed the registration, so the same URL that answered 409 while the registration existed answers 204 now, and the run leaves the database as it found it. A 204 carries no body, so the outcome is repeated in the X-Deleted-Event-Id and X-Deleted-Event-Name headers, which is what makes the result visible in Postman.",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{newEventId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{newEventId}}"
+                  ]
+                },
+                "description": "The other half of the delete rule, and the last request of the collection. The request before it - also in the folder \"Registrations\" - removed the registration, so the same URL that answered 409 while the registration existed answers 204 now, and the run leaves the database as it found it. A 204 carries no body, so the outcome is repeated in the X-Deleted-Event-Id and X-Deleted-Event-Name headers, which is what makes the result visible in Postman."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 204 No Content', () => pm.response.to.have.status(204));",
+                      "pm.test('there is no response body', () => pm.expect(pm.response.text()).to.eql(''));",
+                      "",
+                      "pm.test('the deleted event is named in the headers', () => {",
+                      "  pm.expect(pm.response.headers.get('X-Deleted-Event-Id'))",
+                      "    .to.eql(pm.collectionVariables.get('newEventId'));",
+                      "  pm.expect(decodeURIComponent(pm.response.headers.get('X-Deleted-Event-Name')))",
+                      "    .to.contain(pm.collectionVariables.get('postmanRunId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Admin view",
+          "description": "The admin view. These endpoints exist because the admin site has to see events the public site must never show, and it needs the dropdown lists for its forms. The list reads vw_all_events rather than vw_public_events, so a suspended event is included rather than hidden - which is the difference shown in one response here.",
+          "item": [
+            {
+              "name": "GET /admin/events  (every event, suspended included)",
+              "description": "\"Displays a complete list of all registered events, regardless of their status.\" The public list cannot do that because it reads vw_public_events; this route reads vw_all_events. The keyword filter is set to \"suspended\" so the result is exactly the row the public API answers 404 for - the clearest way to show the difference between the two views in a single response.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/events?publishStatus=all&state=all&keyword=suspended&limit=100",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "events"
+                  ],
+                  "query": [
+                    {
+                      "key": "publishStatus",
+                      "value": "all",
+                      "description": "active | suspended | cancelled | all. Defaults to all on this route."
+                    },
+                    {
+                      "key": "state",
+                      "value": "all",
+                      "description": "upcoming | ongoing | past | all. Defaults to all here, unlike /events."
+                    },
+                    {
+                      "key": "keyword",
+                      "value": "suspended",
+                      "description": "Matches the event name, so the suspended row is the result."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "100",
+                      "description": "The largest page the API allows."
+                    }
+                  ]
+                },
+                "description": "\"Displays a complete list of all registered events, regardless of their status.\" The public list cannot do that because it reads vw_public_events; this route reads vw_all_events. The keyword filter is set to \"suspended\" so the result is exactly the row the public API answers 404 for - the clearest way to show the difference between the two views in a single response."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the admin view is identified in the meta', () => {",
+                      "  pm.expect(body.meta.view).to.eql('admin');",
+                      "  pm.expect(body.meta.appliedFilters.publishStatus).to.eql('all');",
+                      "});",
+                      "",
+                      "pm.test('a suspended event is included, which the public list would hide', () => {",
+                      "  pm.expect(body.data.some((event) => event.status === 'suspended')).to.be.true;",
+                      "});",
+                      "",
+                      "pm.test('the suspended event is the one the public API answers 404 for', () => {",
+                      "  const suspended = body.data.find((event) => event.status === 'suspended');",
+                      "  pm.expect(String(suspended.eventId)).to.eql(pm.collectionVariables.get('suspendedId'));",
+                      "});",
+                      "",
+                      "pm.test('every row carries the counts the admin table shows', () => {",
+                      "  body.data.forEach((event) => {",
+                      "    pm.expect(event.status).to.be.oneOf(['active', 'suspended', 'cancelled']);",
+                      "    pm.expect(event.registrationCount).to.be.a('number');",
+                      "    pm.expect(event.ticketsSold).to.be.a('number');",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /admin/events/{{suspendedId}}  (the event the public API hides)",
+              "description": "The same URL the folder \"Validation and error handling\" proves answers 404 on the public path, read through the admin path instead. A 200 here and a 404 there is the single clearest demonstration that the visibility rule is a property of the view the endpoint reads, not of the page that called it.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/events/{{suspendedId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "events",
+                    "{{suspendedId}}"
+                  ]
+                },
+                "description": "The same URL the folder \"Validation and error handling\" proves answers 404 on the public path, read through the admin path instead. A 200 here and a 404 there is the single clearest demonstration that the visibility rule is a property of the view the endpoint reads, not of the page that called it."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200 for the suspended event', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the admin view is identified in the meta', () => {",
+                      "  pm.expect(body.meta.view).to.eql('admin');",
+                      "});",
+                      "",
+                      "pm.test('the event the public API hides is returned in full', () => {",
+                      "  pm.expect(String(body.data.eventId)).to.eql(pm.collectionVariables.get('suspendedId'));",
+                      "  pm.expect(body.data.status).to.eql('suspended');",
+                      "});",
+                      "",
+                      "pm.test('the admin detail carries the same fields as the public detail', () => {",
+                      "  pm.expect(body.data.ticketTypes).to.be.an('array');",
+                      "  pm.expect(body.data.registrations).to.be.an('array');",
+                      "  pm.expect(body.data.registrationCount).to.be.a('number');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /admin/reference-data  (the form dropdowns)",
+              "description": "Organisations, categories and venues in one request, so the \"Add event\" and \"Update event\" forms are ready after a single round trip. Unlike /api/categories and /api/locations this list is not filtered by whether a row currently has a public event, because staff may be about to create the first one. The three arrays are what the id fields in POST /api/events are chosen from.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/reference-data",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "reference-data"
+                  ]
+                },
+                "description": "Organisations, categories and venues in one request, so the \"Add event\" and \"Update event\" forms are ready after a single round trip. Unlike /api/categories and /api/locations this list is not filtered by whether a row currently has a public event, because staff may be about to create the first one. The three arrays are what the id fields in POST /api/events are chosen from."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('all three lists arrive in one response', () => {",
+                      "  pm.expect(body.data.organizations).to.be.an('array');",
+                      "  pm.expect(body.data.categories).to.be.an('array');",
+                      "  pm.expect(body.data.locations).to.be.an('array');",
+                      "});",
+                      "",
+                      "pm.test('the ids the create body needs are present', () => {",
+                      "  pm.expect(body.data.organizations[0].organizationId).to.be.a('number');",
+                      "  pm.expect(body.data.categories[0].categoryId).to.be.a('number');",
+                      "  pm.expect(body.data.locations[0].locationId).to.be.a('number');",
+                      "});",
+                      "",
+                      "pm.test('the venue list carries the coordinates the admin map uses', () => {",
+                      "  pm.expect(body.data.locations[0].latitude).to.be.a('number');",
+                      "  pm.expect(body.data.locations[0].longitude).to.be.a('number');",
+                      "});",
+                      "",
+                      "pm.test('a venue with no public event is still offered', () => {",
+                      "  // /api/locations only lists venues that host an active event, so it has",
+                      "  // fewer rows than this list whenever a venue is waiting for its first one.",
+                      "  pm.expect(body.data.locations.length).to.be.above(0);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /stats  (registrations and tickets sold)",
+              "description": "The same home page call as in the folder \"Home page\", read here for the two A3 additions: registrations and ticketsSold are the admin dashboard's headline figures, and they arrive in the request the public home page already makes. This is a request of its own rather than an edit to the A2 one, so the A2 example keeps showing exactly what A2 returned.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "stats"
+                  ]
+                },
+                "description": "The same home page call as in the folder \"Home page\", read here for the two A3 additions: registrations and ticketsSold are the admin dashboard's headline figures, and they arrive in the request the public home page already makes. This is a request of its own rather than an edit to the A2 one, so the A2 example keeps showing exactly what A2 returned."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const stats = pm.response.json().data;",
+                      "",
+                      "pm.test('the A3 figures are present', () => {",
+                      "  pm.expect(stats.registrations).to.be.a('number');",
+                      "  pm.expect(stats.ticketsSold).to.be.a('number');",
+                      "});",
+                      "",
+                      "pm.test('the figures are counts, so they are whole and never negative', () => {",
+                      "  pm.expect(stats.registrations).to.be.at.least(0);",
+                      "  pm.expect(stats.ticketsSold).to.be.at.least(0);",
+                      "});",
+                      "",
+                      "pm.test('the A2 figures are still returned alongside them', () => {",
+                      "  pm.expect(stats.upcomingEvents).to.be.a('number');",
+                      "  pm.expect(stats.totalRaised).to.be.a('number');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Validation of the ticket allocation",
+          "description": "One rule, on its own: a registration may not ask for more tickets than the chosen tier has left. It needs an event whose tier is genuinely nearly full, so it creates its own small event (capacity 1) rather than borrowing the main one, proves the 400, and deletes the event again. The folder runs after \"Registrations\" so that the amounts it reports are not confused with the registrations made there.",
+          "item": [
+            {
+              "name": "POST /events  (a small event for the allocation check)",
+              "description": "Sets up the event the next request needs: one tier with a single place, so asking for more than one ticket must be refused. It is deliberately kept out of the main create request so that the event the rest of the collection works on stays the realistic one from the documentation, and it is deleted again at the end of this folder.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"organizationId\": 1,\n  \"categoryId\": 1,\n  \"locationId\": 6,\n  \"eventName\": \"Postman A3 Allocation Check {{postmanRunId}}\",\n  \"shortDescription\": \"One tier with a single place, to test the allocation rule.\",\n  \"description\": \"This event exists only so that the ticket allocation rule can be tested against a tier that really has almost nothing left.\",\n  \"purpose\": \"Prove that a registration cannot exceed what is left of a tier.\",\n  \"eventDate\": \"2026-12-05\",\n  \"startTime\": \"07:00\",\n  \"endTime\": \"09:00\",\n  \"goalAmount\": 0,\n  \"isFree\": true,\n  \"capacity\": 1,\n  \"status\": \"active\",\n  \"imageUrl\": \"fun-run.svg\",\n  \"ticketTypes\": [\n    { \"ticketName\": \"Last place\", \"price\": 25, \"quantityAvailable\": 1 }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events"
+                  ]
+                },
+                "description": "Sets up the event the next request needs: one tier with a single place, so asking for more than one ticket must be refused. It is deliberately kept out of the main create request so that the event the rest of the collection works on stays the realistic one from the documentation, and it is deleted again at the end of this folder."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201 for a created event', () => pm.response.to.have.status(201));",
+                      "const event = pm.response.json().data;",
+                      "",
+                      "pm.test('the tier has a single place, which is what the next request tests', () => {",
+                      "  pm.expect(event.ticketTypes.length).to.eql(1);",
+                      "  pm.expect(event.ticketTypes[0].quantityAvailable).to.eql(1);",
+                      "});",
+                      "",
+                      "pm.collectionVariables.set('allocationEventId', String(event.eventId));",
+                      "pm.collectionVariables.set('allocationTicketTypeId', String(event.ticketTypes[0].ticketTypeId));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /events/{{allocationEventId}}/registrations  (more than remain)  -> 400",
+              "description": "EXPECTED TO FAIL with 400. The tier has one place and the request asks for the largest quantity a single registration may contain, so the API counts what is left and refuses. error.details carries the remaining number and the tier name as extra keys beside field and message, which is what lets the form say \"choose 1 or fewer\" rather than merely \"invalid\" - and it is the same error.details shape the form already handles for a plain field failure.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"attendeeName\": \"Too Many Tickets\",\n  \"attendeeEmail\": \"postman.a3.too.many.{{postmanRunId}}@example.com\",\n  \"ticketTypeId\": {{allocationTicketTypeId}},\n  \"ticketsPurchased\": 20\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{allocationEventId}}/registrations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{allocationEventId}}",
+                    "registrations"
+                  ]
+                },
+                "description": "EXPECTED TO FAIL with 400. The tier has one place and the request asks for the largest quantity a single registration may contain, so the API counts what is left and refuses. error.details carries the remaining number and the tier name as extra keys beside field and message, which is what lets the form say \"choose 1 or fewer\" rather than merely \"invalid\" - and it is the same error.details shape the form already handles for a plain field failure."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('the quantity is named as the field that was wrong', () => {",
+                      "  pm.expect(body.error.details.some((entry) => entry.field === 'ticketsPurchased')).to.be.true;",
+                      "});",
+                      "",
+                      "pm.test('the remaining allocation is reported, not just refused', () => {",
+                      "  const entry = body.error.details.find((row) => row.field === 'ticketsPurchased');",
+                      "  pm.expect(entry.remaining).to.be.a('number');",
+                      "  pm.expect(entry.ticketName).to.be.a('string');",
+                      "  pm.expect(body.error.message).to.contain('remain');",
+                      "});",
+                      "",
+                      "pm.test('the count that is reported is the one place the tier had', () => {",
+                      "  const entry = body.error.details.find((row) => row.field === 'ticketsPurchased');",
+                      "  pm.expect(entry.remaining).to.eql(1);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "DELETE /events/{{allocationEventId}}  (204, tidy up)",
+              "description": "Removes the small event again, so the folder can be run repeatedly and leaves nothing behind. It is also a second, independent demonstration of the delete rule from the other side: no registration was ever recorded against this event - the one attempt was refused - so the delete succeeds immediately with a 204.",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/events/{{allocationEventId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "{{allocationEventId}}"
+                  ]
+                },
+                "description": "Removes the small event again, so the folder can be run repeatedly and leaves nothing behind. It is also a second, independent demonstration of the delete rule from the other side: no registration was ever recorded against this event - the one attempt was refused - so the delete succeeds immediately with a 204."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 204 No Content', () => pm.response.to.have.status(204));",
+                      "pm.test('the deleted event is the one this folder created', () => {",
+                      "  pm.expect(pm.response.headers.get('X-Deleted-Event-Id'))",
+                      "    .to.eql(pm.collectionVariables.get('allocationEventId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

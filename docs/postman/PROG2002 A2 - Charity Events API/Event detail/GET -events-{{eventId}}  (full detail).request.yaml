@@ -1,0 +1,23 @@
+$kind: http-request
+name: /events/{{eventId}}  (full detail)
+description: One event in full, including its ticket tiers. This is everything the detail page needs, so the page makes a single request.
+url: "{{baseUrl}}/events/{{eventId}}"
+method: GET
+headers:
+  Accept: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      const event = pm.response.json().data;
+      pm.test('the full description is present', () => pm.expect(event.description.length).to.be.above(100));
+      pm.test('ticket tiers are included', () => pm.expect(event.ticketTypes.length).to.be.above(1));
+      pm.test('at least one tier is free', () => {
+        pm.expect(event.ticketTypes.some((ticket) => ticket.price === 0)).to.be.true;
+      });
+      pm.test('progress is consistent with the goal', () => {
+        const expected = Math.min(Number(((event.raisedAmount / event.goalAmount) * 100).toFixed(1)), 100);
+        pm.expect(event.progressPercent).to.eql(expected);
+      });
+    language: text/javascript
+order: 1000
