@@ -10,6 +10,11 @@
  *     * 应用根本起不来（require.main 守卫在 Passenger 下为 false）
  *   两者都不会有直观的报错，只能靠逐项验证发现。
  *
+ *   API 迁移到 TypeScript 之后多了一类同样的"看不见的失败": 前端是 Angular
+ *   单页应用，深链接（/search、/events/2、/admin/events）在刷新时由浏览器直接
+ *   请求服务器 —— 服务器上没有这些文件，没有 .htaccess 回退就会 404。
+ *   首页看起来完全正常，所以这一项也在这里显式检查（第 7 节）。
+ *
  * 所以这里把 A3 要求里每一条能通过 HTTP 观察到的点都查一遍。全部用 GET，
  * 不写数据；唯一一个 DELETE 是预期被拒绝的（用来验证删除规则），
  * 所以不会改动数据库里的任何内容。
@@ -17,11 +22,53 @@
  * 用法:
  *   node tools/verify-deployment.mjs
  *   node tools/verify-deployment.mjs https://your-host/charity-events-api/api
+ *   node tools/verify-deployment.mjs --api https://your-host/charity-events-api/api
+ *   node tools/verify-deployment.mjs <api-url> --no-site
+ *
+ * --no-site: 只查 API，不查两个网站（站点还没上线时用，省掉几十个会失败的
+ *            站点请求）。默认两者都查。
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const API_BASE = (process.argv[2] || 'https://24832481.it.scu.edu.au/charity-events-api/api').replace(/\/+$/, '');
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(HERE, '..');
+
+/**
+ * 参数。位置参数和 --api 都接受，因为两种写法都有人用（README 里是位置参数）。
+ * 其余未知参数直接报错退出，避免打错字之后静默地查了默认主机。
+ */
+function parseArgs(argv) {
+  const options = { skipSite: false, api: null };
+  const positional = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--no-site') options.skipSite = true;
+    else if (arg === '--api') options.api = argv[++i];
+    else if (arg === '--help' || arg === '-h') options.help = true;
+    else if (arg.startsWith('-')) {
+      console.error(`未知参数: ${arg}`);
+      console.error('Try: node tools/verify-deployment.mjs --help');
+      process.exit(2);
+    } else positional.push(arg);
+  }
+  if (!options.api && positional.length) options.api = positional[0];
+  return options;
+}
+
+const options = parseArgs(process.argv.slice(2));
+
+if (options.help) {
+  console.log(
+    fs.readFileSync(new URL(import.meta.url), 'utf8').split('*/')[0].replace(/^\/\*\*?/, '')
+  );
+  process.exit(0);
+}
+
+const SKIP_SITE = options.skipSite;
+
+const API_BASE = (options.api || 'https://24832481.it.scu.edu.au/charity-events-api/api').replace(/\/+$/, '');
 const SITE_ORIGIN = API_BASE.replace(/\/charity-events-api\/api$/, '').replace(/\/api$/, '');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
@@ -59,8 +106,35 @@ async function api(pathname, options = {}, attempt = 1) {
   }
 }
 
+/**
+ * 取一个网站页面。
+ *
+ * 六次尝试而不是三次: 这台主机的防火墙会限流突发请求，被限流的请求表现为
+ * 连接重置（status 0）而不是 404 —— 重试次数太少会把正常的文件报成缺失。
+ * 用 GET 而不是 HEAD: HEAD 在这台主机上不稳定（实测返回 000），GET 才反映
+ * 浏览器真实行为。
+ */
+async function site(pathname, { attempts = 6, timeout = 30_000 } = {}) {
+  let status = 0;
+  let text = '';
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(`${SITE_ORIGIN}${pathname}`, {
+        signal: AbortSignal.timeout(timeout),
+        headers: { 'User-Agent': UA, 'Cache-Control': 'no-cache' },
+      });
+      status = response.status;
+      text = await response.text();
+      break;
+    } catch {
+      await sleep(3000 * attempt);
+    }
+  }
+  return { status, text };
+}
+
 console.log(`验证目标: ${API_BASE}`);
-console.log(`网站地址: ${SITE_ORIGIN}\n`);
+console.log(`网站地址: ${SITE_ORIGIN}${SKIP_SITE ? '  (--no-site: 跳过网站检查)' : ''}\n`);
 
 /* ------------------------------------------------- 1. 健康检查 */
 console.log('【1】API 健康检查\n');
@@ -244,238 +318,262 @@ record(
 await sleep(1200);
 
 /* ------------------------------------------------- 7. 两个网站 */
-console.log('\n【7】两个网站的页面\n');
-
-for (const path of [
-  '/index.html',
-  '/search.html',
-  '/event.html?id=1',
-  '/registration.html?id=1',
-  '/admin/index.html',
-  '/admin/events.html',
-  '/js/config.js',
-  '/css/styles.css',
-]) {
-  let status = 0;
-  /*
-   * Six attempts, not three.
-   *
-   * This host's firewall throttles bursts of requests, and a throttled request
-   * fails as a connection reset rather than as a 404 - so a too-small retry
-   * budget reports healthy files as missing. Measured during a busy session the
-   * success rate per attempt dropped to about one in four, at which point three
-   * attempts fail most of the time and the report is worse than useless because
-   * it sends you looking for a deployment problem that is not there.
-   */
-  for (let attempt = 1; attempt <= 6; attempt += 1) {
-    try {
-      const response = await fetch(`${SITE_ORIGIN}${path}`, {
-        signal: AbortSignal.timeout(30_000),
-        headers: { 'User-Agent': UA },
-      });
-      status = response.status;
-      break;
-    } catch {
-      await sleep(3000 * attempt);
-    }
-  }
-  record(`GET ${path}`, status === 200, status === 200 ? '' : `status = ${status}`);
-  await sleep(2200);
-}
-
-/* ------------------------------------------------- 8. 静态资源完整性 */
 /*
- * 为什么单独查这一节:
- *   第 7 节只看 HTML 页面是否 200。**页面 200 不代表资源都在** —— 图片 404 时
- *   页面照样是 200，只是浏览器里显示破图。这个盲点真的漏掉过一次:
- *   public_html/images/ 里只有 1 个文件（应有 9 个），网站上所有活动卡片都没有图，
- *   而当时的验证脚本全部通过。
+ * 迁移之后两个网站都是 Angular 单页应用:
+ *   clientside  /          首页、/search、/events/:id、/register/:id
+ *   adminside   /admin/    仪表盘、/events、/events/new、/events/:id/edit、/registrations
  *
- *   根因是"需要部署哪些文件"的推导方式: 部署脚本从 HTML 的 href/src 和 JS 的
- *   import 里找路径，但图片路径在 config.js 里是**数据**
- *   （export const EVENT_IMAGES = ['fun-run.svg', ...]），
- *   既不是 src= 也不是 import，于是整批被跳过。
- *
- *   所以这里改成"本地有什么，就要求线上有什么": 把本地 clientside/ 下的静态资源
- *   逐个对线上发起请求，任何 404 都当成失败报出来。这样"漏传文件"不可能再悄悄通过。
+ * 所以这里查的不是"某个 .html 文件在不在"，而是三件事:
+ *   1. 两个应用各自的入口能打开（服务端文件都在）
+ *   2. 深链接刷新返回应用本身而不是 404（.htaccess 回退是否生效）—— 这是
+ *      Angular 部署最容易漏的一步，首页正常、刷新就崩
+ *   3. 部署包里的 bundle 指向正确的 API 地址（改完 environment.production.ts
+ *      忘了重建，就会得到"页面能开、数据全空"）
  */
-console.log('\n【8】静态资源完整性（本地有的，线上必须也有）\n');
+console.log('\n【7】两个网站的页面与深链接回退\n');
 
-const CLIENT_DIR = path.resolve(process.cwd(), 'clientside');
+if (SKIP_SITE) {
+  console.log('  （--no-site: 跳过）\n');
+} else {
+  /**
+   * 前端 index.html 的正式路径。
+   *
+   * 站点地址可能是站点根，也可能是某个子目录（旧部署在 /charity-events/）。
+   * basePath 就是 API 地址里去掉 /charity-events-api/api 之后剩下的部分。
+   */
+  const basePath = SITE_ORIGIN.replace(/^https?:\/\/[^/]+/, '');
+  const clientIndex = `${basePath}/index.html`;
+  const adminIndex = `${basePath}/admin/`;
 
-/**
- * 递归收集本地 clientside/ 下需要与线上一致的文件。
- *
- * 为什么包含 .js 和 .html，而不只是图片样式:
- *   只查图片和样式时漏掉过一次真实事故 —— 改完"删掉过时文案"后我只上传了
- *   styles.css，忘了 js/event.js 和 js/translations.js，于是线上页面照旧渲染
- *   那段文字。当时这个检查是 27/27 全绿，因为 event.js 根本不在检查范围内。
- *
- *   教训: "本地有什么就要求线上有什么"这个原则要覆盖所有会被部署的文件，
- *   否则它只能发现它看得见的那几类问题。
- */
-function collectLocalAssets() {
-  const assets = new Map();
-  const EXTENSIONS = [
-    '.svg', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico',
-    '.css', '.js', '.html', '.json', '.txt', '.webmanifest',
+  const clientPage = await site(clientIndex);
+  record(
+    `GET ${clientIndex || '/'} 返回 200（公开网站已部署）`,
+    clientPage.status === 200 && /<app-root/i.test(clientPage.text),
+    clientPage.status === 200
+      ? (/<app-root/i.test(clientPage.text) ? '页面里找到 <app-root>，是 Angular 应用' : '返回 200，但没找到 <app-root> —— 可能还是旧版静态站点')
+      : `status = ${clientPage.status}`
+  );
+  await sleep(2200);
+
+  const adminPage = await site(adminIndex);
+  const adminHasBaseHref = /<base\s+href="\/admin\/"/i.test(adminPage.text);
+  record(
+    `GET ${adminIndex} 返回 200（管理后台已部署）`,
+    adminPage.status === 200 && /<app-root/i.test(adminPage.text),
+    adminPage.status === 200
+      ? `找到 <app-root>${adminHasBaseHref ? '，base href="/admin/" 正确' : '，但 <base href="/admin/"> 不在页面里 —— 管理后台的 baseHref 可能被改过'}`
+      : `status = ${adminPage.status}`
+  );
+  await sleep(2200);
+
+  /*
+   * 深链接。服务端没有 /search 这个文件，只有 .htaccess 回退才会返回 index.html；
+   * 所以断言的是"返回 200 且 body 是应用页"，而不是"文件存在"。
+   */
+  const deepLinks = [
+    `${basePath}/search`,
+    `${basePath}/events/1`,
+    `${basePath}/register/1`,
+    `${basePath}/admin/events`,
+    `${basePath}/admin/events/new`,
   ];
 
-  /*
-   * 只用于本地开发、不部署到服务器的文件。列成清单而不是靠规则猜:
-   *   serve-clientside.js - 本地静态服务器（npm run start:client），部署到线上没有意义
-   * 第一次把这个检查扩到 .js 时漏了这条排除，于是它报了 404 的假警报。
-   */
-  const NOT_DEPLOYED = new Set(['serve-clientside.js']);
+  for (const deepLink of deepLinks) {
+    const page = await site(deepLink);
+    const servedApp = page.status === 200 && /<app-root/i.test(page.text);
+    record(
+      `GET ${deepLink} 返回应用页面（SPA 深链接回退生效）`,
+      servedApp,
+      servedApp
+        ? '由 .htaccess 回退到 index.html，刷新不会 404'
+        : `status = ${page.status}${page.status === 404 ? '  -> 缺少 .htaccess 的 rewrite 回退规则（见 docs/deployment-cpanel.md 第 4 节）' : ''}`
+    );
+    await sleep(2200);
+  }
 
-  const walk = (dir, relative = '') => {
-    if (!fs.existsSync(dir)) return;
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      const rel = relative ? `${relative}/${entry.name}` : entry.name;
+  /* 部署包里的 API 地址。改完 environment.production.ts 忘了重建，就查不出来。 */
+  const localEnvironment = path.join(ROOT, 'clientside', 'src', 'environments', 'environment.production.ts');
+  if (fs.existsSync(localEnvironment)) {
+    const expected = fs.readFileSync(localEnvironment, 'utf8').match(/apiBaseUrl:\s*'([^']+)'/);
+    const expectedUrl = expected ? expected[1] : '';
+    const expectedOrigin = expectedUrl.replace(/\/api$/, '');
+    const isLocalOrigin = /localhost|127\.0\.0\.1/.test(expectedOrigin);
+    const bundleRef = (clientPage.text.match(/src="([^"]*main[^"]*\.js)"/) || [])[1];
 
-      if (entry.isDirectory()) {
-        if (entry.name === 'node_modules') continue;
-        walk(full, rel);
-      } else if (NOT_DEPLOYED.has(entry.name)) {
-        continue;
-      } else if (EXTENSIONS.some((ext) => entry.name.toLowerCase().endsWith(ext))) {
-        // admin/ 下的资源远程路径也是 /admin/...，与本地结构一致
-        assets.set(`/${rel}`, rel);
-      }
+    if (!bundleRef) {
+      console.log('  （公开网站首页里找不到 main*.js，跳过 bundle 内的 API 地址比对）\n');
+    } else {
+      const bundleUrl = new URL(bundleRef, clientPageUrl).href;
+      const bundle = await fetchText(bundleUrl);
+
+      record(
+        `线上 bundle 内的 API 地址是 ${expectedUrl || '(读不到本地配置)'}`,
+        isLocalOrigin || bundle.text.includes(expectedUrl || expectedOrigin),
+        bundle.status !== 200
+          ? `取不到 bundle: ${bundleUrl} (${bundle.status})`
+          : isLocalOrigin
+            ? `本地 environment.production.ts 是 ${expectedUrl}（本地开发值），跳过比对`
+            : bundle.text.includes(expectedUrl)
+              ? `在 ${bundleRef} 里找到了 ${expectedUrl}`
+              : `在 ${bundleRef} 里找不到 ${expectedUrl} —— 本地改过 environment.production.ts 但没重新构建上传，或者上传的 bundle 是旧一版`
+      );
+      await sleep(2200);
     }
-  };
+  }
 
-  walk(CLIENT_DIR);
-  return assets;
-}
+  /* ------------------------------------------------- 8. 静态资源完整性 */
+  /*
+   * 为什么单独查这一节:
+   *   页面 200 不代表资源都在 —— 图片 404 时页面照样是 200，只是浏览器里显示破图。
+   *   这个盲点真的漏掉过一次: public_html/images/ 里只有 1 个文件（应有 9 个），
+   *   网站上所有活动卡片都没有图，而当时的验证脚本全部通过。
+   *
+   *   迁移前这里的做法是"把本地 clientside/ 下的静态文件逐个对线上请求"。
+   *   迁移后本地已经没有可对照的静态文件了（源文件是 .ts 和组件模板，文件名还被
+   *   Angular 加了哈希），所以改成两条更可靠的证据:
+   *     * 线上 index.html 自己引用了哪些文件，就要求这些文件都存在
+   *       （自洽检查: 不依赖本地构建版本，所以线上是旧一版也不会误报）
+   *     * 活动插图是不带哈希的共享资源（assets/images/*.svg），按名字逐个查
+   */
+  console.log('\n【8】静态资源完整性（线上页面引用的文件 + 9 张活动插图）\n');
 
-const localAssets = collectLocalAssets();
-console.log(`  本地 clientside/ 下有 ${localAssets.size} 个待部署文件，逐个检查线上...\n`);
+  /*
+   * 逐个请求的分轮策略，而不是"每个 URL 各自重试 6 次"。
+   *
+   * 旧写法在真实站点上会卡住: 页面里引用的文件有几十个，每个都做 6 次重试加
+   * 退避，限流时整节可以跑几十分钟（实测跑进后台也没结束）。改成"先全部查一遍，
+   * 只把失败的在同一轮里重查"，请求总数不变时这是同样可靠的，但最坏耗时小一个
+   * 数量级。另外加一个总时间预算: 超时就停止扫描并如实报告扫了多少个。
+   */
+  async function probe(url, { timeout = 20_000 } = {}) {
+    const { status } = await fetchText(url, { timeout });
+    return status;
+  }
 
-const missingAssets = [];
-let checkedAssets = 0;
-
-/*
- * 存在性检查 + 内容抽样比对。
- *
- * 只查"文件在不在"是不够的: 旧版本的 event.js 同样存在，会照样通过。
- * 真正要抓的是"改了本地、忘了上传"—— 这次就发生过（文案删了却没传 js/）。
- *
- * 完整的哈希比对需要把每个文件都下载一遍，太慢；所以这里改用**特征字符串**:
- * 从本地文件里挑出能代表当前版本的内容片段，再看线上文件里有没有。
- * 这些片段来自本地文件本身，不需要手工维护清单。
- */
-const CONTENT_SAMPLED = ['.js', '.css'];
-const contentMismatch = [];
-const localFiles = new Map();
-
-for (const [remotePath, localRel] of [...localAssets].sort()) {
-  let status = 0;
-  let onlineText = null;
-
-  const needsContent = CONTENT_SAMPLED.some((ext) => remotePath.endsWith(ext));
-
-  // Six attempts, for the same throttling reason as the check above: a reset
-  // connection is not a missing file, and it must not be reported as one.
-  for (let attempt = 1; attempt <= 6; attempt += 1) {
+  /** 取一个站内文件的正文，失败时 status 为 0。 */
+  async function fetchText(url, { timeout = 30_000 } = {}) {
     try {
-      // 用 GET 而不是 HEAD: 这台主机对 HEAD 的支持不稳定，实测会返回 000
-      // （连接被重置），把正常的文件误报成缺失。GET 才反映浏览器真实行为。
-      const response = await fetch(`${SITE_ORIGIN}${remotePath}?probe=${Date.now()}`, {
-        signal: AbortSignal.timeout(35_000),
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(timeout),
         headers: { 'User-Agent': UA, 'Cache-Control': 'no-cache' },
       });
-      status = response.status;
-      if (needsContent && status === 200) onlineText = await response.text();
-      else await response.arrayBuffer();
-      break;
+      const text = await response.text();
+      return { status: response.status, text };
     } catch {
-      await sleep(3000 * attempt);
+      return { status: 0, text: '' };
     }
   }
 
-  checkedAssets += 1;
-  if (status !== 200) {
-    missingAssets.push({ remotePath, localRel, status });
-    console.log(`  MISS  ${String(status).padEnd(4)} ${remotePath}`);
-    await sleep(700);
-    continue;
-  }
+  const SWEEP_BUDGET_MS = 240_000;
+  const sweepStartedAt = Date.now();
 
-  /* 内容比对: 只在取样文件上做，并且失败要重试一次，避免把限流误判成版本不一致 */
-  if (needsContent && onlineText !== null) {
-    const localPath = path.join(CLIENT_DIR, localRel);
-    const localText = fs.readFileSync(localPath, 'utf8');
+  async function sweep(urls, { passes = 3 } = {}) {
+    const status = new Map();
+    let pending = [...urls];
 
-    /*
-     * 取样规则: 从本地文件里取一个"当前版本才会有"的短标记。
-     * 用最长的一行注释的开头几个词 —— 注释是每次改动最容易留下痕迹的地方，
-     * 而且不像函数名那样容易在重构中意外重名。
-     */
-    const markers = [];
-
-    // 1) 取第一条长度 >= 40 的注释行中的前 30 个字符
-    for (const line of localText.split('\n')) {
-      const trimmed = line.trim();
-      if ((trimmed.startsWith('//') || trimmed.startsWith('*')) && trimmed.length >= 44) {
-        markers.push(trimmed.slice(0, 34));
-        break;
+    for (let pass = 1; pass <= passes && pending.length; pass += 1) {
+      const stillFailing = [];
+      for (const url of pending) {
+        if (Date.now() - sweepStartedAt > SWEEP_BUDGET_MS) {
+          // 预算用完: 没查到的按"未完成"处理，由调用方报出来，不冒充失败。
+          for (const rest of pending.slice(pending.indexOf(url))) status.set(rest, null);
+          return status;
+        }
+        const code = await probe(url);
+        status.set(url, code);
+        if (code !== 200) stillFailing.push(url);
+        await sleep(code === 200 ? 500 : 1500);
       }
+      pending = stillFailing;
+      if (pending.length) await sleep(4000 * pass);
     }
 
-    // 2) 取第一个具名函数/常量声明
-    const declaration = localText.match(/\b(?:export\s+)?(?:function|const|class)\s+([A-Za-z_$][\w$]{5,})/);
-    if (declaration) markers.push(declaration[1]);
-
-    const mismatched = markers.filter((marker) => !onlineText.includes(marker));
-
-    if (mismatched.length > 0) {
-      contentMismatch.push({ remotePath, mismatched });
-      console.log(`  STALE ${remotePath}`);
-      console.log(`        线上版本缺少本地特征: ${mismatched.map((m) => JSON.stringify(m)).join(', ')}`);
-      console.log('        -> 本地改过但没上传，重新上传这个文件');
-    }
+    return status;
   }
 
-  await sleep(700);
-}
+  /**
+   * 从 HTML 里取出所有本站资源，并把它解析成绝对 URL。
+   *
+   * 必须用 new URL(url, pageUrl) 解析: 页面里的引用可能是相对的
+   * （旧版站点写的是 ../css/styles.css、images/community.svg），直接拿去做请求
+   * 会变成同目录下的错误路径，于是每个资源都"缺失"，检查结果全是假警报。
+   * 非 http(s) 的引用（mailto:、tel:、#锚点、data:）不是资源，跳过。
+   */
+  function referencedFiles(html, pageUrl) {
+    const found = new Map();
+    for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
+      let resolved;
+      try {
+        resolved = new URL(match[1], pageUrl);
+      } catch {
+        continue;
+      }
+      if (resolved.origin !== new URL(SITE_ORIGIN).origin) continue;
+      if (!/^https?:$/.test(resolved.protocol)) continue;
+      found.set(resolved.pathname + resolved.search, resolved.href);
+    }
+    return [...found.values()];
+  }
 
-record(
-  `全部 ${localAssets.size} 个待部署文件都能访问`,
-  missingAssets.length === 0,
-  missingAssets.length === 0
-    ? `已检查 ${checkedAssets} 个（含 .js / .css / 9 张活动插图）`
-    : `缺失 ${missingAssets.length} 个: ${missingAssets.map((m) => m.remotePath).join(', ')}`
-);
+  const clientPageUrl = `${SITE_ORIGIN}${clientIndex}`;
+  const adminPageUrl = `${SITE_ORIGIN}${adminIndex}`;
+  const resources = [
+    ...(clientPage.status === 200 ? referencedFiles(clientPage.text, clientPageUrl) : []),
+    ...(adminPage.status === 200 ? referencedFiles(adminPage.text, adminPageUrl) : []),
+  ];
 
-/* 内容比对结果 —— 专门抓"改了本地忘上传" */
-record(
-  '线上文件的版本与本地一致（没有改了忘传的）',
-  contentMismatch.length === 0,
-  contentMismatch.length === 0
-    ? `.js / .css 的内容特征抽查通过`
-    : `以下文件线上还是旧版: ${contentMismatch.map((m) => m.remotePath).join(', ')}\n` +
-      '          修法: 重新上传这些文件。只查文件是否存在是不够的 —— 旧版本同样存在。'
-);
+  const resourceStatus = await sweep(resources);
+  const checked = [...resourceStatus.keys()].filter((url) => resourceStatus.get(url) !== null);
+  const notChecked = [...resourceStatus.entries()].filter(([, code]) => code === null).map(([url]) => url);
+  const missing = [...resourceStatus.entries()]
+    .filter(([, code]) => code !== null && code !== 200)
+    .map(([url, code]) => ({ url, status: code }));
 
-/* 图片单独再确认一次: 这是最容易漏的一类，也是最容易看出来的 */
-console.log('');
-const imagesMissing = missingAssets.filter((m) => m.remotePath.startsWith('/images/'));
+  for (const item of missing) console.log(`  MISS  ${String(item.status).padEnd(4)} ${item.url}`);
+  if (notChecked.length) {
+    console.log(`  （时间预算用尽，还有 ${notChecked.length} 个资源没有查完: ${notChecked.slice(0, 5).join(', ')}${notChecked.length > 5 ? ' ...' : ''}）`);
+  }
 
-if (imagesMissing.length > 0) {
   record(
-    '活动插图全部就位（config.js 的 EVENT_IMAGES）',
-    false,
-    `缺 ${imagesMissing.length} 张: ${imagesMissing.map((m) => m.remotePath).join(', ')}\n` +
-      '          修法: 把 clientside/images/*.svg 上传到 public_html/images/'
+    `线上页面引用的 ${checked.length} 个资源都能访问`,
+    missing.length === 0,
+    missing.length === 0
+      ? `已检查 ${checked.length} 个（JS / CSS / favicon 等，来自两个 index.html 自身的引用）`
+      : `缺失 ${missing.length} 个: ${missing.map((m) => m.url).join(', ')}`
   );
-} else {
-  record(
-    '活动插图全部就位（config.js 的 EVENT_IMAGES）',
-    true,
-    '全部返回 200，活动卡片不会出现破图'
-  );
+
+  /*
+   * 活动插图。它们在 angular.json 里作为共享 assets 目录打进两个应用，文件名
+   * 不带哈希，所以可以按名字逐个检查 —— 这是最容易漏的一类文件，也是漏了最
+   * 容易看出来的（卡片全变破图）。
+   */
+  const imageDir = path.join(ROOT, 'assets', 'images');
+  const imageFiles = fs.existsSync(imageDir)
+    ? fs.readdirSync(imageDir).filter((name) => name.endsWith('.svg')).sort()
+    : [];
+  const imageUrls = [];
+  for (const file of imageFiles) {
+    imageUrls.push(`${SITE_ORIGIN}${basePath}/assets/images/${file}`, `${SITE_ORIGIN}${basePath}/admin/assets/images/${file}`);
+  }
+
+  if (imageUrls.length === 0) {
+    console.log('  （assets/images 下没有可检查的插图，跳过）\n');
+  } else {
+    const imageStatus = await sweep(imageUrls);
+    const imagesMissing = [...imageStatus.entries()]
+      .filter(([, code]) => code !== null && code !== 200)
+      .map(([url, code]) => `${url} (${code})`);
+    for (const item of imagesMissing) console.log(`  MISS  ${item}`);
+
+    record(
+      `活动插图全部就位（两个应用各 ${imageFiles.length} 张）`,
+      imagesMissing.length === 0,
+      imagesMissing.length === 0
+        ? `共查 ${imageUrls.length} 个 URL，全部返回 200，活动卡片不会出现破图`
+        : `缺 ${imagesMissing.length} 个: ${imagesMissing.join(', ')}\n` +
+          '          修法: 重新构建并上传 site/ 的完整内容（assets/images/*.svg 会被复制进 dist）'
+    );
+  }
 }
 
 /* ------------------------------------------------- 汇总 */

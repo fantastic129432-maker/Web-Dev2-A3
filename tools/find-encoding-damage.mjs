@@ -20,9 +20,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** Files worth scanning: markdown, JavaScript, HTML, CSS, SQL, batch, YAML. */
+/**
+ * Files worth scanning: markdown, TypeScript, JavaScript, HTML, CSS, SQL, batch,
+ * YAML.
+ *
+ * `.ts` is included because the Angular dictionaries and the component templates'
+ * user-visible strings now live in TypeScript (shared/src/i18n/*.ts holds the
+ * Chinese, Vietnamese and Japanese text). Without it the files most likely to be
+ * damaged by a mis-encoded console write would be the only ones not checked.
+ */
 const EXTENSIONS = new Set([
-  '.md', '.js', '.mjs', '.html', '.css', '.sql', '.cmd', '.ps1', '.json', '.yaml', '.yml', '.txt',
+  '.md', '.ts', '.mts', '.cts', '.js', '.mjs', '.html', '.css', '.sql', '.cmd', '.ps1', '.json',
+  '.yaml', '.yml', '.txt',
 ]);
 
 /** Directories to skip. */

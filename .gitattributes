@@ -13,10 +13,13 @@
 #       assemble, and reported STALE on any machine whose checkout differed
 #       from the one that generated it.
 #
-#   tools/sync-theme-snippet.mjs --check
-#       compared the inline theme snippet in each page against the one in
-#       js/theme.js, and reported every page as OUT OF DATE for the same
-#       reason.
+#   The inline theme snippet in each index.html (the code that stops a dark-mode
+#   visitor seeing a white flash). It used to live in the vanilla js/theme.js and
+#   be copied into the pages by tools/sync-theme-snippet.mjs, which reported every
+#   page as OUT OF DATE for the same reason. Both the file and the tool are gone -
+#   the snippet is now guarded by tools/check-angular-architecture.mjs, which
+#   compares it against shared/src/theme/theme.service.ts - but the pages are
+#   still read, so the pin still matters.
 #
 # In both cases the content was correct and only the line endings differed.
 # Pinning the files these checks read makes the comparison independent of the
@@ -26,14 +29,25 @@
 # The database scripts and the dump assembled from them.
 database/*.sql text eol=lf
 
-# The pages and the client modules. tools/sync-theme-snippet.mjs reads the
-# pages and js/theme.js, and the test suite loads the pages into jsdom.
+# The pages, the templates and the shared assets.
 *.html text eol=lf
 
-# The client and server JavaScript, and the tooling.
+# TypeScript: both Angular applications, the shared library and the API.
+# Pinned because the languages are compared as text by tools/check-translations
+# .mjs (the dictionaries) and by tsconfig-driven builds, and because a mixed
+# working copy made the API migration's diffs noisy.
+*.ts   text eol=lf
+*.mts  text eol=lf
+*.cts  text eol=lf
+
+# The JavaScript and TypeScript tooling.
 *.js   text eol=lf
 *.mjs  text eol=lf
 *.css  text eol=lf
+
+# Documentation and PowerShell scripts.
+*.md   text eol=lf
+*.ps1  text eol=lf
 
 # Data files read by the tooling.
 *.json text eol=lf

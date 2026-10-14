@@ -1,0 +1,567 @@
+/**
+ * tests/angular-e2e.mjs
+ * ---------------------------------------------------------------------------
+ * End-to-end checks for the two Angular applications, driven through a real
+ * browser (headless Microsoft Edge) against the real compiled API.
+ *
+ * WHY THIS EXISTS ALONGSIDE tests/run-tests.js
+ *   run-tests.js proves the REST API and the ARCHIVED vanilla frontend behave
+ *   correctly at the level of HTTP and the DOM. It cannot prove that an Angular
+ *   application bootstraps, routes, calls the API and paints the result, because
+ *   an Angular app is compiled and its rendering is driven by the framework.
+ *   This script covers exactly that gap: it loads the BUILT applications in a
+ *   real browser and asserts on what a person would actually see.
+ *
+ * WHAT IT PROVES
+ *   * both applications boot (no "Loading..." placeholder left behind)
+ *   * the router resolves every required route, including deep links
+ *   * the page content really comes from the API (it fetches the same data
+ *     directly and compares)
+ *   * the Assessment 3 registration list appears on the event page
+ *   * the Open-Meteo forecast renders when one is available
+ *   * the language switcher and the theme switch change the document
+ *   * the admin side lists every event and every registration
+ *   * the API's write contract (POST 201 / PUT 200 / DELETE 204, and DELETE 409
+ *     when registrations exist) behaves as both applications expect
+ *
+ * HOW TO RUN
+ *   npm run build:local     (once, or after changing the applications)
+ *   npm run test:e2e
+ *
+ * PREREQUISITES
+ *   Microsoft Edge (found automatically) and the two builds in dist/. The script
+ *   starts the API and the two static servers itself, on the ports the built
+ *   development environment files expect (3000, 4200, 4300).
+ */
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(HERE, '..');
+
+const API_PORT = 3000;
+const CLIENT_PORT = 4200;
+const ADMIN_PORT = 4300;
+const API = `http://127.0.0.1:${API_PORT}/api`;
+const CLIENT = `http://127.0.0.1:${CLIENT_PORT}`;
+const ADMIN = `http://127.0.0.1:${ADMIN_PORT}`;
+
+const results = [];
+function record(label, ok, detail = '') {
+  results.push({ label, ok });
+  console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${label}`);
+  if (detail) console.log(`          ${detail}`);
+}
+
+function section(title) {
+  console.log('');
+  console.log(title);
+  console.log('-'.repeat(title.length));
+}
+
+/* ------------------------------------------------------------------ helpers */
+
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+
+/** Wait until an HTTP endpoint answers, so no fixed sleeps are needed. */
+async function waitForHttp(url, { timeoutMs = 30_000, expect = () => true } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = 'no attempt made';
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url);
+      if (expect(response)) return response;
+      lastError = `status ${response.status}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await sleep(300);
+  }
+
+  throw new Error(`Timed out waiting for ${url} (${lastError})`);
+}
+
+/** GET a JSON payload from the API. */
+async function api(pathname) {
+  const response = await fetch(`${API}${pathname}`);
+  if (!response.ok) throw new Error(`GET ${pathname} -> ${response.status}`);
+  const body = await response.json();
+  return body.data;
+}
+
+/** A deliberately small static server, mirroring tools/serve-spa.mjs. */
+function startStaticServer(directory, port) {
+  return spawn(process.execPath, [path.join(ROOT, 'tools', 'serve-spa.mjs'), directory, String(port)], {
+    cwd: ROOT,
+    stdio: 'ignore',
+  });
+}
+
+const children = [];
+function startChild(command, args) {
+  const child = spawn(command, args, { cwd: ROOT, stdio: 'ignore' });
+  children.push(child);
+  return child;
+}
+
+function stopAll() {
+  for (const child of children) {
+    try {
+      child.kill();
+    } catch {
+      // Already gone.
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------- main */
+
+async function main() {
+  /* ---------------------------------------------------------- preconditions */
+  section('Preconditions');
+
+  const distClient = path.join(ROOT, 'dist', 'clientside');
+  const distAdmin = path.join(ROOT, 'dist', 'adminside');
+  const apiEntry = path.join(ROOT, 'api', 'dist', 'server.js');
+
+  const buildsPresent = existsSync(path.join(distClient, 'index.html')) && existsSync(path.join(distAdmin, 'index.html'));
+  record(
+    'both Angular applications are built',
+    buildsPresent,
+    buildsPresent ? 'dist/clientside and dist/adminside' : 'Run: npm run build:local'
+  );
+  if (!buildsPresent) return finish();
+
+  const apiBuilt = existsSync(apiEntry);
+  record('the TypeScript API is compiled', apiBuilt, apiBuilt ? 'api/dist/server.js' : 'Run: npm run build:api');
+  if (!apiBuilt) return finish();
+
+  /* ------------------------------------------------------ find a browser */
+  const browserCandidates = [
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+  const browserPath = browserCandidates.find((candidate) => existsSync(candidate));
+  record('a Chromium browser is available for the end-to-end run', Boolean(browserPath), browserPath ?? 'none found');
+  if (!browserPath) return finish();
+
+  /* ------------------------------------------------------- start the stack */
+  section('Starting the stack');
+
+  startChild(process.execPath, [apiEntry]);
+  startChild(process.execPath, [path.join(ROOT, 'tools', 'serve-spa.mjs'), distClient, String(CLIENT_PORT)]);
+  startChild(process.execPath, [path.join(ROOT, 'tools', 'serve-spa.mjs'), distAdmin, String(ADMIN_PORT)]);
+
+  await waitForHttp(`${API}/health`);
+  await waitForHttp(CLIENT, { expect: (response) => response.ok });
+  await waitForHttp(ADMIN, { expect: (response) => response.ok });
+  record('API, client site and admin site are all listening', true, `${API_PORT}, ${CLIENT_PORT}, ${ADMIN_PORT}`);
+
+  /* --------------------------------------------------------- reference data */
+  const organization = await api('/organization');
+  const stats = await api('/stats');
+  const events = await api('/events?limit=12');
+  const eventDetail = await api('/events/2');
+  const adminEvents = await api('/admin/events');
+  const registrations = await api('/registrations');
+
+  const eventName = eventDetail.eventName;
+  const attendeeName = eventDetail.registrations?.[0]?.attendeeName ?? '';
+  const attendeeEmail = registrations[0]?.attendeeEmail ?? '';
+
+  const { default: puppeteer } = await import('puppeteer-core');
+  const browser = await puppeteer.launch({
+    executablePath: browserPath,
+    headless: true,
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+  });
+
+  /**
+   * Load a page and return its visible text.
+   *
+   * The language is FORCED to English before any application code runs. The
+   * application deliberately honours the browser's preference, and this machine's
+   * headless browser reports zh-CN, so without forcing a language every English
+   * text assertion below would fail for the "wrong" reason - the interface would
+   * correctly be in Chinese. The language feature itself is asserted separately,
+   * further down, by setting the stored choice to 'zh' and checking the result.
+   *
+   * A `waitFor` string is waited for, but a timeout does NOT abort the run: the
+   * page text is returned anyway so the individual assertions can report what was
+   * actually rendered. Aborting here would hide every later check behind the first
+   * failure, which makes a broken build far slower to diagnose.
+   */
+  async function visit(url, { waitFor, language = 'en', theme = 'light' } = {}) {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1400, height: 1000 });
+
+    await page.evaluateOnNewDocument(
+      (chosenLanguage, chosenTheme) => {
+        try {
+          localStorage.setItem('charity-events:language', chosenLanguage);
+          localStorage.setItem('charity-events:theme', chosenTheme);
+        } catch {
+          // Storage unavailable: the pages still render, in the browser's language.
+        }
+      },
+      language,
+      theme
+    );
+
+    const errors = [];
+    const consoleErrors = [];
+    page.on('pageerror', (error) => errors.push(String(error)));
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 45_000 });
+
+    let waited = true;
+    if (waitFor) {
+      waited = await waitForText(page, waitFor);
+    }
+
+    const text = await page.evaluate(() => document.body.innerText);
+    return { page, text, errors: [...errors, ...consoleErrors], waited, waitFor };
+  }
+
+  /** Wait until the page shows one of the given strings. Returns whether it did. */
+  async function waitForText(page, needle, timeoutMs = 20_000) {
+    try {
+      await page.waitForFunction(
+        (wanted) => document.body && document.body.innerText.includes(wanted),
+        { timeout: timeoutMs },
+        needle
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Click the first button or link whose text contains `needle`.
+   *
+   * Used to drive a form the way a person would. `includes` is used rather than a
+   * regular expression so the needle can be passed into the page verbatim.
+   */
+  async function clickByText(page, needle) {
+    return page.evaluate((wanted) => {
+      const lower = String(wanted).toLowerCase();
+      const matches = (node) =>
+        (node.textContent ?? '').toLowerCase().includes(lower) ||
+        (node.getAttribute('value') ?? '').toLowerCase().includes(lower);
+
+      // A form control is preferred over a link: the same words also appear in the
+      // site menu, and clicking a menu link would only navigate to the page that is
+      // already open instead of submitting the form.
+      const candidate =
+        [...document.querySelectorAll('button, input[type="submit"]')].find(matches) ??
+        [...document.querySelectorAll('a')].find(matches);
+
+      if (!candidate) return false;
+      candidate.click();
+      return true;
+    }, needle);
+  }
+
+  /** A short excerpt of what a page actually rendered, for a failure message. */
+  const excerpt = (text) =>
+    text.replace(/\s+/g, ' ').trim().slice(0, 220) || '(the page rendered no text at all)';
+
+  try {
+    /* ============================================================ client side */
+    section('Client-side website');
+
+    // ---- home
+    const home = await visit(`${CLIENT}/`, { waitFor: organization.name });
+    if (!home.waited) {
+      console.log(`          home page never showed "${home.waitFor}"; it rendered: ${excerpt(home.text)}`);
+    }
+    record('home page boots and renders the organisation from the API', home.text.includes(organization.name), organization.name);
+    record(
+      'the loading placeholder is gone (Angular bootstrapped)',
+      !home.text.includes('Loading the charity events website'),
+      home.text.includes('Loading') ? 'placeholder still visible' : ''
+    );
+
+    const firstEvent = events[0]?.eventName ?? '';
+    record(
+      'home page renders event cards from the API',
+      firstEvent !== '' && home.text.includes(firstEvent),
+      firstEvent
+    );
+
+    const imageCount = await home.page.evaluate(
+      () => document.querySelectorAll('img[src*="assets/images"]').length
+    );
+    record('event artwork resolves from the shared assets folder', imageCount > 0, `${imageCount} images`);
+    record('no uncaught JavaScript error on the home page', home.errors.length === 0, home.errors.join('; '));
+    await home.page.close();
+
+    // ---- search
+    // The search page deliberately shows nothing until the visitor searches (the
+    // legacy page did the same), so this performs a REAL search instead of
+    // expecting results to be pre-loaded.
+    const search = await visit(`${CLIENT}/search`);
+    const filterInputs = await search.page.evaluate(() => document.querySelectorAll('input').length);
+    record(
+      'search page renders the filter form built from the API',
+      filterInputs > 0 && search.text.includes('Coffs Harbour'),
+      `${filterInputs} inputs; venues from /api/locations present`
+    );
+
+    const submitted = await clickByText(search.page, 'Search events');
+    record('the search form can be submitted', submitted, submitted ? '' : 'no Search events button found');
+
+    const resultsAppeared = await waitForText(search.page, firstEvent, 15_000);
+    const searchText = await search.page.evaluate(() => document.body.innerText);
+    record(
+      'searching calls the API and renders matching events',
+      resultsAppeared,
+      resultsAppeared ? firstEvent : excerpt(searchText)
+    );
+    await search.page.close();
+
+    // ---- event detail: the A3 registration list
+    const detail = await visit(`${CLIENT}/events/2`, { waitFor: eventName });
+    if (!detail.waited) {
+      console.log(`          event detail never showed "${detail.waitFor}"; it rendered: ${excerpt(detail.text)}`);
+    }
+    record('event detail page renders the event from the API', detail.text.includes(eventName), eventName);
+    record(
+      'event detail page lists the registrations, newest first (A3)',
+      attendeeName !== '' && detail.text.includes(attendeeName),
+      attendeeName || 'no registrations returned by the API'
+    );
+    // The Register control may be a <button> that routes on click or an <a> with a
+    // router link, so both are accepted; what matters is that the visitor can
+    // reach the registration form from the event.
+    const registerControls = await detail.page.evaluate(() =>
+      [...document.querySelectorAll('a, button')]
+        .filter((node) => /register|book|reserve/i.test(node.textContent ?? ''))
+        .map((node) => ({ tag: node.tagName, href: node.getAttribute('href') ?? '' }))
+    );
+    record(
+      'event detail page offers a Register control for the registration page (A3)',
+      registerControls.length > 0,
+      JSON.stringify(registerControls.slice(0, 3))
+    );
+
+    // ---- weather (the optional external API)
+    // Ask Open-Meteo directly first, so a lack of internet access is reported as
+    // such instead of looking like a broken page.
+    const weatherReachable = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${eventDetail.latitude}` +
+        `&longitude=${eventDetail.longitude}&daily=weather_code&timezone=Australia%2FSydney` +
+        `&start_date=${eventDetail.eventDate}&end_date=${eventDetail.eventDate}`
+    )
+      .then((response) => response.ok)
+      .catch(() => false);
+
+    // The forecast comes from a third-party API AFTER the event itself resolves, so
+    // it is waited for rather than read the moment the event appears.
+    const forecastPanelAppeared = await waitForText(detail.page, 'Open-Meteo', 15_000);
+    const detailText = await detail.page.evaluate(() => document.body.innerText);
+    const temperatureShown = /\d+\s*°C/.test(detailText);
+
+    record(
+      weatherReachable
+        ? 'the Open-Meteo forecast renders on the event detail page'
+        : 'Open-Meteo is unreachable, so the event page must degrade quietly (no error)',
+      weatherReachable ? forecastPanelAppeared && temperatureShown : detail.errors.length === 0,
+      weatherReachable
+        ? `panel: ${forecastPanelAppeared}, temperature: ${temperatureShown}`
+        : 'skipped the render assertion; the page must not error'
+    );
+    record('no uncaught JavaScript error on the event detail page', detail.errors.length === 0, detail.errors.join('; '));
+    await detail.page.close();
+
+    // ---- registration page
+    const registration = await visit(`${CLIENT}/register/2`, { waitFor: eventName });
+    if (!registration.waited) {
+      console.log(
+        `          registration page never showed "${registration.waitFor}"; it rendered: ${excerpt(registration.text)}`
+      );
+    }
+    record('registration page shows the event being registered for (A3)', registration.text.includes(eventName), eventName);
+    const formFields = await registration.page.evaluate(() => ({
+      email: document.querySelectorAll('input[type="email"], input[name*="mail"]').length,
+      number: document.querySelectorAll('input[type="number"]').length,
+      text: document.querySelectorAll('input[type="text"], input:not([type])').length,
+      forms: document.querySelectorAll('form').length,
+    }));
+    record(
+      'registration page offers a real form (name, email, tickets)',
+      formFields.forms > 0 && formFields.email > 0 && formFields.number > 0,
+      JSON.stringify(formFields)
+    );
+    await registration.page.close();
+
+    // ---- language switcher
+    const chinese = await browser.newPage();
+    await chinese.setViewport({ width: 1400, height: 1000 });
+    await chinese.goto(`${CLIENT}/`, { waitUntil: 'networkidle2' });
+    await chinese.evaluate(() => localStorage.setItem('charity-events:language', 'zh'));
+    await chinese.reload({ waitUntil: 'networkidle2' });
+    const chineseText = await chinese.evaluate(() => document.body.innerText);
+    const langAttribute = await chinese.evaluate(() => document.documentElement.lang);
+    record(
+      'choosing Chinese switches the interface (stored choice is honoured)',
+      langAttribute === 'zh-CN' || /[\u4e00-\u9fff]/.test(chineseText),
+      `html lang = ${langAttribute}`
+    );
+    await chinese.close();
+
+    // ---- theme
+    const themed = await browser.newPage();
+    await themed.setViewport({ width: 1400, height: 1000 });
+    await themed.goto(`${CLIENT}/`, { waitUntil: 'networkidle2' });
+    await themed.evaluate(() => localStorage.setItem('charity-events:theme', 'dark'));
+    await themed.reload({ waitUntil: 'networkidle2' });
+    const themeAttribute = await themed.evaluate(() =>
+      document.documentElement.getAttribute('data-theme')
+    );
+    record('the stored dark theme is applied to the document', themeAttribute === 'dark', `data-theme = ${themeAttribute}`);
+    await themed.close();
+
+    /* ============================================================= admin side */
+    section('Admin-side website');
+
+    const dashboard = await visit(`${ADMIN}/`, { waitFor: 'API' });
+    record(
+      'admin dashboard renders the API statistics',
+      dashboard.text.includes(String(stats.registrations)) || dashboard.text.includes(String(stats.upcomingEvents)),
+      `registrations=${stats.registrations}, upcoming=${stats.upcomingEvents}`
+    );
+    record('no uncaught JavaScript error on the dashboard', dashboard.errors.length === 0, dashboard.errors.join('; '));
+    await dashboard.page.close();
+
+    const list = await visit(`${ADMIN}/events`, { waitFor: eventName });
+    if (!list.waited) {
+      console.log(`          admin event list never showed "${list.waitFor}"; it rendered: ${excerpt(list.text)}`);
+    }
+    const suspended = adminEvents.find((event) => event.status && event.status !== 'active');
+    record('admin event list renders every event', list.text.includes(eventName), eventName);
+    if (suspended) {
+      record(
+        'the list includes a non-active event (status is not filtered out)',
+        list.text.includes(suspended.eventName),
+        `${suspended.eventName} (${suspended.status})`
+      );
+    }
+    const menuLinks = await list.page.evaluate(() => document.querySelectorAll('nav a, header a').length);
+    record('the admin menu is present on the list page', menuLinks > 0, `${menuLinks} navigation links`);
+    record('no uncaught JavaScript error on the event list', list.errors.length === 0, list.errors.join('; '));
+    await list.page.close();
+
+    const adminRegistrations = await visit(`${ADMIN}/registrations`, { waitFor: attendeeEmail });
+    record(
+      'admin registrations page lists every registration',
+      attendeeEmail !== '' && adminRegistrations.text.includes(attendeeEmail),
+      attendeeEmail
+    );
+    await adminRegistrations.page.close();
+
+    /* ============================================== the API write contract */
+    section('API write contract used by the admin forms');
+
+    const reference = await api('/admin/reference-data');
+    const payload = {
+      organizationId: reference.organizations[0].organizationId,
+      categoryId: reference.categories[0].categoryId,
+      locationId: reference.locations.find((venue) => venue.latitude !== null)?.locationId ?? reference.locations[0].locationId,
+      eventName: 'E2E verification event',
+      shortDescription: 'Created by the end-to-end verification script.',
+      description: 'This event is created and removed by tests/angular-e2e.mjs to prove the write contract.',
+      purpose: 'Verify the C.R.U.D. cycle the admin website depends on.',
+      eventDate: '2026-12-01',
+      startTime: '10:00',
+      endTime: '12:00',
+      goalAmount: 1000,
+      isFree: true,
+      status: 'active',
+      imageUrl: 'fun-run.svg',
+    };
+
+    const created = await fetch(`${API}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    record('POST /api/events creates an event (201)', created.status === 201, `status ${created.status}`);
+    const createdBody = created.status === 201 ? (await created.json()).data : null;
+
+    if (createdBody) {
+      const updated = await fetch(`${API}/events/${createdBody.eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventName: 'E2E verification event (updated)' }),
+      });
+      record('PUT /api/events/:id updates it (200)', updated.status === 200, `status ${updated.status}`);
+
+      const deleted = await fetch(`${API}/events/${createdBody.eventId}`, { method: 'DELETE' });
+      record('DELETE /api/events/:id removes it (204)', deleted.status === 204, `status ${deleted.status}`);
+    }
+
+    // Event 2 has registrations, so the delete MUST be refused.
+    const blocked = await fetch(`${API}/events/2`, { method: 'DELETE' });
+    const blockedBody = blocked.status === 409 ? await blocked.json() : null;
+    record(
+      'DELETE /api/events/:id is refused with 409 when registrations exist (data integrity)',
+      blocked.status === 409,
+      `status ${blocked.status}, registrations: ${blockedBody?.error?.details?.registrationCount ?? 'n/a'}`
+    );
+
+    const invalid = await fetch(`${API}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventName: 'x' }),
+    });
+    const invalidBody = invalid.status === 400 ? await invalid.json() : null;
+    record(
+      'an incomplete create is rejected with 400 and per-field details',
+      invalid.status === 400 && Array.isArray(invalidBody?.error?.details),
+      `${invalidBody?.error?.details?.length ?? 0} field errors`
+    );
+
+    await browser.close();
+  } finally {
+    try {
+      await browser.close();
+    } catch {
+      // Already closed.
+    }
+  }
+
+  return finish();
+}
+
+function finish() {
+  stopAll();
+
+  const failed = results.filter((entry) => !entry.ok);
+  console.log('');
+  console.log('==========================================================');
+  if (failed.length === 0) {
+    console.log(`  ${results.length} end-to-end checks passed`);
+  } else {
+    console.log(`  ${results.length - failed.length} passed, ${failed.length} failed`);
+    for (const entry of failed) console.log(`    FAIL  ${entry.label}`);
+  }
+  console.log('==========================================================');
+
+  // Give the child processes a moment to release their ports before exiting.
+  setTimeout(() => process.exit(failed.length === 0 ? 0 : 1), 300);
+}
+
+main().catch((error) => {
+  console.error('\nThe end-to-end run could not complete:', error);
+  finish();
+});

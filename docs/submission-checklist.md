@@ -4,9 +4,16 @@ PROG2002 Web Development II - **Assessment 3**
 **Weight:** 40% (the same unit weighting as A2; the A3 brief sets the part split)
 
 > A note on the A2 corrections at the end of this file (section **J**). They were
-> posted during Assessment 2 and they still matter: no CSS or JavaScript
-> framework, and AI use requires the official prompt plus screenshots of your
-> chat log. Where the A3 brief repeats a rule, the same checks apply.
+> posted during Assessment 2 and they still matter: AI use requires the official
+> prompt plus screenshots of your chat log. The A2 "no JavaScript or CSS
+> framework" rule, however, was **reversed** by the A3 brief, which requires
+> Angular v22 or later - section J2 records what replaced it.
+>
+> This project is a **TypeScript stack**: two Angular applications
+> (`clientside/`, `adminside/`) sharing the `shared/` library, plus an Express API
+> written in TypeScript and compiled to `api/dist/`. Everything below assumes
+> that; if a path in this list looks like a `.js` source file under `api/`, it is
+> out of date.
 
 Work through this list top to bottom before you submit. Tick nothing you have
 not actually verified.
@@ -15,20 +22,22 @@ not actually verified.
 
 ## A. Database (Part 1)
 
-> **Do this first.** As of the last check on this machine, the running MySQL
-> instance still held the **A2** schema: `information_schema` reported 6 base
-> tables and 2 views, `GET /api/health` reported `tableCount: 8` and
-> `registrationTable: false`, and `event_registrations` did not exist. Nothing in
-> Part 1 or the A3 write features can be demonstrated until the A3 dump is
-> loaded:
+> **Do this first.** The submitted configuration uses MySQL, so the A3 dump has to
+> be loaded before Part 1 or the A3 write features can be demonstrated:
 >
 > ```bash
-> node tools/load-database.mjs --user root --password "your_root_password"
+> npm run db:load -- --user root --password "your_root_password"
 > # or:  mysql -u root -p < database/charityevents_db.sql
 > ```
 >
-> After that, `GET /api/health` must report `registrationTable: true` and
-> `tableCount: 12` (7 tables + 5 views).
+> After that, `GET /api/health` must report `registrationTable: true` and a
+> `tableCount` of **12** (7 tables + 5 views).
+>
+> On this machine `api/.env` currently sets `DATA_SOURCE=local`, so the API starts
+> and answers from the generated in-memory mirror with **no MySQL at all** - which
+> is why `npm start` works here without a database server. Everything below still
+> applies to the MySQL run the submission is configured for;
+> `api/.env.example` ships with `DATA_SOURCE=mysql`.
 
 - [ ] **The A3 dump is loaded** and `GET /api/health` reports
       `registrationTable: true`
@@ -39,16 +48,14 @@ not actually verified.
       collation, `CHECK` constraints and `ON DELETE RESTRICT` foreign keys)
 - [ ] On this computer MySQL is the Windows service **MySQL84** (8.4.11) and the
       API reads it with the application account `charity_app`
-- [ ] `charity_app` has `SELECT, INSERT, UPDATE, DELETE` on `charityevents_db`.
-      **Verified on this machine: it holds `SELECT` only**
-      (`SHOW GRANTS FOR CURRENT_USER();` returns just
-      `GRANT SELECT ON charityevents_db.* TO charity_app@127.0.0.1`), so every
-      A3 write currently fails with MySQL error 1142. Apply
+- [ ] `charity_app` has **`SELECT, INSERT, UPDATE, DELETE`** on
+      `charityevents_db`. A2 needed `SELECT` only; the A3 write endpoints fail
+      with MySQL error 1142 without the other three, so check the **live** grant
+      rather than the template, whose comment still describes A2:
+      `SHOW GRANTS FOR CURRENT_USER();`, then, if needed,
       `GRANT SELECT, INSERT, UPDATE, DELETE ON charityevents_db.* TO 'charity_app'@'127.0.0.1';`
       - note the host, because `api/.env` connects from `127.0.0.1` and a
-      `@'localhost'` grant would create a different account.
-      `api/.env.example` still shows the A2 grant in its comment, so check the
-      live grant rather than the template
+      `@'localhost'` grant would create a different account
 - [ ] `SELECT COUNT(*) FROM events;` returns 11
 - [ ] Tables exist with primary and foreign keys: `organizations`, `categories`,
       `locations`, `events`, `ticket_types`, `donations`, **`event_registrations`**
@@ -65,10 +72,11 @@ not actually verified.
 - [ ] The delete rule is real at the database level: `DELETE FROM events WHERE
       event_id = 1;` fails with `Cannot delete or update a parent row` (the
       `ON DELETE RESTRICT` key), even though event 1 exists
-- [ ] Events 9, 10 and 11 have **no** registrations, so a successful event
-      delete can still be demonstrated
-- [ ] `event_db.js` exists, is named exactly, and connects to MySQL using a pool
-- [ ] `event_db.js` was proof-read for hard-coded passwords (use `.env`)
+- [ ] Events 9, 10 and 11 have **no** registrations (only events 1-8 do), so a
+      successful event delete can still be demonstrated
+- [ ] `api/src/db/event_db.ts` exists, is named exactly, and connects to MySQL
+      using a pool (it compiles to `api/dist/src/db/event_db.js`)
+- [ ] `api/src/db/event_db.ts` was proof-read for hard-coded passwords (use `.env`)
 - [ ] The SQL file is attached to the submission
 
 ## B. REST API (Part 2)
@@ -77,9 +85,14 @@ not actually verified.
 
 - [ ] `cd api && npm install` completes
 - [ ] `api/.env` exists (copied from `.env.example`) with the correct DB password
-- [ ] `npm start` prints "Database : connected"
+- [ ] `npm run build` inside `api/` compiles the TypeScript with no errors and
+      writes `api/dist/server.js` - the compiled file is what runs, because the
+      cPanel's Node version cannot execute TypeScript
+- [ ] `npm start` inside `api/` (which runs `node dist/server.js`) prints the data
+      source it is using and, with `DATA_SOURCE=mysql`, that the database is
+      connected
 - [ ] `GET /api/health` returns 200, `registrationTable: true`, and a
-      `tableCount` of **13** - that number comes from `information_schema`, so it
+      `tableCount` of **12** - that number comes from `information_schema`, so it
       counts the 7 tables **and** the 5 views
 - [ ] `GET /api/events` returns upcoming events with their category
 - [ ] `GET /api/events` filters by **date**, **location** and **category**,
@@ -133,41 +146,50 @@ not actually verified.
       `Access-Control-Allow-Methods: GET,POST,PUT,DELETE,OPTIONS` and a
       `Location` entry in `Access-Control-Expose-Headers`
 - [ ] A Postman collection has been built and exported (include it in the zip),
-      with the A3 requests added to the A2 ones
+      with the A3 requests added to the A2 ones. The repository copy is
+      `docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json` and it
+      already holds the **Assessment 3 - the write endpoints** folder
 - [ ] **Authentication is deliberately absent** and you can say why: the brief
       says "assume that authentication is not required"
 
 ## C. Client-side website (Part 3)
 
+The public site is the `clientside` Angular application. Its routes are `/`,
+`/search`, `/events/:id`, `/register/:id` and the catch-all 404.
+
 ### Home, search and event pages (A2, still true)
 
-- [ ] `node serve-clientside.js` runs and `http://localhost:5500/index.html` opens
+- [ ] `npm start` runs, and `http://localhost:4200/` opens the public site
 - [ ] **Home page**: static organisation information is visible
 - [ ] **Home page**: the event list is loaded from the API (check the Network tab)
 - [ ] **Home page**: each card shows name, category, location, date, price,
       image and progress, and links to the detail page
 - [ ] **Home page**: no past event and no suspended event appears
-- [ ] **Menu**: present and working on all four public pages
+- [ ] **Menu**: present and working on the public pages (the 404 route hides the
+      menu on purpose)
 - [ ] **Search page**: date, location and category controls all work
 - [ ] **Search page**: more than one category can be selected at once
 - [ ] **Search page**: criteria combine (test Lismore + Fun Run + a date range)
 - [ ] **Search page**: **Clear Filters** resets everything
-- [ ] **Search page**: error messages are shown for invalid input
+- [ ] **Search page**: error messages are shown for invalid input, with no
+      request sent (watch the Network tab)
 - [ ] **Search page**: an empty result set shows a helpful message, not a blank page
-- [ ] **Detail page**: only the selected event is shown
+- [ ] **Search page**: the chosen filters appear in the address bar and a reload
+      reproduces the same search
+- [ ] **Detail page**: `/events/1` shows only the selected event
 - [ ] **Detail page**: full description, venue, times, capacity and purpose
 - [ ] **Detail page**: ticket prices shown, including a free tier
 - [ ] **Detail page**: goal vs. progress bar with real figures
 
-### The new registration page (A3)
+### The registration page (A3)
 
-- [ ] **Register** on the event page is an **anchor** to
-      `registration.html?id=<id>` - the A2 "under construction" dialog is gone
-      (a past event shows a disabled button instead of a dead link)
-- [ ] Opening `registration.html?id=1` directly shows **that** event, and the
-      page loads it from `GET /api/events/1`
-- [ ] Opening `registration.html` with **no** query string falls back to the
-      last event viewed (the `charity-events:last-viewed-event-id` key)
+- [ ] **Register** on the event page is a real link to `/register/<id>` - the A2
+      "under construction" dialog is gone (a past event shows a disabled button
+      instead of a dead link)
+- [ ] Opening `http://localhost:4200/register/1` directly shows **that** event,
+      and the page loads it from `GET /api/events/1`
+- [ ] Opening `http://localhost:4200/register` with **no** id shows the friendly
+      404 - a registration form that cannot know its event is not offered
 - [ ] The form has one control per stored column: name, email, phone (optional),
       date of registration (defaults to today), ticket type, number of tickets,
       notes
@@ -204,13 +226,16 @@ not actually verified.
       coordinates (for example event 1) and shows the date, the summary, the
       temperature range and the rain chance
 - [ ] The weather panel is **absent**, with no console error, for: the online
-      venue (no coordinates), an event more than 16 days away, a past event, and
-      with the machine offline
+      venue (event 8, no coordinates), an event more than 16 days away, a past
+      event, and with the machine offline
 
 ## D. Admin-side website (Part 4)
 
-- [ ] `http://localhost:5500/admin/index.html` opens (same static server, no
-      second command)
+The staff site is the `adminside` Angular application, on its **own port**. Its
+routes are `/`, `/events`, `/events/new`, `/events/:id/edit`, `/registrations`
+and the catch-all 404.
+
+- [ ] `http://localhost:4300/` opens, with no second command and no second API
 - [ ] The menu is present on **all five** pages: Dashboard, Events, Add event,
       Update event, Registrations
 - [ ] **Dashboard** shows counts and the latest registrations
@@ -224,9 +249,14 @@ not actually verified.
       from `GET /api/admin/reference-data`
 - [ ] **Add event**: ticket-tier rows can be added and removed, and client-side
       validation stops an incomplete form before it is sent
+- [ ] **Add event**: the live **weather preview** appears for the chosen venue and
+      date (the same Open-Meteo service the public event page uses) and simply
+      says it is unavailable when there is nothing to show
 - [ ] **Add event**: a valid submission creates the event (201) and the new event
       appears in the Events list
-- [ ] **Update event**: the event picker and `update.html?id=1` both load the event
+- [ ] **Update event**: `/events/1/edit` (from the list's Edit link or typed)
+      loads the event, and a **suspended** event still loads - the admin endpoint
+      returns it as a 200 where the public one returns 404
 - [ ] **Update event**: changing one field sends only that field - confirm the
       request body in the Network tab is the small diff, not the whole event
 - [ ] **Update event**: submitting with nothing changed is refused with a clear
@@ -236,80 +266,93 @@ not actually verified.
       is visible
 - [ ] **Delete**: the confirmation dialog appears; cancelling does nothing
 - [ ] **Delete**: deleting an event that **has** registrations shows a warning
-      banner with the API's message and links to Update and to the registrations,
-      and that row's Delete button is disabled and relabelled
+      banner with the API's message, the registration count, the "suspend it
+      instead" suggestion and a link to the registrations, and that row's Delete
+      button is disabled and relabelled
 - [ ] **Delete**: deleting event 9 (no registrations) shows a success banner and
       the list reloads without it
 - [ ] **Registrations** page lists all registrations, filters them and deletes one
-- [ ] The admin pages follow the light/dark theme and the heading is readable in
-      **both** (the shared `.page-header` class was deliberately not reused)
+- [ ] Both sites follow the light/dark theme, and the header controls switch
+      language on both (the shared library carries the choice across)
 - [ ] Reload the SQL dump after the delete demonstrations
 
 ## E. Deployment (Part 5)
 
 > **Full step-by-step instructions: [`deployment-cpanel.md`](deployment-cpanel.md).**
-> It covers the cPanel screens, the exact `api/.env` to create on the host, importing
-> the SQL through phpMyAdmin, and a symptom-to-cause table. The list below is the
-> checkable summary.
+> It covers the cPanel screens, the exact `api/.env` to create on the host,
+> importing the SQL through phpMyAdmin, the `.htaccess` rewrite the two
+> single-page applications need for deep links, and a symptom-to-cause table. The
+> list below is the checkable summary.
 
-- [ ] `node tools/configure-deployment.mjs --api https://<host>/charity-events-api`
-      has been run **before** building the zips. Skipping it is the single most
-      common deployment failure: the uploaded site then looks for the API on the
-      visitor's own machine and every list is simply empty
+- [ ] `npm run deploy:configure -- --site https://<host>/ --api https://<host>/charity-events-api`
+      has been run **before** the production build. It edits
+      `clientside/src/environments/environment.production.ts`,
+      `adminside/src/environments/environment.production.ts` and
+      `CORS_ORIGIN` in `api/.env` together. Skipping it is the single most common
+      deployment failure: the uploaded site then looks for the API on the
+      visitor's own machine and every list is simply empty. Afterwards,
+      `npm run deploy:configure -- --local` puts the machine back
 - [ ] `api/.env` on the host exists and has `DATA_SOURCE=mysql`, the cPanel MySQL
-      host/username/password/database, and `CORS_ORIGIN` set to the deployed site's
-      origin
-- [ ] `database/charityevents_db.sql` was imported through phpMyAdmin, and the
-      database holds **7 tables + 5 views**, `events` = 11 rows,
-      `event_registrations` = 20 rows
+      host/username/password/database, and `CORS_ORIGIN` set to the deployed
+      site's **origin** - no path, because a browser `Origin` header never
+      contains one
+- [ ] `database/charityevents_db.mysql57.sql` was imported through phpMyAdmin (the
+      host runs MySQL 5.7, which rejects the `utf8mb4_0900_ai_ci` collation in
+      `database/charityevents_db.sql`), and the database holds **7 tables + 5
+      views**, `events` = 11 rows, `event_registrations` = 20 rows
 - [ ] `https://<host>/charity-events-api/api/health` answers
       `"connected": true` and `"registrationTable": true` on the public internet
-- [ ] Both websites are uploaded to the SCU cPanel host. The layout that works
-      without editing a single path:
-      * the **contents** of `usernameA3-clientside.zip` go to the site root
-        (so `index.html`, `registration.html`, `js/`, `css/`, `images/` are
-        directly under the public URL);
-      * the **contents** of `usernameA3-adminside.zip` go over the same root,
-        which places the admin pages in `admin/` and reuses the `js/`, `css/`
-        and `images/` folders already there. Uploading it to a separate folder
-        instead also works, but only if that folder is beside a copy of `js/`,
-        `css/` and `images/`, because the admin pages import the shared modules
-        by relative path
-- [ ] The public URL opens and the admin site is reachable at
-      `<public-url>/admin/index.html`
-- [ ] `API_BASE_URL` in `clientside/js/config.js` (and therefore for the admin
-      site too, which shares the file) points at the **deployed** API, not at
-      `localhost`
-- [ ] The API is deployed as well, or the deployment notes state exactly where it
-      runs and that the marker must start it locally
+- [ ] The uploaded layout, which needs no path to be edited:
+      * the **contents** of `site/` from `usernameA3-clientside.zip` go to the
+        site root, so `index.html` and the hashed `main-*.js` / `styles-*.css`
+        files are directly under the public URL;
+      * the **contents** of `site/` from `usernameA3-adminside.zip` go to
+        `public_html/admin/`, because that build uses `baseHref: /admin/`;
+      * the API is uploaded as the **compiled** `api/dist` plus
+        `api/package.json` (and its own `.env`) into
+        `/home/<user>/charity-events-api/`, and the Passenger **Application
+        startup file** is `api/dist/server.js` - the host cannot run TypeScript
+- [ ] Each uploaded folder has the `.htaccess` rewrite to `index.html`, so a deep
+      link such as `/search` or `/admin/events` works when typed or refreshed
+- [ ] The production API address in both `environment.production.ts` files points
+      at the **deployed** API, not at `localhost`
 - [ ] `CORS_ORIGIN` on the deployed API lists the deployed site's origin
 - [ ] The deployed public site opens, loads events and can register someone
 - [ ] The deployed admin site lists the suspended event and can create, update
       and delete
-- [ ] The registration page's optional weather panel either works or is hidden
-      silently on the deployed site (an external API may be blocked on a shared
-      host; that must not break the page)
+- [ ] The event page's optional weather panel either works or is hidden silently
+      on the deployed site (an external API may be blocked on a shared host; that
+      must not break the page)
 - [ ] Both deployed sites were opened in a **private browser window**, so nothing
       depends on a local session
 - [ ] The URLs to submit are written down, ready to paste into the submission
 
 ## F. Automated tests
 
-- [ ] `node tests/run-tests.js` prints `0 failed`
-- [ ] The printed total is read from the run itself - the A2 groups are the
-      original 64 checks (two were updated for A3: `POST` is now routed, and the
-      "under construction" dialog no longer exists) and the A3 groups are added
-      on top
+Run everything from the project root.
+
+- [ ] `npm test` prints `116 passed, 0 failed`
+- [ ] That run covers the HTTP contract against the real Express API **and** the
+      jsdom regression suite over the archived vanilla frontend under `legacy/`;
+      the printout is read from the run itself, not from this document
 - [ ] You have run the suite **after** your last code change
-- [ ] `set TEST_DATA_SOURCE=mysql && node tests/run-tests.js` also prints
-      `0 failed` (this is the run that proves the MySQL repositories behave like
-      the offline ones, and it is the run that catches a missing grant)
-- [ ] `npm run check:frameworks` prints `6 passed, 0 failed` - the "HTML, CSS and
-      JS only" rule, checked against the delivered files rather than by eye (the
-      checks it makes are listed under J2)
-- [ ] `npm run check:translations` prints `Translations are complete and
-      consistent` - both sites' dictionaries have the same keys in all four
-      languages, and every key the code asks for exists
+- [ ] `npm run test:mysql` also prints `0 failed` (this is the run that proves the
+      MySQL repositories behave like the offline ones, and the run that catches a
+      missing grant)
+- [ ] `npm run build:local` has been run, then `npm run test:e2e` prints
+      `33 end-to-end checks passed` - headless browser checks over **both** Angular
+      applications against the compiled API
+- [ ] `npm run check:angular` prints `16 checks passed` - the architecture guard:
+      Angular v22, two applications, standalone components, zoneless, a real
+      `.html` template and a doc comment per component, no cross-application
+      imports, both applications importing `shared/`, the early-theme script in
+      both `index.html` files, and a TypeScript-only API that compiles to `dist/`
+- [ ] `npm run check:translations` prints `7 checks passed`, with **306** keys in
+      each of the four client languages and **253** in each of the four admin
+      languages, and every key the templates ask for present
+- [ ] `npm run check:shared` type-checks `shared/` on its own with no errors
+- [ ] `npm run check:refs`, `npm run check:secrets` and `npm run check:encoding`
+      are clean
 
 ## G. Documentation and deliverables
 
@@ -322,7 +365,8 @@ not actually verified.
       visually distinct from body text
 - [ ] The A3 sections of the report are written: the new table and its
       constraints, the C.R.U.D. endpoints, the delete rule, the registration
-      page, the admin site and the optional external API
+      page, the admin site, the migration to Angular and TypeScript, and the
+      optional external API
 - [x] ER diagram included in the report as **Figure 4**, under *Data Schema*
       (page 10). Source: `docs/report-images/06-er-diagram.png`. **A3**: the ERD
       must now show `event_registrations`, so either update the figure or add a
@@ -344,16 +388,26 @@ not actually verified.
       structured document
 - [ ] The GenAI declaration is included, with the correct option chosen
 - [ ] The peer evaluation form required by the brief is completed and submitted
+
+### The three archives
+
 - [ ] `usernameA3-api.zip` built (replace `username` with your SCU username)
 - [ ] `usernameA3-clientside.zip` built
 - [ ] `usernameA3-adminside.zip` built
-- [ ] They were produced by `node tools/make-submission-zips.mjs` (or the manual
-      equivalent at the end of this file), and the dry run reported no missing
-      files
+- [ ] They were produced by `npm run zip` (or the manual equivalent at the end of
+      this file), and the dry run reported no `ERROR` lines
+- [ ] Each front-end archive contains `README-SUBMISSION.md`, `site/` (the built
+      application, ready to upload) and `source/` (the trimmed Angular workspace
+      it can be rebuilt from)
+- [ ] `usernameA3-api.zip` contains `api/server.ts`, `api/src/`, `api/dist/`,
+      `api/package.json` and `api/.env.example`
 - [ ] All three zips open correctly and contain the expected folders
-- [ ] `.env` is **not** inside the api zip if it contains a real password
+- [ ] `.env` is **not** inside the api archive if it contains a real password
       (`.env.example` should be there instead)
-- [ ] `node_modules` is **not** inside any zip
+- [ ] `node_modules` is **not** inside any archive
+- [ ] `legacy/` is **not** inside any archive - the archived A2 frontend is kept
+      in the repository as a reference and a regression-test target, and is
+      deliberately not submitted
 - [ ] The GitHub link is in the submission and is accessible to the marker
 - [ ] The repository is private, or the marker has been invited as a collaborator
 - [ ] The video is uploaded to SCU OneDrive, the link is shareable and you have
@@ -380,18 +434,21 @@ not actually verified.
 - [ ] Open every file you would be asked about and confirm you can explain it
 - [ ] Confirm the exact required details exist:
       * the database name: **`charityevents_db`**
-      * the connection file: **`event_db.js`**
+      * the connection file: **`api/src/db/event_db.ts`** (compiled to
+        `api/dist/src/db/event_db.js`)
       * the new table: **`event_registrations`**
+      * the running API entry point: **`api/dist/server.js`**
       * authentication is **deliberately absent** and you can justify it
 - [ ] Be ready to answer, without notes: why the unique key is on
       `(event_id, attendee_email)` and not on the email alone; what the
       transaction and `FOR UPDATE` add to the delete rule; what would still stop
-      a bad delete if the API check were deleted
+      a bad delete if the API check were deleted; why the API is compiled before
+      it runs
 - [ ] Submit with time to spare - late submissions may be penalised
 
 ---
 
-## Build the three zips
+## Build the three archives
 
 There are two ways to do this. Use the script - it is the one that has been
 tested, and it refuses to build an archive that is missing a required file.
@@ -399,106 +456,123 @@ tested, and it refuses to build an archive that is missing a required file.
 ### The script (preferred)
 
 ```bash
-node tools/make-submission-zips.mjs --dry-run     # show what each zip would contain
-node tools/make-submission-zips.mjs               # write them into dist/
-node tools/make-submission-zips.mjs --username LiuXu --out dist
+npm run build                                    # api/dist, dist/clientside, dist/adminside
+node tools/make-submission-zips.mjs --dry-run    # show what each archive would contain
+npm run zip -- --username YourUsername           # write them into dist/
+npm run zip -- --username YourUsername --out dist
 ```
 
 * The **username** comes from the `author` field in the root `package.json`
   (`"<your name> (<your SCU username>)"`), so it is edited in one place; pass
-  `--username` to override it. If neither is filled in, the archives are named
-  `usernameA3-*.zip` and the script says so.
-* The three archives are **self-contained for their marker**:
-  * `usernameA3-clientside.zip` - the public website. The `admin/` folder is
-    **excluded**, because it is a separate deliverable (next row).
-  * `usernameA3-adminside.zip` - the admin pages plus the shared `js/`, `css/`
-    and `images/` files they import, under the same relative paths, so this zip
-    runs after being extracted on its own.
-  * `usernameA3-api.zip` - `api/` without `node_modules` and without the real
-    `.env` (`.env.example` **is** included, because that is the template).
-* It never includes `node_modules`, `.git`, `api/.env`, `package-lock.json` or
-  the local `dist/` folder, and it fails loudly if an archive is missing a file
-  it must contain (`server.js`, `src/db/event_db.js`, `admin/index.html`,
-  `registration.html` and so on).
+  `--username` to override it. If neither is filled in, the script refuses to
+  write anything and says which field to edit.
+* An archive is no longer "a folder minus another folder", because the two
+  applications live in one workspace:
+  * `usernameA3-clientside.zip` - the **public** application: `site/` (the built
+    site, ready to upload) plus `source/` (the workspace, this application,
+    `shared/` and `assets/`, trimmed to what this one application needs to
+    rebuild);
+  * `usernameA3-adminside.zip` - the same shape for the staff application. The
+    other application is deliberately absent from each: it has its own archive,
+    and including both would submit the same code twice;
+  * `usernameA3-api.zip` - the TypeScript API: `api/server.ts`, `api/src/`,
+    `api/scripts/`, `api/tsconfig.json`, `api/package.json`,
+    `api/package-lock.json`, **the compiled `api/dist/`** and
+    `api/.env.example`.
+* It never includes `node_modules`, `.git`, `api/.env`, `legacy/`, any `dist/`
+  build cache or local scratch files, and it fails loudly (an `ERROR:` line) if an
+  archive is missing a file it must contain - `site/index.html`,
+  `source/<app>/src/main.ts`, `source/shared/src/`, `api/server.ts`,
+  `api/dist/server.js` and so on.
+* If the built output is missing the script writes nothing and names the command
+  to run. `--skip-build-check` exists only for inspecting the layout; the archives
+  it writes are **not** submittable.
+* Build with **`npm run build`**, not `npm run build:local`. The archives must
+  carry the production build, which has the deployed API address baked in from
+  `environment.production.ts` and hashes every asset name; `build:local` produces
+  the development build that points at `localhost`, and it is only for
+  `npm run test:e2e`. The script cannot tell the two apart, so this one is on you.
 
 - [ ] `node tools/make-submission-zips.mjs --dry-run` lists three archives with
-      no ERROR lines
+      no `ERROR` lines
 - [ ] The three zips are built, and the GitHub link and video link are ready to
       submit with them
 
 ### The manual equivalent
 
 If the script cannot be run, the same three archives can be built by hand from
-the project root. Replace `username` with your SCU username.
+the project root with `Compress-Archive`. Replace `username` with your SCU
+username. Build the project first (`npm run build`), because the front-end
+archives carry the **built** site and the API archive carries the compiled
+`dist/`.
 
 ```powershell
-# api zip  (no node_modules, no .env with secrets, SQL and Postman collection included)
-# Note: the database scripts live at the project root in database\, NOT inside api\,
-# so they have to be copied in separately - the marker needs them for Part 1.
-$api = "usernameA3-api"
-Remove-Item $api -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force $api | Out-Null
-Copy-Item api\* $api -Recurse -Force
-Remove-Item "$api\node_modules" -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item "$api\.env" -Force -ErrorAction SilentlyContinue
-Copy-Item database "$api\database" -Recurse -Force
-New-Item -ItemType Directory -Force "$api\postman" | Out-Null
-Copy-Item "docs\postman\PROG2002-A2-Charity-Events-API.postman_collection.json" "$api\postman\"
-Compress-Archive -Path $api -DestinationPath "$api.zip" -Force
+# a single staging folder, so the archive entries land at the same paths the
+# script produces (site/..., source/..., api/...)
+$stage = "stage-a3"
+Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 
-# clientside zip - the PUBLIC site only; the admin folder has its own zip
-$client = "usernameA3-clientside"
-Remove-Item $client -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force $client | Out-Null
-Copy-Item clientside\* $client -Recurse -Force
-Remove-Item "$client\admin" -Recurse -Force -ErrorAction SilentlyContinue
-Compress-Archive -Path $client -DestinationPath "$client.zip" -Force
+# --- api zip: the TypeScript sources AND the compiled dist/ the host runs -----
+New-Item -ItemType Directory -Force "$stage\api" | Out-Null
+Copy-Item api\* "$stage\api" -Recurse -Force
+Remove-Item "$stage\api\node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "$stage\api\.env" -Force -ErrorAction SilentlyContinue
+Compress-Archive -Path "$stage\api" -DestinationPath "usernameA3-api.zip" -Force
 
-# adminside zip - the admin pages plus the shared files they import, so this
-# archive runs after being extracted on its own
-$admin = "usernameA3-adminside"
-Remove-Item $admin -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force "$admin\admin" | Out-Null
-Copy-Item clientside\admin\* "$admin\admin" -Recurse -Force
-New-Item -ItemType Directory -Force "$admin\css","$admin\js","$admin\images" | Out-Null
-Copy-Item clientside\css\styles.css "$admin\css\"
-Copy-Item clientside\js\* "$admin\js\"
-Copy-Item clientside\images\* "$admin\images\"
-Copy-Item clientside\index.html, clientside\search.html, clientside\event.html, clientside\registration.html $admin
-Compress-Archive -Path $admin -DestinationPath "$admin.zip" -Force
+# --- one front-end archive: site/ = built app, source/ = buildable workspace ---
+function New-FrontendArchive($app, $buildFolder, $zipName) {
+  $root = "$stage\$app"
+  New-Item -ItemType Directory -Force "$root\site", "$root\source" | Out-Null
+  Copy-Item "$buildFolder\*" "$root\site" -Recurse -Force
+  Copy-Item angular.json, tsconfig.json, tsconfig.shared.json, package.json, package-lock.json, .gitignore "$root\source"
+  Copy-Item $app "$root\source\$app" -Recurse -Force
+  Copy-Item shared "$root\source\shared" -Recurse -Force
+  Copy-Item assets "$root\source\assets" -Recurse -Force
+  Compress-Archive -Path "$root\*" -DestinationPath $zipName -Force
+}
 
-# the staging folders are not part of the repository
-Remove-Item $api, $client, $admin -Recurse -Force
+New-FrontendArchive "clientside" "dist\clientside" "usernameA3-clientside.zip"
+New-FrontendArchive "adminside"  "dist\adminside"  "usernameA3-adminside.zip"
 ```
 
-Then verify each one. The zips must contain no `.env` and no `node_modules`:
+Then verify each one. No archive may contain `.env`, `node_modules` or `legacy/`:
 
 ```powershell
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 foreach ($z in @("usernameA3-api.zip", "usernameA3-clientside.zip", "usernameA3-adminside.zip")) {
   $a = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $z))
   "{0}: {1} entries" -f $z, $a.Entries.Count
-  $bad = $a.Entries | Where-Object { $_.FullName -match '\\node_modules\\|\\\.env$' }
-  if ($bad) { "  PROBLEM: " + ($bad.FullName -join ', ') } else { "  no .env, no node_modules" }
+  $bad = $a.Entries | Where-Object { $_.FullName -match 'node_modules|(^|/)\.env$|(^|/)legacy/' }
+  if ($bad) { "  PROBLEM: " + ($bad.FullName -join ', ') } else { "  no .env, no node_modules, no legacy" }
   $a.Dispose()
 }
 ```
 
 Finally, confirm each archive is usable **after extraction on its own**, which is
-what the marker will do:
+what the marker will do. The entries inside the archives are `api/dist/server.js`,
+`site/index.html`, `source/<app>/src/main.ts` and so on; the staging folder built
+above holds exactly those files, one level down under `stage-a3\`:
 
 ```powershell
-# the api zip must contain the required connection file
-Test-Path usernameA3-api\src\db\event_db.js          # True
-# the admin zip must contain its pages AND the shared modules, under the
-# paths the admin pages import them from
-Test-Path usernameA3-adminside\admin\index.html      # True
-Test-Path usernameA3-adminside\js\api.js             # True
-Test-Path usernameA3-adminside\css\styles.css        # True
-# the clientside zip must contain the registration page
-Test-Path usernameA3-clientside\registration.html    # True
-# and must NOT contain the admin folder, which has its own zip
-Test-Path usernameA3-clientside\admin                # False
+# the api archive must carry the compiled entry point the host runs
+Test-Path stage-a3\api\dist\server.js                        # True
+Test-Path stage-a3\api\src\db\event_db.ts                    # True
+Test-Path stage-a3\api\.env.example                          # True
+# each front-end archive carries the built site AND a buildable workspace
+Test-Path stage-a3\clientside\site\index.html                # True
+Test-Path stage-a3\clientside\source\clientside\src\main.ts  # True
+Test-Path stage-a3\clientside\source\shared\src\api\api.service.ts   # True
+Test-Path stage-a3\adminside\site\index.html                 # True
+Test-Path stage-a3\adminside\source\adminside\src\main.ts    # True
+# and neither front-end archive contains the other application, or legacy/
+Test-Path stage-a3\clientside\source\adminside               # False
+Test-Path stage-a3\clientside\source\legacy                  # False
+```
+
+The staging folder is not part of the repository; delete it afterwards:
+
+```powershell
+Remove-Item stage-a3 -Recurse -Force
 ```
 
 ---
@@ -506,76 +580,65 @@ Test-Path usernameA3-clientside\admin                # False
 ## J. Unit Assessor updates from Assessment 2 (still in force)
 
 Two announcements changed the rules during A2. This section records each one and
-exactly where the project stands, because the same rules carry into Assessment 3.
+exactly where the project stands, because parts of them carry into Assessment 3.
 
 ### J1. The A2 deadline moved
 
 From **28 September** to **5 October 2026, 11:59 pm**. One extra week. Keep this
 here only as history: the A3 due date is the one printed in the A3 brief.
 
-### J2. No CSS or JavaScript framework (this project complies)
+### J2. The A2 "no framework" rule, and what replaced it
 
 > "You are NOT allowed to use any frameworks for CSS or Javascript. You may use
 > the Express framework to build the server side script, that's all. Do not use
 > any Templating provided by Express... Your webpages must be delivered using
 > only HTML, CSS and JS."
 
-Verified against the code, not assumed:
+That was the **Assessment 2** rule, and the A2 submission complied with it.
+**Assessment 3 reverses it for the frontends**: the brief requires *HTML +
+TypeScript + CSS + Node.js + Angular v22 or later + an external API*. The
+frontends are therefore Angular applications, written in TypeScript, and a
+document that still describes them as "plain HTML, CSS and JS" is out of date.
 
-- [x] The API's only runtime dependencies are **`express`** and **`mysql2`**
-      (a database driver, not a framework). The unused `cors` package was
-      removed, because CORS headers are written by hand in
-      `api/src/middleware/security.js`
-- [x] No template engine anywhere: no `view engine`, no `res.render`, no EJS,
+What the A2 announcement still means, and where the project stands:
+
+- [x] **Express is the only server-side framework.** The API's runtime
+      dependencies are `express` and `mysql2` (a database driver, not a
+      framework). CORS headers are written by hand in `api/src/middleware/security.ts`
+- [x] **No template engine anywhere**: no `view engine`, no `res.render`, no EJS,
       Pug, Handlebars or Nunjucks. The API's one HTML page is served as a plain
-      file with `res.sendFile()`
-- [x] The client uses no framework and no library - no React, Vue, Angular,
-      Svelte, jQuery, Bootstrap, Tailwind or Alpine. **The A3 admin site is
-      plain HTML, CSS and JS too**, reusing the public site's own modules
-      (`api.js`, `dom.js`, `theme.js`) rather than adding a UI library
-- [x] No CDN: every script, stylesheet and image is a local file. The four
-      public pages load one inline theme snippet and one ES module each; the
-      admin pages load their own controller plus the shared modules
-- [x] The only external request the site makes is the **optional** Open-Meteo
-      forecast. It is a plain `fetch()` to a documented public API, it needs no
-      library, and the page works with it blocked
-- [x] `jsdom` appears only in the root `package.json` as a **dev** dependency
-      for the test suite. It is not part of either website and is not shipped in
-      any zip
-- [x] **The repository contains no PowerShell and no batch files.** The setup
-      scripts were `.ps1` and `.cmd`, which made GitHub's language bar report
-      "PowerShell 4.6%" and "Batchfile 0.9%" - not a breach of the rule above,
-      which is about the webpages, but easy for a marker to misread. They are
-      now JavaScript: `tools/start-all.mjs` replaces `start-all.cmd`, and
-      `tools/load-database.mjs` replaces `load-database.ps1`. The installer
-      scripts were deleted outright, because MySQL 8.4.11 is already installed
-      and they had no further use. The language bar now shows JavaScript, CSS,
-      HTML, SQL and JSON only. Nothing in the running application changed
+      file
+- [x] **No CDN**: every script, stylesheet and image is served from the
+      application's own bundle, so both sites work offline. `check:angular`
+      enforces this
+- [x] **`jsdom` is a dev dependency only**, for the test suite over the archived
+      frontend. It is not part of either website and is not shipped in any archive
+- [x] **No PowerShell or batch file is tracked in the repository.** The
+      `start.cmd`, `start-local.cmd` and `start-local.ps1` launchers that exist in
+      the working folder are local conveniences listed in `.gitignore`, so they
+      never reach GitHub or an archive; the documented entry point is
+      `npm start` (which runs `tools/start-all.mjs`)
 
-The checks above were originally made by reading the code. Reading is not
-repeatable, and the rule is the kind that breaks by accident - one CDN link, one
-`import` of a package, one `res.render`. So they are now automated:
+The A2 checks were made by reading the code, and reading is not repeatable. What a
+script can assert is asserted now:
 
 ```bash
-npm run check:frameworks      # node tools/check-no-frameworks.mjs
+npm run check:angular        # 16 checks, including "no page loads a script from a CDN"
+npm run check:translations   # the four languages of both dictionaries
+npm test                     # the API contract, endpoint by endpoint
 ```
 
-It passes 6 checks over the delivered files:
+The two rules no script covers - the runtime dependency list and the absence of a
+template engine - are re-read in `api/package.json` (two runtime dependencies,
+`express` and `mysql2`, and no template engine package) and in `api/server.ts`,
+whose one HTML page is still served with `res.sendFile()`. Both are unchanged
+since A2.
 
-| Check | Why it is the right test |
-| --- | --- |
-| Every `import` is a relative path | The browser loads the client scripts with no bundler, so a third-party package would have to appear as a bare specifier. There are none |
-| No `<script>`, `<link>` or `@import` names another host | A framework added by CDN can only enter through one of these three tags |
-| No `view engine`, no `res.render` | Either one means the pages stopped being plain HTML |
-| Runtime dependencies are only `express` and `mysql2` | Express is explicitly allowed; `mysql2` is a driver. Anything else would need justifying |
-| No template engine installed | Guards against one being added "to help with the forms" |
-| Every page is a complete HTML document | A page assembled from fragments at request time is templating, whatever it is called |
-
-It deliberately does **not** search for framework names. That approach fails in
-both directions: it misses a framework nobody listed, and it fires on ordinary
-words - "value" contains "vue", "reactive" contains "react", and this project's
-own `grid` and `grid--events` classes would look like Tailwind. Testing the
-properties a framework would have to break is both stricter and quieter.
+The A2 architecture guard asserted the opposite rule ("no framework") and was
+**deleted**, because keeping it would fail the build for the right reason and the
+wrong outcome. `docs/angular-architecture.md` records the reasoning, including
+why the guard tests properties (no NgModule, no `zone.js`, a `templateUrl` per
+component) rather than searching the source for the word "Angular".
 
 ### J3. The report template was replaced
 

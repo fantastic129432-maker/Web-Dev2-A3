@@ -52,8 +52,27 @@ const http = require('node:http');
 const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
-const CLIENT_DIR = path.join(ROOT, 'clientside');
+
+/*
+ * Where the frontend and the API live after the Angular/TypeScript migration.
+ *
+ *   clientside/  is now the Angular application (TypeScript), so the DOM tests
+ *                in PART B/PART D - which load plain ES modules into jsdom -
+ *                point at the archived vanilla frontend in legacy/clientside.
+ *                Those tests are kept as a regression suite for the code that
+ *                Assessment 2 and the first Assessment 3 revision shipped.
+ *
+ *   api/         is now TypeScript. It is compiled with `npm run build:api`
+ *                into api/dist, and api/dist is what actually runs (locally and
+ *                on the SCU cPanel). The suite therefore prefers the COMPILED
+ *                output and falls back to api/ itself, which keeps the suite
+ *                usable before the first build and while migrating.
+ */
+const CLIENT_DIR = path.join(ROOT, 'legacy', 'clientside');
 const API_DIR = path.join(ROOT, 'api');
+const API_DIST = path.join(API_DIR, 'dist');
+const API_SRC = fs.existsSync(path.join(API_DIST, 'server.js')) ? API_DIST : API_DIR;
+
 const PREFERRED_PORT = Number(process.env.TEST_PORT || 3100);
 const DEMO_TODAY = '2026-09-28'; // matches the seed data and api/.env
 
@@ -128,7 +147,7 @@ async function startTestApi() {
    * equivalent because reloading database/charityevents_db.sql does the same job.
    */
   if (process.env.DATA_SOURCE === 'local') {
-    require(path.join(API_DIR, 'src', 'repositories')).resetLocalData();
+    require(path.join(API_SRC, 'src', 'repositories')).resetLocalData();
   }
 
   // A port that is already in use must not fail every HTTP test, so try a
@@ -140,7 +159,7 @@ async function startTestApi() {
 
     // Require once; the module caches the Express app across attempts, which
     // is fine because only the listening port changes.
-    const { app } = require(path.join(API_DIR, 'server.js'));
+    const { app } = require(path.join(API_SRC, 'server.js'));
 
     try {
       const server = await new Promise((resolve, reject) => {
@@ -1367,7 +1386,7 @@ async function loadPage({ JSDOM }, htmlFile, { url, apiHandler, beforeInit }) {
 async function testClient() {
   group('PART B - client-side website (DOM)');
 
-  const { JSDOM } = require(path.join(ROOT, 'node_modules', 'jsdom'));
+  const { JSDOM } = require('jsdom');
 
   // The DOM tests talk to the same in-process API, so no network is required.
   const apiHandler = async (pathname) => {
@@ -2565,7 +2584,7 @@ async function testClient() {
 async function testA3Client() {
   group('PART D - A3 client pages (DOM)');
 
-  const { JSDOM } = require(path.join(ROOT, 'node_modules', 'jsdom'));
+  const { JSDOM } = require('jsdom');
 
   /**
    * The same in-process API bridge PART B uses, extended to pass the request
@@ -3020,7 +3039,7 @@ async function testA3Client() {
     // a pooled database connection keeps the event loop alive.
     await new Promise((resolve) => server.close(resolve));
     try {
-      await require(path.join(API_DIR, 'src', 'db', 'event_db.js')).close();
+      await require(path.join(API_SRC, 'src', 'db', 'event_db.js')).close();
     } catch (error) {
       // The offline data source has no pool to close.
     }

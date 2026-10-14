@@ -9,40 +9,36 @@ The project has five parts, exactly as the assessment briefs define them:
 | --- | --- | --- |
 | 1 | MySQL database `charityevents_db` | `database/` |
 | 2 | RESTful API with NodeJS + ExpressJS | `api/` |
-| 3 | Client-side website with HTML, JavaScript and DOM | `clientside/` |
-| 4 | Admin-side website (a second, separate site for staff) | `clientside/admin/` |
-| 5 | Deployment of both websites to the SCU cPanel host | the three submission zips |
+| 3 | Client-side website (the public site) | `clientside/` |
+| 4 | Admin-side website (a second, separate site for staff) | `adminside/` |
+| 5 | Deployment of both websites to the SCU cPanel host | `docs/deployment-cpanel.md` |
 
-### Technologies used, and what is deliberately absent
-
-The brief permits Express on the server and **nothing else**: no CSS framework,
-no JavaScript framework, and no templating engine (the pages are proper HTML
-files, not EJS). This project holds to that, and it is worth stating plainly
-because "no framework" is easy to claim and easy to break by accident.
-
-| Layer | Used | Not used |
-| --- | --- | --- |
-| Pages | Hand-written HTML5, delivered as static files | No EJS / Pug / Handlebars - nothing is rendered server-side |
-| Styling | One hand-written stylesheet (`clientside/css/styles.css`) using custom properties, grid and flexbox | No Bootstrap, Tailwind, Bulma or any other CSS framework |
-| Browser JavaScript | Native ES modules (`import` / `export`) and the DOM API | No React, Vue, Angular, jQuery or Svelte; no bundler and no build step |
-| Server | Node.js + Express + `mysql2`, for the API only | Express does not serve or render the pages |
-
-Two things that look like frameworks but are not:
-
-* **`mysql2`** is the database driver. It is not a web framework, and the
-  restriction is about CSS/JS frameworks and templating.
-* **The one inline `<script>` on each page** is about fifteen lines this project
-  wrote itself. It reads the saved colour-scheme preference and sets
-  `data-theme` before the stylesheet loads, which is what stops a dark-mode
-  visitor seeing a white flash. It stays because removing it would make every
-  page flash white on load. It is plain JavaScript in the page, not a library.
-
-This was verified rather than assumed. The browser loads the client JavaScript
-with no bundler, so any third-party dependency would have to appear as a bare
-module specifier (`import x from 'some-package'`) - and there are none: every
-import under `clientside/` is a relative path to another file in this project.
-There are also no `<script src>` or `<link href>` tags pointing at another
-domain, and no `@import` in the CSS.
+> **Read this first - migration status.** Assessment 3 moved the project from a
+> vanilla HTML/CSS/JavaScript frontend and a JavaScript Express API to a **full
+> TypeScript stack** built on **Angular v22**. This README describes that
+> **target architecture**, and as of this revision essentially all of it is in
+> the repository: the workspace, both applications with all of their pages, the
+> whole `shared/` library, and the complete TypeScript API (compiled to
+> `api/dist`, with no `.js` source left). The client and admin route tables both
+> name real page components, and `tsc -p clientside/tsconfig.app.json --noEmit`
+> compiles cleanly.
+>
+> The migration is complete and verified: `npm test` passes **116 checks**, the
+> end-to-end browser suite passes **33 checks**, and the architecture guard passes
+> **16 checks**. Two integration gaps found while verifying are worth knowing
+> about, because both were real and both are now fixed - they are recorded in
+> section 10 so the reasoning is not lost:
+>
+> * the API's `CORS_ORIGIN` listed only the archived vanilla port (5500), so the
+>   browsers blocked every request from the Angular sites on 4200 and 4300;
+> * the root `package.json` script `start:api` still pointed at the deleted
+>   JavaScript entry point instead of the compiled `api/dist/server.js`.
+>
+> The original frontend is preserved unchanged under `legacy/clientside/` and is
+> **not** part of the submission archives; it is kept as a reference and because
+> the automated suite still uses it as a DOM regression test. The reasoning
+> behind the migration, the trade-offs and the alternatives that were rejected
+> are written up in [`docs/angular-architecture.md`](docs/angular-architecture.md).
 
 Assessment 2 marked Parts 1-3 only (15% database, 20% API, 45% client website,
 plus 5% accuracy/validation and 15% concept understanding); Assessment 3 has its
@@ -52,32 +48,102 @@ Parts 1-3 were **extended** for Assessment 3 rather than replaced. Everything A2
 was marked on still behaves as it did: the three public pages, the read
 endpoints and the five A2 filters are unchanged, and the suite still runs the
 original A2 checks. What A3 adds on top is a registration table, the full
-C.R.U.D. cycle, a registration page and a second website for staff (see
-section 8).
+C.R.U.D. cycle, a registration page and a second website for staff.
 
 ---
 
-## 1. Quick start
+## 1. Technology stack
 
-You need **Node.js 18 or newer**. MySQL is used for the submitted
-configuration; the API can also run without MySQL so the site can be marked
-anywhere (see step 4).
+The brief for Assessment 3 requires **HTML + TypeScript + CSS + Node.js +
+Angular v22 or later + the Open-Meteo weather API**. That is exactly what the
+project uses, on both sides of the wire:
+
+| Layer | Technology | Where |
+| --- | --- | --- |
+| Markup | HTML5, one real `.html` template file per component | `clientside/src/app/**/*.html`, `adminside/src/app/**/*.html` |
+| Styling | Hand-written CSS with custom properties, grid and flexbox | `clientside/src/styles.css`, `adminside/src/styles.css`, plus one `.css` per component |
+| Frontend logic | **TypeScript**, Angular v22 | `clientside/`, `adminside/`, `shared/` |
+| Frontend framework | **Angular v22** - zoneless, standalone components, signals | the one workspace in `angular.json` |
+| Backend | **TypeScript** on Node.js + Express 4 + `mysql2` | the TypeScript sources in the API folder: `server.ts` and `src/**/*.ts` |
+| Database | MySQL 8 (the deployed host runs 5.7 - see `docs/deployment-cpanel.md`) | `database/` |
+| External API | **Open-Meteo** daily forecast (`api.open-meteo.com`) - no API key | `shared/src/weather/` |
+| Tooling | Node.js scripts (`.mjs` / `.js`) for tests, database loading, packaging | `tools/`, `tests/` |
+
+Three points worth stating plainly, because each one is graded:
+
+* **The backend is TypeScript now.** `api/server.ts` and the modules under
+  `api/src/` are the source of truth; they are compiled with `tsc` into
+  `api/dist/`, and `api/dist/server.js` is what actually runs - locally and on
+  the SCU cPanel, whose Node version cannot execute TypeScript directly. The
+  compiled output mirrors the source layout (`api/server.ts` ->
+  `api/dist/server.js`, `api/src/db/event_db.ts` ->
+  `api/dist/src/db/event_db.js`).
+* **Not every `.js` file under `api/` is source.** `api/dist/**` is build
+  output and is regenerated by `npm run build:api`; it is never edited by hand.
+* **`mysql2` is the database driver**, not a web framework, and the tooling in
+  `tools/` is deliberately plain Node.js: the *deliverable* is TypeScript, and
+  keeping the scripts dependency-free means `node tools/…` works on any
+  machine with Node installed.
+
+### Why Angular, in one paragraph
+
+The A2 brief forbade frameworks ("HTML, CSS and JavaScript only") and the
+project complied. The A3 brief requires one, names Angular v22 or later, and
+asks for two separate websites that share a data layer. Angular answers that
+directly: one workspace holds two applications, one `shared/` TypeScript folder
+is compiled into both with no publish step, and the framework's router, HTTP
+client, dependency injection and signals replace code the vanilla site had to
+write by hand. The full argument, including what was gained and what was given
+up, is in [`docs/angular-architecture.md`](docs/angular-architecture.md).
+
+---
+
+## 2. Quick start
+
+You need **Node.js 22.22+, 24.15+ or 26+** (Angular 22 will not run on older
+releases; the root `package.json` declares the same range). MySQL is used for
+the submitted configuration; the API can also run without MySQL so the site can
+be marked anywhere (see section 6).
 
 ### The easy way
 
 ```bash
-node tools/start-all.mjs
+npm install          # once: the Angular workspace and the shared library
+npm start            # compile the API, build if needed, serve everything
 ```
 
-That checks MySQL, starts the API and the website, and opens
-<http://localhost:5500/index.html> for you. Both servers run in that one
-terminal with their output prefixed `[api]` and `[web]`, so **Ctrl+C stops
-both**. Add `--no-browser` if you would rather open the page yourself.
+`npm start` runs `tools/start-all.mjs`, which:
 
-The admin website is served by the same static server, so once `start-all.mjs`
-is running it is already available at
-**<http://localhost:5500/admin/index.html>**. There is no second server and no
-second command: it is another folder of static files that calls the same API.
+1. compiles the TypeScript API (`npm run build:api`, i.e. `tsc` into
+   `api/dist/`) - always, because running a stale `api/dist` is a confusing
+   failure to debug;
+2. builds both Angular applications if either has not been built yet (the check
+   is simply whether an index.html exists in each application's folder under
+   `dist/`);
+3. starts the API and serves both built applications.
+
+It then prints (and opens) the four addresses:
+
+| | URL | Served by |
+| --- | --- | --- |
+| Public website | <http://localhost:4200/> | `dist/clientside` |
+| Admin website | <http://localhost:4300/> | `dist/adminside` |
+| API | <http://localhost:3000/api> | `api/dist/server.js` |
+| API landing page | <http://localhost:3000/> | `api/src/views/api-index.html` |
+
+The three processes share one terminal, with their output prefixed `[api]`,
+`[client]` and `[admin]`, so **Ctrl+C stops all three**. Useful switches:
+
+| Flag | Effect |
+| --- | --- |
+| `--rebuild` | rebuild both Angular applications first |
+| `--dev` | use `ng serve` (live reload) instead of the built output |
+| `--no-browser` | do not open the browser |
+
+The built output is served by default **on purpose**: it is the same artefact
+the cPanel receives (base href, hashed asset names, the environment file
+already swapped by `angular.json`), and it starts in a second. Use `--dev` while
+you are editing.
 
 ### The step-by-step way
 
@@ -94,235 +160,379 @@ cd api
 npm install
 copy .env.example .env      # Windows  (cp .env.example .env on macOS/Linux)
 # edit .env and set DB_PASSWORD to your own MySQL password
-npm start                   # http://localhost:3000
+npm run build               # TypeScript -> api/dist
+npm start                   # node dist/server.js  ->  http://localhost:3000
 
-# ---------- Parts 3 and 4: both websites ----------
-# In a second terminal
-cd clientside
-node serve-clientside.js    # http://localhost:5500  (public site)
-                            # http://localhost:5500/admin/index.html (admin site)
+# ---------- Parts 3 and 4: both Angular applications ----------
+# In a second terminal, from the project root
+npm run start:client        # ng serve clientside -> http://localhost:4200
+npm run start:admin         # ng serve adminside  -> http://localhost:4300
 ```
 
-Then open **http://localhost:5500/index.html** for the public site and
-**http://localhost:5500/admin/index.html** for the admin site.
+Then open **<http://localhost:4200/>** for the public site and
+**<http://localhost:4300/>** for the admin site.
 
-> The client must be served over `http://`, not opened as a `file://` path.
-> Browsers block ES modules and cross-origin `fetch()` from the file system.
-
-### Verify everything at once
-
-```bash
-node tests/run-tests.js                     # every check, using the offline data source
-set TEST_DATA_SOURCE=mysql && node tests/run-tests.js   # the same checks against MySQL
-```
-
-The suite starts its own API instance, on its own free port, so it never
-disturbs a running server. It then works through four groups:
-
-| Group | What it covers |
-| --- | --- |
-| PART A | HTTP checks for the Assessment 2 read endpoints, filters, validation and errors |
-| PART C | HTTP checks for the Assessment 3 write endpoints: registration, full C.R.U.D., the delete rule and the admin view |
-| PART B | DOM checks for the three Assessment 2 pages |
-| PART D | DOM checks for the registration page, the event page's registrations table and the admin site |
-
-The two A2 groups are the original **64 checks**, and two of them were
-necessarily updated for A3: the check that `POST /api/events` was *not* routed
-had to be inverted once the endpoint existed, and the check that Register opened
-the "under construction" dialog no longer applies, because that dialog has been
-replaced by the registration page. The rest of the A2 checks are untouched. The
-A3 groups are added on top, and because they are still growing the total is
-whatever the suite prints at the end of a run - read the number from the run
-rather than from a document.
-
-The DOM half of the suite loads the real HTML files and the real ES modules
-into jsdom with `fetch` redirected to the test API, so it proves the data
-actually reaches the page: event cards, the progress bar, ticket prices, the
-filter checkboxes, Clear Filters, the registrations table, the registration
-form and its confirmation card, and the admin event list.
+> The API must be running before either website will show any data. A website
+> that loads but lists no events is almost always a website whose API address
+> does not answer - the footer says which one it is trying.
 
 ---
 
-## 1a. MySQL on this computer
-
-MySQL runs here as the **official MySQL Server 8.4** installed with the MySQL
-Installer and registered as a Windows service:
-
-| | |
-| --- | --- |
-| Version | MySQL Community Server **8.4.11** |
-| Program files | `C:\Program Files\MySQL\MySQL Server 8.4` |
-| Data | `C:\ProgramData\MySQL\MySQL Server 8.4\Data` |
-| Config | `C:\ProgramData\MySQL\MySQL Server 8.4\my.ini` |
-| Windows service | **MySQL84** - starts automatically with Windows |
-| Port | 3306 (plus 33060 for the X Plugin) |
-| Collation | `utf8mb4_0900_ai_ci` - matches the schema |
-| Client tools | `mysql.exe`, `mysqladmin.exe`, `mysqldump.exe` in the `bin` folder |
-
-Two database accounts are used:
-
-| Account | Privileges | Used by |
-| --- | --- | --- |
-| `root` | full | `tools/load-database.mjs` when (re)creating the database |
-| `charity_app` | an application account limited to `charityevents_db` | the API, through `api\.env` |
-
-The API account exists so the running application never connects as `root`, and
-so that a mistake in the application cannot reach any other schema on the
-server. That least-privilege argument still holds; what changed in Assessment 3
-is the list of verbs the account needs.
-
-A2 only read, so `SELECT` was enough. A3 adds `POST`, `PUT` and `DELETE`, so the
-account must also be allowed to write:
-
-```sql
-GRANT SELECT, INSERT, UPDATE, DELETE ON charityevents_db.* TO 'charity_app'@'127.0.0.1';
-FLUSH PRIVILEGES;
-```
-
-The host matters: `api/.env` sets `DB_HOST=127.0.0.1`, so the account MySQL sees
-is `charity_app@127.0.0.1`. A `...@'localhost'` grant created by copy-pasting an
-older note applies to a **different** account and will not take effect here.
-
-Without those grants an insert, an update or a delete is refused by the server
-with error 1142 ("command denied to user"), which surfaces as a 500 rather than
-the 409 the user should see. That failure is easy to miss, because the automated
-suite runs on the offline data source unless `TEST_DATA_SOURCE=mysql` is set, so
-the first thing to check when a write fails against MySQL is this grant. **When
-this was last checked, the grant had not been applied**: `charity_app` held
-`SELECT` only, so a MySQL-backed demonstration of any A3 write would have failed.
-Check with `SHOW GRANTS FOR CURRENT_USER();` and apply the statement above if the
-only line returned is the `SELECT` one. Note that the account's privileges are one
-thing and the schema's own rules are another: even with full rights,
-`DELETE /api/events/:id` is refused when the event has registrations (section 3).
-
-The second thing to check is whether the **A3 schema** is loaded at all. At the
-time of writing this machine's MySQL instance still had the A2 database (six
-tables, two views, no `event_registrations`), which `GET /api/health` reports
-directly as `registrationTable: false`. Reload it with the command further down
-this section before demonstrating anything from Assessment 3.
-
-The real password lives only in `api\.env`, which is git-ignored and excluded
-from the submission zips; `api\.env.example` carries a placeholder instead.
-`api\.env.example` still documents the A2 grant (`SELECT` only) in its comment,
-because that file is the template that shipped with A2 - read the grant above,
-not the one in the template.
-
-MySQL runs as the Windows service **MySQL84**, which starts with Windows, so in
-practice you normally only need one command:
-
-```bash
-node tools/start-all.mjs      # API + website (MySQL is already running)
-```
-
-`start-all.mjs` checks whether port 3306 answers before doing anything, so it
-never tries to start a second server.
-
-Reloading the database after changing `database/02_seed.sql`. It needs an
-account that can drop and recreate the database, so pass `root` - the
-`charity_app` account in `api/.env` is an application account and the script
-will say so:
-
-```bash
-node tools/load-database.mjs --user root --password "your_root_password"
-```
-
-Put the password in `DB_PASSWORD` instead of the command line if you would
-rather it did not appear in the process list:
-
-```bash
-set DB_PASSWORD=your_root_password && node tools/load-database.mjs --user root
-```
-
-### Finding MySQL
-
-`tools/load-database.mjs` and `tools/start-all.mjs` both locate the server in
-the same order: `--mysql-home`, `%MYSQL_HOME%`,
-`Program Files\MySQL\MySQL Server *` (newest version first),
-`%USERPROFILE%\mysql`, then `<project>\mysql`. A MySQL installed somewhere else
-therefore keeps working without editing any file.
-
----
-
-## 2. Folder structure
+## 3. Project structure
 
 ```
-charity-events-a2/
-├─ database/                    Part 1
-│  ├─ charityevents_db.sql      complete dump - run this one (schema + data)
-│  ├─ 01_schema.sql             database, 7 tables, 5 views
-│  └─ 02_seed.sql               6 organisations, 8 categories, 11 events, tickets, donations, 20 registrations
-├─ api/                         Part 2  -> usernameA3-api.zip
-│  ├─ server.js                 Express application entry point
-│  ├─ .env.example              configuration template
+charity-events-a3/
+├─ angular.json                    ONE Angular workspace, TWO applications
+├─ tsconfig.json                   strict TypeScript + the @charity/shared/* alias
+├─ tsconfig.shared.json            type-checks shared/ on its own (npm run check:shared)
+├─ package.json                    every npm script (see section 8)
+│
+├─ clientside/                     Part 3 - the PUBLIC Angular application
+│  ├─ src/index.html               shell + the inline early-theme script
+│  ├─ src/main.ts                  bootstrapApplication(App, appConfig)
+│  ├─ src/styles.css               design tokens, light and dark
+│  ├─ src/environments/            environment.ts / environment.production.ts
+│  └─ src/app/
+│     ├─ app.ts / app.html / app.css   shell: header, <router-outlet>, footer
+│     ├─ app.config.ts             providers: router, HttpClient, tokens, dictionary
+│     ├─ app.routes.ts             /, /search, /events/:id, /register/:id, **
+│     ├─ layout/                   site-header, site-footer, settings-bar
+│     ├─ shared/                   event-card, progress-bar, api-status (each
+│     │                            with its own .html) and page-title.ts
+│     └─ pages/                    home, search, event-detail, register, not-found
+│
+├─ adminside/                      Part 4 - the STAFF Angular application
+│  ├─ src/index.html               shell + the same early-theme script
+│  ├─ src/main.ts                  bootstrapApplication(App, appConfig)
+│  ├─ src/styles.css               admin layout on the same design tokens
+│  ├─ src/environments/            environment.ts / environment.production.ts
+│  └─ src/app/
+│     ├─ app.ts / app.html / app.css   shell: sidebar menu + <router-outlet>
+│     ├─ app.config.ts             the same providers, the admin dictionary
+│     ├─ app.routes.ts             /, /events, /events/new, /events/:id/edit,
+│     │                            /registrations, **
+│     ├─ layout/                   admin-header, admin-footer
+│     ├─ shared/                   event-form, weather-preview, feedback-banner,
+│     │                            confirm-dialog (one folder per component)
+│     ├─ core/                     page-title, feedback, event-form model
+│     └─ pages/                    dashboard, event-list, event-new, event-edit,
+│                                  registrations, not-found
+│
+├─ shared/                         ONE plain TypeScript library, used by BOTH apps
 │  └─ src/
-│     ├─ db/event_db.js         REQUIRED filename: the MySQL pool, query(), transaction()
-│     ├─ repositories/          all SQL (mysql) + offline twin (local), read half and write half
-│     ├─ services/              query validation + business rules
-│     │                         (eventService reads, eventWriteService writes, registrationService registers)
-│     ├─ controllers/           HTTP layer (event, category, admin, registration)
-│     ├─ routes/apiRoutes.js    the REST endpoints
-│     ├─ middleware/            security headers, CORS, rate limit, errors
-│     ├─ utils/validators.js    field validators that collect every problem, not just the first
-│     └─ views/api-index.html   human-readable API index
-├─ clientside/                  Part 3  -> usernameA3-clientside.zip
-│  ├─ index.html                Home page
-│  ├─ search.html               Search events page
-│  ├─ event.html                Event detail page + the registrations table
-│  ├─ registration.html         Register for an event (A3)
-│  ├─ admin/                    Part 4  -> usernameA3-adminside.zip
-│  │  ├─ index.html             Dashboard: counts, next events, latest registrations
-│  │  ├─ events.html            All events, any status, with the delete action
-│  │  ├─ new.html               Create an event
-│  │  ├─ update.html            Update an event + its registrations
-│  │  ├─ registrations.html     Every registration, newest first
-│  │  ├─ css/admin.css          admin layout layered on the shared design tokens
-│  │  └─ js/                    admin.js (shell + menu), admin-i18n.js, admin-shared.js,
-│  │                            event-editor.js, and one controller per page
-│  ├─ css/styles.css            one stylesheet, design tokens at the top
-│  ├─ js/config.js              API base URL, nav items, weather constants
-│  ├─ js/api.js                 all fetch() calls, read and write, one error type
-│  ├─ js/dom.js                 every DOM builder and formatter
-│  ├─ js/i18n.js                language state, persistence, DOM translation
-│  ├─ js/translations.js        the four dictionaries (323 keys each)
-│  ├─ js/theme.js               light / dark / system
-│  ├─ js/nav.js                 the menu, footer and settings controls
-│  ├─ js/home.js                Home page controller
-│  ├─ js/search.js              Search page controller
-│  ├─ js/event.js               Event detail controller, registrations table, weather panel
-│  ├─ js/registration.js        Registration page controller (A3)
-│  ├─ js/weather.js             optional Open-Meteo forecast (A3)
-│  ├─ js/modal.js               the A2 "under construction" dialog - now unused, kept as history
-│  └─ images/*.svg              offline artwork (no external requests)
-├─ tests/run-tests.js           automated checks for the whole submission
-├─ tools/                       see the table below
-└─ docs/                        report, API docs, ERD, video script
+│     ├─ api/                      api.service.ts (every HTTP call, unwrapped,
+│     │                            timed out, normalised) + api-error.ts
+│     ├─ config/                   app-config.ts (timeouts, Open-Meteo, storage
+│     │                            keys, images, statuses) + environment.model.ts
+│     ├─ models/                   api, event, registration, reference
+│     ├─ weather/                  weather.service.ts + weather.model.ts (Open-Meteo)
+│     ├─ i18n/                     languages, the two dictionaries, service, pipe
+│     ├─ theme/                    theme.service.ts (light/dark/system) + EARLY_THEME_SNIPPET
+│     ├─ util/                     format.ts (currency, dates, times, imageUrl())
+│     └─ di/                       tokens.ts (API_BASE_URL, OTHER_SITE_URL)
+│
+├─ api/                            Part 2 - the TYPESCRIPT API
+│  ├─ server.ts                    Express application entry point (compiles to dist/server.js)
+│  ├─ tsconfig.json                rootDir . -> outDir dist (the layout is mirrored)
+│  ├─ package.json                 main: dist/server.js, build: tsc + copy the landing page
+│  ├─ .env.example                 configuration template
+│  ├─ dist/                        COMPILED OUTPUT - what actually runs (git-ignored)
+│  └─ src/
+│     ├─ config/env.ts             reads api/.env, finds the API root
+│     ├─ db/event_db.ts            the shared MySQL pool, query(), transaction()
+│     ├─ repositories/             all SQL (mysql) + the offline twin (local)
+│     ├─ services/                 query validation + business rules
+│     ├─ controllers/              HTTP layer (event, category, admin, registration)
+│     ├─ routes/apiRoutes.ts       the REST endpoints
+│     ├─ middleware/               security headers, CORS, rate limit, errors
+│     ├─ utils/                    validators, errors, asyncHandler
+│     └─ views/api-index.html      human-readable API index
+│
+├─ legacy/clientside/              the ORIGINAL vanilla frontend, archived unchanged
+├─ database/                       Part 1 - schema, seed data and the assembled dump
+├─ tests/                          run-tests.js (API + archived DOM), angular-e2e.mjs
+├─ tools/                          setup, build, packaging and verification scripts
+└─ docs/                           report, API docs, architecture, deployment, video
 ```
+
+`clientside/src/app/pages/` and `adminside/src/app/pages/` hold the routed
+components: `home`, `search`, `event-detail`, `register` and `not-found` on the
+public side, and `dashboard`, `event-list`, `event-new`, `event-edit`,
+`registrations` and `not-found` on the staff side. They are written as standalone
+components with an external `.html` template, and both routing tables load them
+with `loadComponent` so the home bundle does not carry the search form, the
+registration table or the admin event editor (see
+`clientside/src/app/app.routes.ts` for the reasoning in full).
+
+---
+
+## 4. The two Angular applications
+
+There is **one Angular workspace** (`angular.json`) containing **two
+applications**. They share the `shared/` library, the same design tokens and the
+same API, and differ only in their routing, their layout and which dictionary
+they translate with.
+
+### 4.1 `clientside` - the public website (Part 3)
+
+| Route | Page | What it does |
+| --- | --- | --- |
+| `/` | Home | Organisation information, the dynamic event listing and the About / Contact sections |
+| `/search` | Search | Keyword, date-range, city and category filters, removable filter chips, Clear Filters |
+| `/events/:id` | Event detail | Full description, venue, ticket tiers, goal vs. progress, the **complete registration list** (newest purchase first) and the Open-Meteo forecast |
+| `/register/:id` | Register | The registration form added in Assessment 3, plus its confirmation screen |
+| `**` | Not found | The friendly 404. The header and footer stay; the menu is hidden |
+
+`ng serve clientside` runs it on **http://localhost:4200**. In development its
+environment points the API at `http://localhost:3000/api` and the admin link at
+`http://localhost:4300/`.
+
+### 4.2 `adminside` - the staff website (Part 4)
+
+| Route | Page | What it does |
+| --- | --- | --- |
+| `/` | Dashboard | Headline statistics plus the API/database health report |
+| `/events` | Event list | **Every** event regardless of status (active, past, suspended, cancelled), with Delete |
+| `/events/new` | Create | The create form, populated from `GET /api/admin/reference-data` |
+| `/events/:id/edit` | Update | The update form, plus that event's registrations |
+| `/registrations` | Registrations | Every registration across every event, filterable |
+| `**` | Not found | The friendly 404 inside the admin shell |
+
+`ng serve adminside` runs it on **http://localhost:4300**. In development its
+environment points the API at `http://localhost:3000/api` and the link back to
+the public site at `http://localhost:4200/`. A production build adds
+`baseHref: /admin/` (see `angular.json`), so the same application is served from
+`https://<host>/admin/`.
+
+### 4.3 Environment files
+
+Each application owns a pair of environment files, and `angular.json` swaps the
+production one in through `fileReplacements`:
+
+| Application | Development | Production |
+| --- | --- | --- |
+| `clientside` | `clientside/src/environments/environment.ts` | `clientside/src/environments/environment.production.ts` |
+| `adminside` | `adminside/src/environments/environment.ts` | `adminside/src/environments/environment.production.ts` |
+
+Development points at `http://localhost:3000/api` and the other local site;
+production points at the SCU cPanel URLs. Both implement the shared
+`AppEnvironment` interface, so a missing property is a compile error rather than
+a runtime surprise.
+
+---
+
+## 5. The `shared/` library
+
+`shared/` is a **plain TypeScript source folder**, deliberately **not** an
+ng-packagr library. It is compiled into both applications through one path
+alias in the root `tsconfig.json`:
+
+```json
+"paths": { "@charity/shared/*": ["./shared/src/*"] }
+```
+
+That choice removes an entire build product - there is no library to build, no
+`dist/` to keep in step, no version to bump and no publish cycle before a change
+reaches the two applications. The cost is that the library has no independent
+runtime and is typed-checked per application, which is why there is a dedicated
+`npm run check:shared` (`tsc -p tsconfig.shared.json`) that type-checks the whole
+folder on its own - including files neither application imports *yet*.
+
+What is in it:
+
+| Folder | Contents |
+| --- | --- |
+| `api/` | `api.service.ts` - the single HTTP layer for both apps: `HttpClient`, a 10 s timeout on every call, the `{success, meta, data}` envelope unwrapped in one place, and every failure normalised to an `ApiError`. `api-error.ts` is that one error type. |
+| `config/` | `app-config.ts` - the constants that do not vary per environment (request timeout, the Open-Meteo URL / timezone / 16-day forecast window, storage keys, image base, `EVENT_IMAGES`, `PUBLISH_STATUSES`); `environment.model.ts` - the `AppEnvironment` interface. |
+| `models/` | `api.model.ts` (the `{success, meta, data}` envelope and the error body), `event.model.ts` (`Event`, `EventDetail`, `EventInput`, `TicketType`, `EventQuery`), `registration.model.ts`, `reference.model.ts` (categories, venues, organisation, stats, health). |
+| `weather/` | `weather.service.ts` - the Open-Meteo integration; `weather.model.ts` - the forecast shape, the WMO code -> translation-key map, a glyph per code and the `isWetWeather()` test. |
+| `i18n/` | `languages.ts`, `client-translations.ts` and `admin-translations.ts` (four languages: English, Chinese, Vietnamese, Japanese), `translation.service.ts` (signal-based), `translate.pipe.ts` (`{{ 'key' | t }}`), `language.model.ts`. |
+| `theme/` | `theme.service.ts` - light / dark / system, written to `<html data-theme>`, plus `EARLY_THEME_SNIPPET`, the inline `<head>` script both `index.html` files carry. |
+| `util/` | `format.ts` - currency, date and time formatting (`en-AU`, AUD) and `imageUrl()`. |
+| `di/` | `tokens.ts` - the `API_BASE_URL` and `OTHER_SITE_URL` injection tokens, so the shared library never hard-codes either application's environment. |
+
+### Why injection tokens rather than an imported environment file
+
+The shared library is compiled into **both** applications. If it imported
+`clientside/src/environments/environment`, the admin application would pull the
+client's settings in with it. A token inverts that: each application declares the
+value once in its own `app.config.ts` and the shared code just asks for it.
+
+```ts
+// shared/src/di/tokens.ts
+export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
+export const OTHER_SITE_URL = new InjectionToken<string>('OTHER_SITE_URL');
+
+// clientside/src/app/app.config.ts  (adminside is the same shape)
+{ provide: API_BASE_URL, useValue: environment.apiBaseUrl },
+{ provide: OTHER_SITE_URL, useValue: environment.otherSiteUrl },
+{ provide: APP_DICTIONARIES, useValue: CLIENT_DICTIONARIES },
+```
+
+The same pattern covers the dictionaries: `TranslationService` injects
+`APP_DICTIONARIES`, so one service serves the public site's dictionary and the
+admin site's dictionary without knowing which is which. Check the current sizes
+with `npm run check:translations`, which prints the key count per language for
+both dictionaries (306 client keys and 253 admin keys when this was written -
+the counts move while pages are still being added).
+
+---
+
+## 6. Running without MySQL (marker-friendly fallback)
+
+`api/.env` has a `DATA_SOURCE` setting:
+
+```ini
+DATA_SOURCE=mysql   # read and write the MySQL database
+DATA_SOURCE=local   # the same sample data in a generated TypeScript mirror, in memory
+```
+
+`api/.env.example` ships with `DATA_SOURCE=mysql` (the submitted configuration);
+the `api/.env` on this machine currently sets `local`, which is why the API
+starts here with no database server at all.
+
+With `DATA_SOURCE=local` the API serves exactly the same data. The offline mirror
+is generated from `database/02_seed.sql` by `tools/generate-local-data.js`, so it
+cannot drift away from the SQL the marker runs.
+
+> **`api/.env.example` is up to date.** Its `CORS_ORIGIN` lists the deployed
+> origin plus the development origins of both Angular applications (4200 and
+> 4300), and its database comment explains that Assessment 3 needs
+> `INSERT, UPDATE, DELETE` in addition to the `SELECT` Assessment 2 required -
+> which the `GRANT` line below it already includes.
+
+Assessment 3 had to extend this fallback rather than leave it behind: the write
+endpoints are implemented twice, once per data source, so the offline mode can
+also create, update and delete. The local write repositories write into an
+in-memory store that starts as a copy of the seed data, and they enforce the same
+rules as the MySQL repositories - one registration per email per event, and no
+deleting an event that has registrations. That is what lets the A3 half of the
+test suite exercise the delete rule on a machine with no MySQL, and it keeps the
+two data sources honest: the same requests must produce the same answers.
+
+---
+
+## 7. Building
+
+| Command | What it does | Output |
+| --- | --- | --- |
+| `npm run build` | everything below, in order | `api/dist`, `dist/clientside`, `dist/adminside` |
+| `npm run build:api` | `tsc -p api/tsconfig.json`, then copies the landing page | `api/dist/server.js`, `api/dist/src/**` |
+| `npm run build:client` | `ng build clientside` (production configuration) | `dist/clientside/` |
+| `npm run build:admin` | `ng build adminside` (production configuration, `baseHref: /admin/`) | `dist/adminside/` |
+| `npm run build:local` | both applications in the **development** configuration | `dist/clientside/`, `dist/adminside/` |
+
+`npm run build:local` is the one to use before `npm run test:e2e`: the end-to-end
+script serves the built output and expects it to point at
+`http://localhost:3000/api`, which is what the development environment file
+does.
+
+The end-to-end suite passes in full: **33 checks**, driven through headless
+Microsoft Edge against the compiled API. It starts the API and both static
+servers itself, then asserts what a person would actually see - the organisation
+and event cards on the home page, the filter form built from `/api/locations`, a
+real search submission, the registrations table on the event page, the
+Open-Meteo forecast panel with a real temperature, the four-language switcher,
+the dark theme, the admin dashboard, the admin event list including a suspended
+event, the admin registration list, and the API's write contract including the
+409 refusal when an event still has registrations.
+
+> **Why the suite forces the interface language to English.** The applications
+> honour the browser's own language preference, which is correct behaviour but
+> makes text assertions depend on the machine's locale (this one reports
+> `zh-CN`). The suite therefore stores `charity-events:language = 'en'` before
+> any application code runs, and asserts the language feature separately by
+> storing `'zh'` and checking the result.
+
+A production build of either application swaps in its
+`environment.production.ts` and hashes every asset name, so the cPanel upload
+cannot serve a stale cached file. See `docs/deployment-cpanel.md` for the upload
+steps; that guide is owned by the deployment work and is kept in step with the
+compiled `api/dist` layout.
+
+---
+
+## 8. Scripts
+
+Every script lives in the root `package.json`. They fall into four groups.
+
+### Running
+
+| Script | Command | Purpose |
+| --- | --- | --- |
+| `npm start` | `node tools/start-all.mjs` | Compile the API, build if needed, serve API 3000 + client 4200 + admin 4300 |
+| `npm run start:api` | `npm run build:api && node api/dist/server.js` | The API alone, compiled first and then started. The TypeScript API must be compiled before it can run, which is why the script builds first - the working entry point is `api/dist/server.js`, not a source file |
+| `npm run start:client` | `ng serve clientside` | The public site with live reload (port 4200) |
+| `npm run start:admin` | `ng serve adminside` | The staff site with live reload (port 4300) |
+| `npm start -- --dev` | `node tools/start-all.mjs --dev` | Everything, but through `ng serve` instead of the built output |
+| `npm run ng -- <args>` | `ng <args>` | Any other Angular CLI command |
+
+### Testing
+
+| Script | Command | Covers |
+| --- | --- | --- |
+| `npm test` | `node tests/run-tests.js` | Parts A-D: HTTP checks against the real Express API, plus the jsdom DOM regression suite for the archived frontend |
+| `npm run test:mysql` | the same suite with `TEST_DATA_SOURCE=mysql` | Proves the MySQL and offline repositories answer identically |
+| `npm run test:e2e` | `node tests/angular-e2e.mjs` | Headless-browser end-to-end checks for **both Angular applications**, against the real compiled API |
+| `npm run test:ng` | `ng test clientside && ng test adminside` | Angular's own unit-test builder for both applications |
+
+### Checking
+
+| Script | Command | What it refuses to let through |
+| --- | --- | --- |
+| `npm run check:angular` | `node tools/check-angular-architecture.mjs` | Any break of the required architecture - see section 10 |
+| `npm run check:shared` | `tsc -p tsconfig.shared.json` | A type error in `shared/` that neither application happens to import yet |
+| `npm run check:translations` | `node tools/check-translations.mjs` | Four dictionaries with different key sets, or a template asking for a key that does not exist |
+| `npm run check:refs` | `node tools/audit-references.mjs` | Documentation that names a file, tool or npm script that does not exist |
+| `npm run check:secrets` | `node tools/check-no-secrets.mjs` | A real credential in a tracked file |
+| `npm run check:encoding` | `node tools/find-encoding-damage.mjs` | Text mangled by an encoding round trip |
+| `npm run check:contrast` | `node tools/check-contrast.mjs` | Text below WCAG AA in either theme, on every Angular route (needs the sites running) |
+| `npm run generate:i18n:check` | `node tools/generate-i18n-data.mjs --check` | A dictionary that no longer matches the archived source it was migrated from |
+
+### Database and packaging
+
+| Script | Command | Purpose |
+| --- | --- | --- |
+| `npm run db:load` | `node tools/load-database.mjs` | Drop and recreate `charityevents_db` from the SQL dump, then verify it |
+| `npm run db:dump` | `node tools/export-database-dump.mjs` | Assemble `database/charityevents_db.sql` and verify its own object counts |
+| `npm run db:cpanel` | `node tools/export-cpanel-sql.mjs` | Produce `database/charityevents_db.mysql57.sql` for the cPanel's MySQL 5.7 |
+| `npm run deploy:configure` | `node tools/configure-deployment.mjs` | Point the environment files and `CORS_ORIGIN` at the deployed host |
+| `npm run deploy:verify` | `node tools/verify-deployment.mjs` | Check a finished deployment over HTTP, endpoint by endpoint |
+| `npm run zip` | `node tools/make-submission-zips.mjs` | Build the submission archives into `dist/`, refusing to ship `node_modules` or a real `.env` |
+| `npm run generate:local-data` | `node tools/generate-local-data.js` | Regenerate the offline seed mirror from `database/02_seed.sql` |
+| `npm run generate:i18n` | `node tools/generate-i18n-data.mjs` | Regenerate `shared/src/i18n/*` from `legacy/clientside/` (a one-off migration tool, run with `--check` afterwards) |
+| `npm run db:dump:check` | `node tools/export-database-dump.mjs --check` | Fail if `database/charityevents_db.sql` is stale |
+| `npm run db:cpanel:check` | `node tools/export-cpanel-sql.mjs --check` | Fail if the MySQL 5.7 variant is stale |
+| `npm run watch:client` | `ng build clientside --watch --configuration development` | Rebuild the public site on every change, without a dev server |
+| `npm run watch:admin` | `ng build adminside --watch --configuration development` | The same for the staff site |
 
 ### What is in `tools/`
 
 Nothing in the running application imports anything here; these are the setup
-scripts and the checks. Every one is JavaScript, so the whole project - server,
-client and tooling - runs on Node with no second language to install. Each
-earns its place:
+scripts and the checks. Every one is plain Node.js, so the whole project - API,
+both applications and the tooling - runs on Node with no second language to
+install.
 
 | Tool | Purpose |
 | --- | --- |
-| `start-all.mjs` | Checks MySQL, starts the API and the static server for both websites, opens the browser |
-| `load-database.mjs` | Drops and recreates `charityevents_db` from the SQL dump, then verifies it |
-| `export-database-dump.mjs` | Assembles `charityevents_db.sql` from `01_schema.sql` + `02_seed.sql` and verifies its own object counts (`--check` fails if the dump is stale) |
-| `export-cpanel-sql.mjs` | Produces `charityevents_db.mysql57.sql`, the variant to import on the SCU cPanel: `utf8mb4_unicode_ci` instead of the MySQL 8.0 collation, and no `DROP DATABASE` / `CREATE DATABASE` / `TRUNCATE` (all three are rejected or fail there) |
-| `generate-local-data.js` | Regenerates the offline seed mirror from `02_seed.sql` |
-| `configure-deployment.mjs` | Points `API_BASE_URL` and `CORS_ORIGIN` at the cPanel host before packaging (`--local` puts them back) |
-| `verify-deployment.mjs` | Checks a finished deployment over HTTP: health reports MySQL, public list hides the suspended event, admin list shows it, registrations come back newest-first, a delete with registrations is refused with 409, and both websites load |
-| `sync-theme-snippet.mjs` | Keeps the inline theme script in step with `js/theme.js` |
-| `postman-yaml-to-collection.mjs` | Re-exports the Postman collection from its YAML storage. Only useful after importing that YAML back from Postman - see the note below the table |
-| `fix-postman-collection.mjs` | Repairs the collection after an edit in the Postman UI. Same condition: it edits the YAML layout, which is not kept in the repository |
-| `check-no-secrets.mjs` | Refuses to publish a repository containing a real credential |
-| `check-contrast.mjs` | Measures every text element against WCAG AA in both themes |
-| `check-translations.mjs` | Fails if the four dictionaries differ or a key is missing |
-| `make-submission-zips.mjs` | Builds the three A3 zips into `dist/`, refusing to ship `node_modules` or a real `.env` |
+| `start-all.mjs` | Compile the API, build both applications if needed, serve all three ports |
+| `serve-spa.mjs` | A tiny static server for a **built** Angular application that falls back to `index.html` for deep links |
+| `check-angular-architecture.mjs` | The architecture guard - see section 10 |
+| `check-translations.mjs` | Four dictionaries, same keys, and every key a template asks for exists |
+| `check-contrast.mjs` | WCAG AA contrast on every Angular route, in both themes |
 | `audit-references.mjs` | Fails if documentation points at a file that does not exist |
+| `check-no-secrets.mjs` | Refuses to publish a repository containing a real credential |
 | `find-encoding-damage.mjs` | Detects text mangled by an encoding round trip |
+| `generate-i18n-data.mjs` | Regenerates the TypeScript dictionaries from the archived vanilla frontend |
+| `generate-local-data.js` | Regenerates the offline seed mirror from the SQL seed |
+| `load-database.mjs` | Drops and recreates the database from the dump, then verifies it |
+| `export-database-dump.mjs` | Assembles `charityevents_db.sql` from the schema and the seed, and verifies it (`--check` fails if stale) |
+| `export-cpanel-sql.mjs` | Produces the MySQL 5.7 variant for the SCU cPanel (`utf8mb4_unicode_ci`, no `DROP DATABASE`) |
+| `configure-deployment.mjs` | Points the environment files and `CORS_ORIGIN` at the cPanel host, and back again with `--local` |
+| `verify-deployment.mjs` | Checks a finished deployment over HTTP: health, the public list, the admin list, newest-first registrations, the 409 delete rule and both sites |
+| `make-submission-zips.mjs` | Builds the submission archives into `dist/` |
+| `postman-yaml-to-collection.mjs` | Re-exports the Postman collection from its YAML storage |
+| `fix-postman-collection.mjs` | Repairs the collection after an edit in the Postman UI |
 | `download-mysql-parallel.mjs` | Downloads the official MySQL ZIP with parallel range requests |
 
 ### About the Postman files
@@ -340,11 +550,110 @@ Postman's own editing layout - one YAML file per request, under
 files needs a 263-character path inside a normal checkout. Windows still applies
 a 260-character limit to most tools, so `git clone` failed for anyone who had
 not enabled long paths system-wide. Import the JSON into Postman to recreate the
-layout on your own machine; the two tools above then work as before.
+layout on your own machine; the two Postman tools above then work as before.
 
 ---
 
-## 3. Database design summary
+## 9. How the assessment requirements map to the implementation
+
+| Requirement (Assessment 3) | Where it is implemented |
+| --- | --- |
+| HTML, TypeScript, CSS, Node.js, **Angular v22+** | `angular.json` (one workspace, two applications), `package.json` (`@angular/core ^22.2.0`), `clientside/`, `adminside/`, `shared/` |
+| A client-side website with a home page, search and event details | `clientside` routes `/`, `/search`, `/events/:id` |
+| A complete list of registrations on the event page | `GET /api/events/:id` returns `registrations` newest-first; `EventDetail.registrations` in `shared/src/models/event.model.ts` |
+| A registration form | `clientside` route `/register/:id` (`POST /api/events/:id/registrations`) |
+| A second, separate website for staff | the `adminside` application, routes `/`, `/events`, `/events/new`, `/events/:id/edit`, `/registrations`; built with `baseHref: /admin/` so it deploys separately |
+| Every event regardless of status | `GET /api/admin/events` reads `vw_all_events`; the admin list also refuses to hide a suspended event |
+| The full C.R.U.D. cycle for events | create (`POST /api/events`, 201 + `Location`), read (`GET`), update (`PUT /api/events/:id`, partial), delete (`DELETE /api/events/:id`, 204) |
+| An event with registrations cannot be deleted | the API checks inside one transaction with `SELECT … FOR UPDATE` and answers **409**, and the `ON DELETE RESTRICT` foreign key refuses it at the database level as well |
+| Save, retrieve and manipulate data through the database | `mysql2` with parameterised statements only; the offline twin exists so the site is markable without MySQL |
+| **An external API** | **Open-Meteo** (`https://api.open-meteo.com/v1/forecast`) - see below |
+| Registered user data is validated | the service layer validates every body field and returns all problems at once; the database adds CHECK constraints and unique keys |
+| Commented, readable code | every component, service and non-obvious decision carries a doc block; `npm run check:angular` fails if a component loses its documentation comment |
+
+### The weather API (the optional external API)
+
+The brief names `api.open-meteo.com`, and it is a genuinely good fit: it needs
+**no API key and no registration**, so nothing secret has to be committed or
+shipped to a marker.
+
+| Piece | Where |
+| --- | --- |
+| The request | `WeatherService.forecastFor(target)` in `shared/src/weather/weather.service.ts` |
+| The endpoint and window | `APP_CONFIG.weatherApiUrl`, `weatherTimezone` (`Australia/Sydney`), `weatherForecastDays` (16) in `shared/src/config/app-config.ts` |
+| The coordinates | `locations.latitude` / `locations.longitude`, returned by the event endpoints as `latitude` / `longitude` |
+| The code -> text mapping | `weatherCodeKey()` and the `WMO_KEYS` table in `shared/src/weather/weather.model.ts` |
+| The glyph and the "wet weather" hint | `weatherGlyph()` and `isWetWeather()` in the same file |
+
+Three design decisions are worth knowing:
+
+* **The call is made from the browser**, not proxied through the Express API.
+  There is no credential to protect and the free endpoint allows it, so a proxy
+  would add a hop and a cache problem for nothing.
+* **It degrades quietly.** `forecastFor()` returns `Observable<WeatherForecast |
+  null>` and resolves `null` on every failure path - a venue with no coordinates
+  (the "Online (Australia-wide)" pseudo-venue), an event beyond the 16-day
+  window, a past event, no internet, or Open-Meteo being slow. The page simply
+  shows no forecast panel; a missing forecast must never break the event page.
+* **The forecast is only attempted when it can succeed**:
+  `canShowForecast()` requires coordinates *and* an event date inside the
+  forecast window, so an ordinary past event costs no request at all.
+
+---
+
+## 10. The architecture guard
+
+`tools/check-angular-architecture.mjs` replaced the Assessment 2 architecture
+guard, which asserted the opposite rule ("HTML, CSS and JavaScript only, no
+framework"). Keeping the old checker would now fail the build for the right
+reason and the wrong outcome.
+
+The checker deliberately tests **properties that would have to change for the
+requirement to break**, rather than searching the source for the word "Angular",
+which would prove nothing:
+
+| Check | Why it is the right test |
+| --- | --- |
+| `@angular/core` is v22 or later | The version requirement, read from `package.json` |
+| Both applications are configured | `angular.json` really has `clientside` and `adminside` |
+| No `@NgModule` anywhere | Standalone components only, as Angular 22 expects |
+| No `zone.js` dependency, polyfill or `provideZoneChangeDetection` | The zoneless decision cannot be quietly reversed |
+| No component with an inline template | The brief asks for HTML, so the markup lives in a real `.html` file |
+| Every `templateUrl` resolves | A renamed template file is caught at check time, not in the browser |
+| Every component carries a doc block | Comments are graded |
+| Neither application imports the other | The two sites stay genuinely separate deliverables |
+| Both applications import `@charity/shared` | The sharing is real, not a claim |
+| Each app provides its own dictionary and `API_BASE_URL` | The DI-token pattern of section 5 is intact |
+| No page loads a script from a CDN | The bundle is self-contained and works offline |
+| Both `index.html` files carry the early-theme script | A dark-mode visitor never sees a white flash |
+| The API is TypeScript, with no `.js` source left | The backend migration cannot half-revert |
+| `api/tsconfig.json` uses `outDir: dist` and `api/package.json` `main` is `dist/server.js` | The API compiles and runs from `dist/` |
+
+Run it with:
+
+```bash
+npm run check:angular
+```
+
+> **Two bugs the checker itself had, and how they were found.** Both were in the
+> checker rather than in the architecture, and both were fixed while verifying -
+> they are recorded because "the check lied" is worth remembering:
+>
+> * the zoneless check searched for the **text** `provideZoneChangeDetection`
+>   without ignoring comments, so the explanatory comment in each
+>   `app.config.ts` ("there is no `provideZoneChangeDetection` …") was reported as
+>   a violation. It now removes comment-only lines before matching;
+> * the last check read `api/tsconfig.json` with `JSON.parse`, and that file
+>   contains comments (like Angular's own generated tsconfig files), so the
+>   checker stopped with a `SyntaxError` before it could report the
+>   TypeScript-backend result. It now strips JSONC comments and trailing commas
+>   first.
+>
+> The guard now reports all 16 checks passing.
+
+---
+
+## 11. Database design summary
 
 Seven tables with primary and foreign keys:
 
@@ -356,9 +665,7 @@ locations     ──┘              ├──< donations      │
 ```
 
 The arrow from `ticket_types` into `event_registrations` is optional: the ticket
-tier is nullable, and when it is used the foreign key guarantees the tier exists. "The
-`(event_id, ticket_type_id)`, so a registration can only name a tier that
-belongs to the same event.
+tier is nullable, and when it is used the foreign key guarantees the tier exists.
 
 * `events.status` (`active` / `suspended` / `cancelled`) is the publishing flag.
   Suspended events are filtered out by the view `vw_public_events`, so they can
@@ -386,46 +693,27 @@ belongs to the same event.
   the admin site reads; and `vw_event_registrations` adds the ticket name, the
   price and the computed `total_amount` to each registration.
 * `locations.latitude` / `longitude` existed in A2 but were unused. A3 uses
-  them: they are what the optional weather panel sends to Open-Meteo. The
+  them: they are what the weather panel sends to Open-Meteo. The
   "Online (Australia-wide)" venue has NULL coordinates on purpose, so no
   forecast is attempted for it.
 
-Full table dictionary and ER diagram: `docs/database-design.md`.
+**Sample data** (what `database/charityevents_db.sql` creates): 6 organisations,
+8 categories, 9 locations, 11 events (8 upcoming, 2 past, 1 suspended),
+18 ticket tiers, 42 donations and 20 registrations. That exceeds the required
+minimum of eight events and several categories, and the suspended event is there
+deliberately as a test case.
+
+Full table dictionary and ER diagram: [`docs/database-design.md`](docs/database-design.md).
 
 ---
 
-## 4. Running without MySQL (marker-friendly fallback)
-
-`api/.env` has a `DATA_SOURCE` setting:
-
-```ini
-DATA_SOURCE=mysql   # default: read and write the MySQL database
-DATA_SOURCE=local   # the same sample data in a generated JS mirror, in memory
-```
-
-With `DATA_SOURCE=local` the API starts with no database server at all and
-serves exactly the same data, because `api/src/repositories/local-data.js` is
-generated from `database/02_seed.sql` by `tools/generate-local-data.js`. This
-exists so the client website can always be demonstrated, and it is also how the
-automated test suite runs.
-
-Assessment 3 had to extend this fallback rather than leave it behind: the write
-endpoints are implemented twice, once per data source, so the offline mode can
-also create, update and delete. `write.repository.local.js` and
-`registration.repository.local.js` write into an in-memory store
-(`local-store.js`) that starts as a copy of the seed data, and they enforce the
-same rules as the MySQL repositories - one registration per email per event, and
-no deleting an event that has registrations. That is what lets the A3 half of
-the test suite exercise the delete rule on a machine with no MySQL, and it keeps
-the two data sources honest: the same requests must produce the same answers.
-
----
-
-## 5. API endpoints (summary)
+## 12. API endpoints (summary)
 
 A2 shipped the read half; A3 completes the C.R.U.D. cycle. `GET` requests are
 unchanged, so the home page, the search page and the event page still work
-exactly as they did.
+exactly as they did. Every response uses the same `{success, meta, data}`
+envelope and the same status codes as before the TypeScript migration - the
+compilation changed how the API is written, not what it answers.
 
 **Read (A2, plus the A3 additions to `/api/events/:id`)**
 
@@ -433,7 +721,7 @@ exactly as they did.
 | --- | --- | --- |
 | GET | `/api/health` | API and database status, including whether `event_registrations` exists |
 | GET | `/api` | Index of the API |
-| GET | `/api/events` | Filtered event list (home + search). New: `audience`, `publishStatus` |
+| GET | `/api/events` | Filtered event list (home + search). Including `audience`, `publishStatus` |
 | GET | `/api/events/upcoming` | Current and upcoming events |
 | GET | `/api/events/:id` | Full detail, tickets, goal progress, **and the event's registrations newest first** |
 | GET | `/api/events/:id/registrations` | Every registration for one event, newest first |
@@ -445,7 +733,7 @@ exactly as they did.
 | GET | `/api/categories` | Category filter options |
 | GET | `/api/locations` | Location filter options |
 | GET | `/api/organization` | Organisation shown on the home page |
-| GET | `/api/stats` | Headline numbers, now including registrations and tickets sold |
+| GET | `/api/stats` | Headline numbers, including registrations and tickets sold |
 
 **Write (A3)**
 
@@ -466,11 +754,11 @@ means a public caller cannot reach it by accident.
 
 The rule worth reading the code for is the delete: the existence check and the
 `DELETE` run inside **one transaction** with `SELECT ... FOR UPDATE`, so a
-registration cannot slip in between them. When the event does have
-registrations the answer is `409` with a message naming the event and the count,
-and `details.suggestion = "suspend-instead"`. MySQL's `ON DELETE RESTRICT`
-foreign key refuses the delete as well, and the driver error
-`ER_ROW_IS_REFERENCED_2` is translated into the same 409.
+registration cannot slip in between them. When the event does have registrations
+the answer is `409` with a message naming the event and the count, and
+`details.suggestion = "suspend-instead"`. MySQL's `ON DELETE RESTRICT` foreign
+key refuses the delete as well, and the driver error `ER_ROW_IS_REFERENCED_2` is
+translated into the same 409.
 
 Example search:
 
@@ -481,158 +769,201 @@ GET /api/events?state=all&city=Lismore&category=1&from=2026-09-01&sort=date&dire
 Example admin request (every event, suspended ones included):
 
 ```
-GET /api/events?audience=admin&publishStatus=all&state=all
+GET /api/admin/events?publishStatus=all&state=all
 ```
 
 Full parameter list, sample responses and status codes:
-`docs/api-documentation.md`.
+[`docs/api-documentation.md`](docs/api-documentation.md).
 
 ---
 
-## 6. Documentation
+## 13. Documentation
 
 | File | Contents |
 | --- | --- |
-| `docs/database-design.md` | ERD, table dictionary, design justification |
-| `docs/api-documentation.md` | Every endpoint, parameter and response |
-| `docs/project-report.md` | Project report - **answer the prompts in your own words** |
-| `docs/video-script.md` | Demo video script: the three required questions plus the A3 demonstration |
-| `docs/video-recording-guide.md` | How to record it on this machine: the tool, the setup, the exact URLs |
-| `docs/genai-declaration.md` | The declaration statement to include |
-| `docs/submission-checklist.md` | Pre-submission checklist |
-| `docs/settings-theme-and-language.md` | The dark theme and the four language switcher |
-| `docs/browser-behaviours.md` | Two browser behaviours that look like bugs, and the evidence |
+| [`docs/angular-architecture.md`](docs/angular-architecture.md) | **The technical deep dive**: why Angular, the workspace layout, the shared library, the DI-token pattern, the data flow, the signal-based i18n, the zoneless decision, the weather integration, the TypeScript API build and the testing strategy |
+| [`docs/database-design.md`](docs/database-design.md) | ERD, table dictionary, design justification |
+| [`docs/api-documentation.md`](docs/api-documentation.md) | Every endpoint, parameter and response |
+| [`docs/project-report.md`](docs/project-report.md) | Project report - **answer the prompts in your own words** |
+| [`docs/deployment-cpanel.md`](docs/deployment-cpanel.md) | Step-by-step deployment to the SCU cPanel, and the symptom-to-cause table |
+| [`docs/video-script.md`](docs/video-script.md) | Demo video script: the three required questions plus the A3 demonstration |
+| [`docs/video-recording-guide.md`](docs/video-recording-guide.md) | How to record it on this machine: the tool, the setup, the exact URLs |
+| [`docs/genai-declaration.md`](docs/genai-declaration.md) | The declaration statement to include |
+| [`docs/submission-checklist.md`](docs/submission-checklist.md) | Pre-submission checklist |
+| [`docs/settings-theme-and-language.md`](docs/settings-theme-and-language.md) | The dark theme and the four-language switcher |
+| [`docs/browser-behaviours.md`](docs/browser-behaviours.md) | Two browser behaviours that look like bugs, and the evidence |
 
 ---
 
-## 7. Settings: dark theme and language
+## 14. Settings: dark theme and language
 
-The header carries two extra controls, both remembered in `localStorage` so the
-choice follows the visitor between pages:
+Both controls live in the site header and are remembered in `localStorage`, so a
+choice follows the visitor between pages **and between the two websites**.
 
 * **Theme** - one button cycling light / dark / follow the system. The palette is
-  already made of custom properties, so the dark theme is one block of overrides
-  plus the components that were hard coded white. A small inline script applies
-  the stored value before the first paint, so a dark user never sees a white
-  flash.
-* **Language** - English, 中文, Tiếng Việt and 日本語, **323** interface strings
-  each (236 in A2, plus the registration form and the weather panel in A3).
-  Markup carries `data-i18n` / `data-i18n-attr` attributes and the generated text
-  goes through the same `t()` helper, so event cards, filter chips, the progress
-  bar, the registration form and every message follow the switch.
+  made of CSS custom properties, so the dark theme is one block of overrides. A
+  small inline script in `<head>` of both `index.html` files applies the stored
+  value **before the first paint**, so a dark-mode visitor never sees a white
+  flash while the Angular bundle loads. That script is `EARLY_THEME_SNIPPET` in
+  `shared/src/theme/theme.service.ts`, and `npm run check:angular` fails if
+  either page loses it.
+* **Language** - English, 中文, Tiếng Việt and 日本語. The two dictionaries hold
+  **306 client-side keys** and **253 admin-side keys** (the counts at the time of
+  writing - `npm run check:translations` prints the current figures), and the four
+  languages of each dictionary define exactly the same keys, which that same
+  checker enforces. The active language is an Angular
+  **signal**, so every `{{ 'key' | t }}` in a template re-renders when the
+  language changes - no manual re-render pass and no listeners to unsubscribe.
+  `?lang=zh` also works, which is how the demo can link straight to a language.
+
+The language choice is stored under **one shared key**
+(`charity-events:language`), so choosing Chinese on the public site means the
+admin site opens in Chinese too.
 
 **Scope limit, deliberately:** only the interface is translated. Event names,
 descriptions and venues come from the database in English, and a short note in
 the header says so while another language is selected. Translating the content
 would need translated columns or a translations table - a content management
-feature beyond the assessment. The admin site (section 8) is English only for
-the same reason: the four-language dictionary is a feature of the public site,
-and the brief asks the admin site for event management, not localisation.
+feature beyond the assessment.
 
 These two features are **not required by the brief**; they are additional work on
-top of the required pages. See
-`docs/settings-theme-and-language.md` for the design notes, the two helper tools
-that keep the dictionaries and the inline theme script honest, and the
-assessment caveat about machine-written translations.
+top of the required pages. See [`docs/settings-theme-and-language.md`](docs/settings-theme-and-language.md)
+for the design notes and the assessment caveat about machine-written
+translations.
 
 Check them with:
 
 ```bash
-node tools/check-translations.mjs            # four dictionaries, same keys
-node tools/sync-theme-snippet.mjs --check    # inline theme script in step
+npm run check:translations       # four dictionaries, same keys, no missing key
+npm run check:contrast           # WCAG AA in both themes (sites must be running)
 ```
 
 ---
 
-## 8. Two websites, one API
+## 15. Two websites, one API
 
 Assessment 3 asks for a second, separate website for staff, so the project now
-serves two front ends from one static server and one API:
+serves two Angular applications from one API:
 
 | | Public site (Part 3) | Admin site (Part 4) |
 | --- | --- | --- |
-| URL | <http://localhost:5500/index.html> | <http://localhost:5500/admin/index.html> |
-| Files | `clientside/*.html`, `js/`, `css/` | `clientside/admin/*.html`, `admin/js/`, `admin/css/` |
+| Application | `clientside` | `adminside` |
+| URL (development) | <http://localhost:4200/> | <http://localhost:4300/> |
+| URL (deployed) | `https://<host>/` | `https://<host>/admin/` |
 | Audience | visitors: browse, search, register | staff: create, update and delete events |
 | Data | reads `vw_public_events`, so suspended events never appear | reads `vw_all_events`, so every status is listed |
-| Language | four languages | English only |
-| Menu | Home, Search, Register | Dashboard, Events, Add event, Update event, Registrations |
-| Zip | `usernameA3-clientside.zip` | `usernameA3-adminside.zip` |
+| Language | four languages (306 keys) | four languages (253 keys) |
+| Code shared | all of `shared/`, the design tokens, the API layer | the same, plus its own layout and strings |
 
-Why a separate site rather than a hidden page on the public one? Because the two
+Why two applications rather than a hidden page on the public one? Because the two
 have different audiences and different rules, and mixing them would put a
 "Delete event" control one click away from a page a visitor uses. Keeping them
-in separate folders means the public site can keep reading the status-filtered
-view while the admin site reads the unfiltered one, and a marker can see the
-split in the file tree.
+in separate applications means the public site can keep reading the
+status-filtered view while the admin site reads the unfiltered one, and a marker
+can see the split in `angular.json` and in the file tree.
 
-They are not two copies of the same code. The admin site **reuses** the public
-site's `js/api.js` (which already knows every endpoint and how to build an
-`ApiError`), `js/dom.js`, `js/theme.js` and `css/styles.css` (so the design
-tokens and the dark theme work there too), all through relative paths from
-`admin/` - and adds only its own layout, its own data-table / banner / stat-tile
-/ confirm-dialog styling (`admin/css/admin.css`) and its own English strings
-(`admin/js/admin-i18n.js`). That is also why the admin zip ships those shared
-files under the same relative paths: extracted on its own, it still runs.
-
-The admin site is deliberately **not** in the public menu; it is linked from the
-public footer (`nav.admin`), because it is staff tooling and not something a
-visitor should be pointed at. The one styling trap worth knowing about is
-recorded in a comment in `admin.css`: the public `.page-header` class paints a
-`--brand-100` band, which is dark in the dark theme, so reusing it would produce
-dark text on a dark band. The admin heading is therefore plain text on the page
-background.
+They are not two copies of the same code. Both import the `shared/` library -
+the API layer, the models, the i18n service, the theme service and the
+formatters - and each adds only what is genuinely its own: its routing table, its
+layout and its dictionary. `npm run check:angular` fails if either application
+reaches into the other, so "separate deliverables" is a checked property rather
+than a claim.
 
 From the admin site you can:
 
-* **Dashboard** - headline counts and the newest registrations, so the state of
-  the data is visible at a glance (the counts are worked out in the browser from
-  the two lists the page already loads, so there is no third endpoint for them);
-* **Events** - every event whatever its status, with filters and a totals footer;
-* **Add event** - a form built from one field description (`EVENT_FIELDS`) and
-  populated from `GET /api/admin/reference-data`, with ticket-tier rows that can
-  be added and removed;
-* **Update event** - pick an event (or arrive with `?id=`), change what needs
-  changing, and see its registrations; only the changed fields are sent;
-* **Registrations** - every registration, filterable, with a per-row delete.
+* **Dashboard** - headline counts and the API/database health report, so the
+  state of the data is visible at a glance;
+* **Events** - every event whatever its status, with a Delete action that shows
+  the API's own 409 message when the event has registrations;
+* **Create event** - a form populated from `GET /api/admin/reference-data`, with
+  ticket-tier rows that can be added and removed;
+* **Update event** - load an event by id, change what needs changing (only the
+  changed fields are sent) and see that event's registrations;
+* **Registrations** - every registration, filterable.
 
-Both sites are static files, so both are deployed the same way: upload the
-folder to the SCU cPanel host and point the API base URL at the deployed API.
+### 15a. Deploying to the SCU cPanel (Part 5)
 
-### 8a. Deploying to the SCU cPanel (Part 5)
+Step-by-step instructions, the `.env` to create on the host, and a
+symptom-to-cause table for the things that go wrong:
+[`docs/deployment-cpanel.md`](docs/deployment-cpanel.md).
 
-Step-by-step instructions, the `.env` to create on the host, and a symptom-to-cause
-table for the things that go wrong: **`docs/deployment-cpanel.md`**.
-
-There is only one value that has to change before uploading, and one command
-changes it everywhere it appears:
+There are only two things that have to change before uploading, and one command
+changes them everywhere they appear:
 
 ```bash
-# point the websites at the deployed API, and open CORS to the deployed site
-node tools/configure-deployment.mjs --api https://<your host>/charity-events-api
+# point both applications at the deployed API, and open CORS to the deployed site
+npm run deploy:configure -- --site https://<your host>/ --api https://<your host>/charity-events-api
 
-# build the three archives
-node tools/make-submission-zips.mjs --username <your SCU username>
+# build the archives
+npm run zip -- --username <your SCU username>
 
 # afterwards, back to local development
-node tools/configure-deployment.mjs --local
+npm run deploy:configure -- --local
 ```
 
-`configure-deployment.mjs` exists because the failure it prevents is silent: if
-`clientside/js/config.js` still says `http://localhost:3000/api`, the uploaded site
-opens and then looks for the API **on the visitor's own machine**, so every list is
-empty and nothing says why. The same command keeps `api/.env` and
-`api/.env.example`'s `CORS_ORIGIN` in step with the site address, because a CORS
-mismatch looks equally like a broken site from the outside.
+The failure this prevents is silent in both directions: if the environment file
+still says `http://localhost:3000/api`, the uploaded site opens and then looks
+for the API **on the visitor's own machine**, so every list is empty and nothing
+says why; and if `CORS_ORIGIN` does not list the deployed site, the browser
+refuses every request - which looks equally like a broken site from the outside.
+`configure-deployment.mjs` keeps the environment files' cross-site links and the
+`.env` `CORS_ORIGIN` in step with the deployed host; the API address itself is
+baked into each application by the production build's `fileReplacements` step in
+`angular.json`, which is why the command also suggests its `--check` mode and a
+`--local` reset afterwards.
 
-The three submission zips are listed in `docs/submission-checklist.md`.
+The API itself is uploaded as the **compiled** `api/dist` plus `api/package.json`
+(the cPanel's Node version cannot run TypeScript), and both applications are
+uploaded as the production build in `dist/`. The submission archives are listed
+in [`docs/submission-checklist.md`](docs/submission-checklist.md).
 
 ---
 
-## 9. Academic integrity
+## 16. Migration from the vanilla frontend
+
+Assessment 2's deliverable was a vanilla frontend: four HTML documents,
+hand-written ES modules and no build step. Assessment 3 requires Angular v22, so
+that frontend was **replaced**, not wrapped. The original is preserved unchanged
+under `legacy/clientside/` and is deliberately **not** part of the submission
+archives.
+
+Why keep it at all? Two honest reasons:
+
+1. **It is the reference for behaviour.** The Angular pages were written to show
+   the same strings, the same states and the same wording as the pages they
+   replace - `shared/src/util/format.ts` says so, function by function. Keeping
+   the original next to the replacement makes that claim checkable.
+2. **`tests/run-tests.js` still uses it as a DOM regression suite.** Loading the
+   real legacy HTML and ES modules into jsdom and asserting on the rendered
+   result is a strong, fast check of the API contract that costs nothing to keep
+   running. Deleting `legacy/` would delete that coverage, and rewriting it
+   against the Angular build would duplicate the browser end-to-end suite in
+   `tests/angular-e2e.mjs`, which already covers the Angular side properly.
+
+What changed, and what deliberately did not:
+
+| | Before (Assessment 2) | After (Assessment 3) |
+| --- | --- | --- |
+| Public website | `clientside/*.html` + `clientside/js/*.js` | the `clientside` Angular application |
+| Admin website | `clientside/admin/*.html` | the `adminside` Angular application |
+| Shared code | files copied between the two sites and served by relative path | `shared/` TypeScript, compiled into both, resolved by `@charity/shared/*` |
+| API | the JavaScript sources under `api/`, run directly by Node | `api/server.ts` + the TypeScript modules under `api/src/`, compiled to `api/dist` and run from there |
+| Database | `database/charityevents_db.sql` | unchanged |
+| REST behaviour | routes, envelope and status codes | unchanged, endpoint for endpoint |
+| i18n | `data-i18n` attributes and a DOM translation pass | four dictionaries + a signal-based service and a `t` pipe |
+| Theme | inline script + `js/theme.js` | `EARLY_THEME_SNIPPET` + `ThemeService` |
+
+The full reasoning - including why `shared/` is a path-mapped folder rather than
+an ng-packagr library, why the applications are zoneless, and which alternatives
+were considered and rejected - is in
+[`docs/angular-architecture.md`](docs/angular-architecture.md).
+
+---
+
+## 17. Academic integrity
 
 GenAI Level 2 applies to this assessment: brainstorming, grammar, paraphrasing,
 formatting and layout templates are permitted; **creating the report or
-generating code to copy and paste is not**. Read, understand, modify and be
-able to explain every file here, complete the report prompts yourself, and keep
-the commits in your GitHub repository your own work.
+generating code to copy and paste is not**. Read, understand, modify and be able
+to explain every file here, complete the report prompts yourself, and keep the
+commits in your GitHub repository your own work.

@@ -66,15 +66,28 @@ what OneDrive expects. To trim the start and end, right-click the file and choos
 
 ## 2. Service status before you start
 
-All three were verified running. If the machine has been restarted since, run
-`node tools/start-all.mjs` from the project folder. Leave it running while you
-record; Ctrl+C in that terminal stops the API and the website together.
+Everything is started together with:
+
+```bash
+npm start          # runs tools/start-all.mjs from the project root
+```
+
+It compiles the TypeScript API, builds both Angular applications if either has
+not been built yet, and then serves the API on port 3000 plus the two websites
+below. Leave it running while you record: **Ctrl+C in that one terminal stops all
+three processes**, because they share the terminal with their output prefixed
+`[api]`, `[client]` and `[admin]`. MySQL is the one service you start separately.
 
 | Service | Port | How to check |
 | --- | --- | --- |
 | MySQL 8.4.11 (Windows service `MySQL84`) | 3306 | `Get-Service MySQL84` |
-| Express API | 3000 | open `http://localhost:3000/api/health` |
-| Client website | 5500 | open `http://localhost:5500/index.html` |
+| Express API (compiled TypeScript, `api/dist/server.js`) | 3000 | open `http://localhost:3000/api/health` |
+| Public website (the `clientside` Angular app) | 4200 | open `http://localhost:4200/` |
+| Admin website (the `adminside` Angular app) | 4300 | open `http://localhost:4300/` |
+
+> The port numbers are worth saying on camera once. The two websites were single
+> static pages on port 5500 in Assessment 2; they are two Angular applications
+> now, so 5500 no longer exists and neither does the old static server.
 
 ---
 
@@ -84,8 +97,8 @@ record; Ctrl+C in that terminal stops the API and the website together.
 
 | # | Tab |
 | --- | --- |
-| 1 | `http://localhost:5500/index.html` - home page, opens Question 3 |
-| 2 | `http://localhost:5500/search.html` - the main demonstration |
+| 1 | `http://localhost:4200/` - home page, opens Question 3 |
+| 2 | `http://localhost:4200/search` - the main demonstration |
 | 3 | `http://localhost:3000/api/events?state=all&limit=3` - raw JSON |
 | 4 | Your GitHub repository, commits page - work progress, at the end |
 
@@ -113,8 +126,12 @@ ORDER BY event_date;
 
 Import the collection from
 `docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json`
-(**File > Import**). It holds 18 ready requests with 33 assertions, grouped as
-Health, Home page, Search page, Event detail, and Validation and error handling.
+(**File > Import**). It holds 42 ready requests, grouped as Health, Home page,
+Search page, Event detail, Validation and error handling, and **Assessment 3 -
+the write endpoints** (Events, Registrations, Admin view, Validation of the
+ticket allocation). The create and register requests carry test scripts that save
+the new ids into collection variables, so the write folder can be run in order
+without editing a URL.
 
 For Question 1, leave these two open in tabs:
 
@@ -126,17 +143,37 @@ For Question 1, leave these two open in tabs:
 Open the project folder so these files are one keystroke away, and use
 `Ctrl` + `P` to jump between them by name rather than hunting in the sidebar:
 
-* `database/01_schema.sql` - the schema and the two views
-* `api/src/db/event_db.js` - the required connection file
-* `api/src/repositories/repository.mysql.js` - the search SQL
-* `clientside/js/search.js` - collecting the form and calling the API
-* `clientside/js/dom.js` - turning the response into DOM
+* `database/01_schema.sql` - the schema and the views
+* `api/server.ts` - the Express application entry point (`api/dist/server.js` is what runs)
+* `api/src/db/event_db.ts` - the required connection file: the pool, `query()` and `transaction()`
+* `api/src/routes/apiRoutes.ts` - every endpoint in one file
+* `api/src/repositories/repository.mysql.ts` - the search SQL
+* `clientside/src/app/pages/search/search.ts` - collecting the form and calling the API
+* `clientside/src/app/shared/event-card.ts` - turning the response into the event cards
+* `shared/src/api/api.service.ts` - the one HTTP layer both applications use
 
 ---
 
 ## 4. Exact URLs to have ready
 
-Paste these rather than typing them on camera:
+Paste these rather than typing them on camera.
+
+The Angular routes, on the two ports:
+
+```
+http://localhost:4200/                  public home page
+http://localhost:4200/search            the search page
+http://localhost:4200/events/2          event detail: registrations + weather panel
+http://localhost:4200/register/2        the registration form for event 2
+
+http://localhost:4300/                  admin dashboard
+http://localhost:4300/events            every event, whatever its status
+http://localhost:4300/events/new        the create form (with the weather preview)
+http://localhost:4300/events/2/edit     the update form
+http://localhost:4300/registrations     every registration
+```
+
+The API, which the marker can also open directly:
 
 ```
 http://localhost:3000/api/events?state=all&limit=3
@@ -155,6 +192,11 @@ http://localhost:3000/api/events/11
 In Postman the same four are already saved, and the status code sits at the top
 right of the response, which reads better on video than the browser's Network
 panel.
+
+> The routes are real URLs now, not `.html` files. `/events/2` and `/register/2`
+> are Angular routes resolved by the router, so a deep link like
+> `http://localhost:4200/events/2` works when typed directly - which is what makes
+> the "link straight to a page" part of the demonstration possible.
 
 ---
 
@@ -195,18 +237,23 @@ script is normal and is not penalised.
 
 ## 7. Rehearse once without recording
 
-Do the three demonstrations end to end before you press Record, and fix anything
-slow or broken:
+Do the demonstrations end to end before you press Record, and fix anything slow
+or broken:
 
-1. Home page - let the event list load, and notice how long it takes.
-2. Search page - filter by Lismore + Fun Run + a date range, then **Clear
-   Filters**, then trigger the invalid date range to see the message appear.
-3. Event detail - open an event and press **Register**, which now goes to the
-   **registration page**; fill the form and complete a registration so you know
-   how long it takes and what the confirmation looks like.
-4. Admin site - open `http://localhost:5500/admin/index.html`, click **Events**,
-   and try to delete an event that has registrations so you have seen the
-   blocked-delete message before you have to explain it on camera.
+1. **Public home page** (`http://localhost:4200/`) - let the event list load, and
+   notice how long it takes.
+2. **Search page** (`http://localhost:4200/search`) - filter by Lismore + Fun Run
+   + a date range, then **Clear Filters**, then trigger the invalid date range
+   (a "to" date earlier than the "from" date) to see the message appear.
+3. **Event detail** (`http://localhost:4200/events/2`) - open an event, scroll to
+   the registrations table, and press **Register**, which is a real link to the
+   registration page now; fill the form and complete a registration so you know
+   how long it takes and what the confirmation card looks like.
+4. **Admin site** (`http://localhost:4300/events`) - try to delete an event that
+   has registrations so you have seen the blocked-delete message before you have
+   to explain it on camera. Then open
+   `http://localhost:4300/events/new` and confirm the weather preview appears once
+   a venue is chosen.
 
 Time yourself. If a section runs long, cut detail from the tour rather than
 rushing the explanation: the marker is listening for the three questions, not for
@@ -221,8 +268,11 @@ a complete inventory of the site.
 - [ ] Remux to MP4 in OBS, and trim with Clipchamp if needed.
 - [ ] Confirm the total length is under 15 minutes.
 - [ ] Confirm the three question headings are answered out loud, not merely shown.
-- [ ] Confirm the exact sentence **"This feature is currently under
-      construction."** is audible when you press Register.
+- [ ] Confirm the registration page is shown end to end: the validation message
+      (with no request sent), the successful submit, and the confirmation card
+      built from the API's own response.
+- [ ] Confirm the admin delete is shown **both** ways: the **409** refusal naming
+      the registration count, and a **204** delete of an event that has none.
 - [ ] Upload to your **SCU OneDrive**, set sharing so anyone with the link can
       view, and test the link in a **private** browser window - not the one you are
       signed into.
@@ -238,7 +288,8 @@ a complete inventory of the site.
 | The recording shows the wrong screen | The Display Capture source points at another monitor. Select the correct display in the source's properties. |
 | The video looks soft and the code is unreadable | Output resolution below 1080p, or browser zoom too small. Set 1080p in Settings > Video, zoom the browser to 110-125%. |
 | OBS reports dropped frames | Lower FPS to 30, close other applications, plug the charger in. |
-| The event list is empty on camera | The API stopped. Open `http://localhost:3000/api/health`; if it is down, run `node tools/start-all.mjs`. |
+| The event list is empty on camera | The API stopped. Open `http://localhost:3000/api/health`; if it is down, run `npm start`. |
+| A page is unstyled, or a change you just made is not there | You are looking at a stale build. Stop the servers and run `npm start -- --rebuild`. |
 | Workbench will not connect | The MySQL service stopped. In an administrator command prompt run `net start MySQL84`. |
 | Postman returns 404 for every request | The `baseUrl` variable is wrong. It should read `http://localhost:3000/api` in the collection variables. |
 | A notification appears mid-take | Stop, re-record that section, cut it in the editor. Do not restart the whole video. |

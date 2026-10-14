@@ -15,8 +15,13 @@
  *   3.0:1  large text (>= 24px, or >= 18.66px bold) and user interface graphics
  *
  * Usage:
+ *   node tools/start-all.mjs &        the pages must be being served already
  *   node tools/check-contrast.mjs                 all pages, both themes
  *   node tools/check-contrast.mjs --theme dark    one theme
+ *
+ * The page list below mirrors the Angular routes after the migration: the public
+ * site on http://localhost:4200 and the admin site on http://localhost:4300,
+ * which is what `npm start` serves (built output, development environment).
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -26,17 +31,18 @@ import path from 'node:path';
 const args = process.argv.slice(2);
 const onlyTheme = args.includes('--theme') ? args[args.indexOf('--theme') + 1] : null;
 const PAGES = [
-  { name: 'index.html', url: 'http://127.0.0.1:5500/index.html' },
-  { name: 'search.html', url: 'http://127.0.0.1:5500/search.html' },
-  { name: 'event.html', url: 'http://127.0.0.1:5500/event.html?id=1' },
+  { name: 'client / (home)', url: 'http://127.0.0.1:4200/' },
+  { name: 'client /search', url: 'http://127.0.0.1:4200/search' },
+  { name: 'client /events/2', url: 'http://127.0.0.1:4200/events/2' },
   // A3: the new public page and the admin site. Both draw on the same tokens
   // and the same components, so a token that flips badly shows up here too - and
   // the admin pages are the ones most likely to be missed, because they are not
   // part of the visitor journey.
-  { name: 'registration.html', url: 'http://127.0.0.1:5500/registration.html?id=1' },
-  { name: 'admin/index.html', url: 'http://127.0.0.1:5500/admin/index.html' },
-  { name: 'admin/events.html', url: 'http://127.0.0.1:5500/admin/events.html' },
-  { name: 'admin/update.html', url: 'http://127.0.0.1:5500/admin/update.html?id=7' },
+  { name: 'client /register/2', url: 'http://127.0.0.1:4200/register/2' },
+  { name: 'admin / (dashboard)', url: 'http://127.0.0.1:4300/' },
+  { name: 'admin /events', url: 'http://127.0.0.1:4300/events' },
+  { name: 'admin /events/2/edit', url: 'http://127.0.0.1:4300/events/2/edit' },
+  { name: 'admin /registrations', url: 'http://127.0.0.1:4300/registrations' },
 ];
 const THEMES = onlyTheme ? [onlyTheme] : ['light', 'dark'];
 

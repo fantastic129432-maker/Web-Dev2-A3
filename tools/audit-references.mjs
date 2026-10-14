@@ -43,6 +43,12 @@ const REMOVED_TOOLS = [
   'sample-pixels',
   'scan-accent-edges',
   'stage-commits',
+  // Deleted with the vanilla frontend when the project moved to Angular v22 and
+  // a TypeScript API. The architecture guard that replaced check-no-frameworks
+  // is tools/check-angular-architecture.mjs, and the inline <head> theme script
+  // is now verified by that same guard instead of by a sync tool.
+  'check-no-frameworks.mjs',
+  'sync-theme-snippet.mjs',
 ];
 
 const problems = [];
@@ -59,16 +65,36 @@ for (const docFile of DOC_FILES) {
   const text = fs.readFileSync(full, 'utf8');
   const docDir = path.dirname(full);
 
-  // --- commands and paths: tools/x.mjs, api/server.js, clientside/js/api.js ---
+  // --- commands and paths: tools/x.mjs, api/server.ts, clientside/src/app/app.ts ---
   //
-  // 前缀前用 (?<![\w-]) 而不是 \b。
+  // 两个 lookbehind 共同保证：匹配到的是"独立的、以仓库根目录为起点的路径"，
+  // 而不是别的路径的尾巴，也不是模块说明符。
   //
-  // 为什么: \b 只把"单词字符 vs 非单词字符"当作边界，而连字符 `-` 是非单词字符，
-  // 所以 `charity-events-api/tmp/restart.txt` 里的 `api/tmp/restart.txt` 会被
-  // 当成一个独立的路径引用，去项目里找 api/tmp/restart.txt，当然找不到。
-  // 这个误报出现过两次（部署文档里写了 cPanel 上的 Passenger 重启路径）。
-  // 加上对连字符的排除后，只有真正独立的 `api/...` 才会被检查。
-  for (const match of text.matchAll(/(?<![\w-])((?:tools|api|clientside|database|tests|docs)\/[\w./-]+\.\w+)/g)) {
+  // (?<![\w@-])        紧邻的前一个字符不能是单词字符、`@` 或 `-`。
+  //   为什么不用 \b: \b 只把"单词字符 vs 非单词字符"当作边界，而连字符 `-` 是非单词
+  //   字符，所以 `charity-events-api/tmp/restart.txt` 里的 `api/tmp/restart.txt` 会被
+  //   当成一个独立的路径引用，去项目里找 api/tmp/restart.txt，当然找不到。
+  //   `@` 则用于排除模块说明符的起始位置。
+  //
+  // (?<![\w-][/\\])    紧邻的前两个字符不能是"路径字符 + 分隔符"。
+  //   这一条修掉的是同一类误报的另一种写法：路径前面还有一层目录时，正则会把尾巴
+  //   当成仓库路径。`legacy/clientside/js/translations.js` 会被从 `clientside/` 处截成
+  //   `clientside/js/translations.js`（真正的文件在 legacy/ 下，而 legacy/ 不在本检查的
+  //   前缀范围内），`@charity/shared/api/api.service` 会被截成 `api/api.service`
+  //   （那是 shared 库的裸模块说明符，根本不是文件路径）。
+  //   注意它只在分隔符前面是单词字符或 `-` 时才排除，所以真正写在行首的绝对路径
+  //   `/tools/x.mjs` 仍然会被检查。`\` 让 Windows 风格的路径同样按整体处理。
+  //
+  // 另外，下面的 replace 把显式写出的 `./tools/x.mjs` 归一化成 `tools/x.mjs`，
+  // 所以这种写法不会被漏掉。
+  const searchable = text.replace(
+    /(?<![\w./\\-])\.\/(?=(?:tools|api|clientside|database|tests|docs)\/)/g,
+    ''
+  );
+
+  for (const match of searchable.matchAll(
+    /(?<![\w@-])(?<![\w-][/\\])((?:tools|api|clientside|database|tests|docs)\/[\w./-]+\.\w+)/g
+  )) {
     const reference = match[1];
     checkedPaths.add(reference);
     if (!fs.existsSync(path.join(ROOT, reference))) {

@@ -15,6 +15,30 @@ Reading order: section 1 covers the conventions every endpoint shares, sections
 delete rule, which is the one the brief singles out), and section 18 explains how
 to try any of it.
 
+### The API is written in TypeScript
+
+This changed in Assessment 3 and it changes how the API is started, so it is
+worth stating before the endpoints.
+
+| | |
+| --- | --- |
+| Source | `api/server.ts` and `api/src/**/*.ts` |
+| Compiled by | `tsc -p api/tsconfig.json`, via `npm run build:api` (in the `api/` folder) |
+| Output | the `dist/` folder inside `api/`, mirroring the source layout: `api/server.ts` -> `api/dist/server.js`, `api/src/db/event_db.ts` -> `api/dist/src/db/event_db.js` |
+| Running entry point | **`api/dist/server.js`** - the compiled file, both locally and on the SCU cPanel |
+| Why compile rather than run the sources | the cPanel's Node version cannot execute TypeScript, and shipping a `ts-node`-style loader would mean a development dependency in the deployment |
+
+The compiled entry point is what the package `start` script inside the `api/`
+folder runs, what the API checks in `tests/run-tests.js` start, and what the
+deployment uploads. `tools/start-all.mjs` (`npm start` at the repository root)
+compiles the API first for that reason.
+
+**What did not change:** every route, the `{success, meta, data}` envelope, the
+status codes, the validation messages and the data-integrity rules below are
+exactly as they were before the migration. The language the API is written in
+changed; its behaviour did not. Anything in this document that names a source
+file names the TypeScript file.
+
 ---
 
 ## 1. Conventions
@@ -81,8 +105,8 @@ Two details of the error body matter to a client:
   field at fault (for example the delete rule reports the event, the count and a
   suggestion).
 
-`clientside/js/api.js` normalises both into `ApiError.fieldErrors`, which is why
-no page has to care which one it received.
+The shared TypeScript library both Angular applications use normalises both into
+`ApiError.fieldErrors`, which is why no page has to care which one it received.
 
 ### Cross-cutting behaviour
 
@@ -663,7 +687,8 @@ three.
 
 ### 1. The API check, inside one transaction
 
-`write.repository.mysql.js` runs the check and the delete as a single unit:
+`api/src/repositories/write.repository.mysql.ts` runs the check and the delete as
+a single unit:
 
 ```sql
 START TRANSACTION;
@@ -698,7 +723,7 @@ The outcome is turned into HTTP status by `eventWriteService.deleteEvent()`:
 **409 Conflict** is the right code rather than 400: the request is perfectly well
 formed and the event exists, but the current state of the data means it cannot be
 carried out. 400 would blame the client for a malformed request, which this is
-not. `HttpError.conflict()` was added to `api/src/utils/errors.js` for exactly
+not. `HttpError.conflict()` was added to `api/src/utils/errors.ts` for exactly
 this case.
 
 ### 3. The MySQL foreign key as the backstop

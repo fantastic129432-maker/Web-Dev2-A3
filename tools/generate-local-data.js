@@ -16,7 +16,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const SEED_FILE = path.join(ROOT, 'database', '02_seed.sql');
-const OUT_FILE = path.join(ROOT, 'api', 'src', 'repositories', 'local-data.js');
+const OUT_FILE = path.join(ROOT, 'api', 'src', 'repositories', 'local-data.ts');
 
 const WANTED_TABLES = [
   'organizations',
@@ -196,7 +196,7 @@ if (counts.event_registrations < 10) {
 }
 
 const banner = `/**
- * src/repositories/local-data.js
+ * src/repositories/local-data.ts
  * ---------------------------------------------------------------------------
  * GENERATED FILE - do not edit by hand.
  * Produced by: node tools/generate-local-data.js
@@ -206,17 +206,24 @@ const banner = `/**
  * DATA_SOURCE=local on a machine without a MySQL server. The MySQL database
  * remains the submitted data source; this file exists only so the website can
  * still be demonstrated and marked offline.
+ *
+ * TypeScript since the API moved to TypeScript. The rows are typed as DataRecord
+ * (an open, string-keyed row) rather than a hand-written interface per table,
+ * because this file IS the schema's mirror: a column added to 02_seed.sql must
+ * appear here without anyone also editing a type by hand.
  */
 'use strict';
+
+import type { DataRecord } from '../types';
 
 `;
 
 const body = WANTED_TABLES.map(
-  (table) => `const ${table} = ${JSON.stringify(data[table] || [], null, 2)};\n`
+  (table) => `const ${table}: DataRecord[] = ${JSON.stringify(data[table] || [], null, 2)};\n`
 ).join('\n');
 
 const footer = `
-module.exports = {
+export = {
 ${WANTED_TABLES.map((table) => `  ${table},`).join('\n')}
 };
 `;

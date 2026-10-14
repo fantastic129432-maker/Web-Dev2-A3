@@ -36,15 +36,28 @@ const GENERIC_PATTERNS = [
 /** Files that legitimately contain the word password as a placeholder. */
 const ALLOWED_PLACEHOLDER_FILES = ['.env.example', 'README.md', 'api-documentation.md'];
 
+/**
+ * The tracked file list.
+ *
+ * `core.quotepath=false` matters here: by default git escapes non-ASCII
+ * characters in a path as octal (`"\351\203\250..."`), and feeding that quoted
+ * string back to `git show` fails with "ambiguous argument". The project has a
+ * tracked file with a Chinese name (部署说明.md), so without this flag that file
+ * would be silently skipped by a SECRET SCANNER - the one kind of file you least
+ * want skipped.
+ */
 function trackedFiles() {
-  return execFileSync('git', ['ls-files'], { encoding: 'utf8' })
+  return execFileSync('git', ['-c', 'core.quotepath=false', 'ls-files'], { encoding: 'utf8' })
     .split(/\r?\n/)
     .filter(Boolean);
 }
 
 function fileContent(file) {
   try {
-    return execFileSync('git', ['show', `:${file}`], { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
+    return execFileSync('git', ['-c', 'core.quotepath=false', 'show', `:${file}`], {
+      encoding: 'utf8',
+      maxBuffer: 20 * 1024 * 1024,
+    });
   } catch {
     return '';
   }
