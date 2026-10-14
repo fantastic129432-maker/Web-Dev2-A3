@@ -1,14 +1,14 @@
 /**
- * src/controllers/categoryController.js
+ * src/controllers/categoryController.ts
  * ---------------------------------------------------------------------------
  * Reference data used by the search page filters: event categories and the
  * venues that currently host at least one active event.
  */
 'use strict';
 
-const eventService = require('../services/eventService');
-const repository = require('../repositories');
-const { asyncHandler } = require('../utils/asyncHandler');
+import eventService = require('../services/eventService');
+import repository = require('../repositories');
+import { asyncHandler } from '../utils/asyncHandler';
 
 /** GET /api/categories - drives the category multi-select on the search page. */
 const getCategories = asyncHandler(async (req, res) => {
@@ -38,4 +38,4 @@ const getLocations = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getCategories, getLocations };
+export = { getCategories, getLocations };

@@ -1,7 +1,7 @@
 /**
- * src/repositories/write.repository.local.js
+ * src/repositories/write.repository.local.ts
  * ---------------------------------------------------------------------------
- * The offline twin of write.repository.mysql.js: insertEvent, updateEvent and
+ * The offline twin of write.repository.mysql.ts: insertEvent, updateEvent and
  * deleteEvent for DATA_SOURCE=local.
  *
  * The rules are the same, only the storage differs. In particular the delete
@@ -20,11 +20,12 @@
  */
 'use strict';
 
-const store = require('./local-store');
-const registrationStore = require('./registration.repository.local');
+import store = require('./local-store');
+import type { DataRecord, EventWriteRepository } from '../types';
+import registrationStore = require('./registration.repository.local');
 
 /** Does a row exist for this id in the given seeded lookup table? */
-function existsIn(collection, key, value) {
+function existsIn(collection: DataRecord[], key: string, value: unknown): boolean {
   return collection.some((row) => Number(row[key]) === Number(value));
 }
 
@@ -32,8 +33,8 @@ function existsIn(collection, key, value) {
  * Validate referential integrity the way MySQL's foreign keys would.
  * @throws {HttpError} 400 with one entry per unknown id
  */
-function assertReferences(values) {
-  const { HttpError } = require('../utils/errors');
+function assertReferences(values: DataRecord): void {
+  const { HttpError } = require('../utils/errors') as typeof import('../utils/errors');
   const problems = [];
 
   if (values.organizationId !== undefined) {
@@ -70,7 +71,7 @@ function assertReferences(values) {
 }
 
 /** The camelCase payload field for each database column. */
-const FIELD_TO_COLUMN = {
+const FIELD_TO_COLUMN: Record<string, string> = {
   organizationId: 'organization_id',
   categoryId: 'category_id',
   locationId: 'location_id',
@@ -97,7 +98,7 @@ const FIELD_TO_COLUMN = {
  * own defaults for anything left out; the equivalents are applied here so both
  * data sources store the same values.
  */
-function toRow(values, eventId, base) {
+function toRow(values: DataRecord, eventId: number, base?: DataRecord): DataRecord {
   const row = base ? { ...base } : {};
   row.event_id = eventId;
 
@@ -123,9 +124,9 @@ function toRow(values, eventId, base) {
 }
 
 /** "YYYY-MM-DD HH:MM:SS", matching a MySQL TIMESTAMP literal. */
-function nowStamp() {
+function nowStamp(): string {
   const now = new Date();
-  const pad = (value) => String(value).padStart(2, '0');
+  const pad = (value: number): string => String(value).padStart(2, '0');
   return (
     `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
     `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
@@ -133,12 +134,23 @@ function nowStamp() {
 }
 
 /** Read the row back through the admin view, as the MySQL version does. */
-function readBack(eventId) {
-  const index = require('./index');
+function readBack(eventId: number): Promise<DataRecord | null> {
+  const index = require('./index') as typeof import('./index');
   return index.findEventById(eventId, { status: 'all' });
 }
 
-const writeRepository = {
+/* The two lookup helpers are not part of the repository contract; they ride
+ * along on the exported object for the unit tests, as they did before. */
+async function registrationExists(eventId: number, email: string): Promise<boolean> {
+  return registrationStore.existsForEventAndEmail(eventId, email);
+}
+
+/** How many registrations an event has. */
+async function countRegistrations(eventId: number): Promise<number> {
+  return registrationStore.countByEventId(eventId);
+}
+
+const writeRepository: EventWriteRepository = {
   /**
    * POST /api/events
    * @returns {Promise<object>} the created event, including its ticket tiers
@@ -157,7 +169,8 @@ const writeRepository = {
       saveTicketTypes(eventId, values.ticketTypes);
     }
 
-    return readBack(eventId);
+    // The row was saved a moment ago, so the read-back can never be null here.
+    return (await readBack(eventId)) as DataRecord;
   },
 
   /**
@@ -206,16 +219,6 @@ const writeRepository = {
     return { deleted: true, eventName: row.event_name };
   },
 
-  /** Does this (event, email) pair already exist? */
-  async registrationExists(eventId, email) {
-    return registrationStore.existsForEventAndEmail(eventId, email);
-  },
-
-  /** How many registrations an event has. */
-  async countRegistrations(eventId) {
-    return registrationStore.countByEventId(eventId);
-  },
-
   /** Store the ticket tiers of a newly created event. */
   async replaceTicketTypes(eventId, ticketTypes) {
     saveTicketTypes(eventId, ticketTypes);
@@ -229,7 +232,7 @@ const writeRepository = {
  * the store's allocator (the offline equivalent of AUTO_INCREMENT), so the demo
  * data stays exactly as the marker sees it in 02_seed.sql.
  */
-function saveTicketTypes(eventId, ticketTypes) {
+function saveTicketTypes(eventId: number, ticketTypes: DataRecord[]): void {
   for (const ticket of ticketTypes) {
     store.addedTicketTypes.push({
       ticket_type_id: store.allocateTicketTypeId(),
@@ -245,7 +248,12 @@ function saveTicketTypes(eventId, ticketTypes) {
   }
 }
 
-module.exports = writeRepository;
-module.exports.toRow = toRow;
-module.exports.assertReferences = assertReferences;
-module.exports.nowStamp = nowStamp;
+/* One export: the helpers the original attached to module.exports afterwards
+ * ride along on the same object. */
+export = Object.assign(writeRepository, {
+  registrationExists,
+  countRegistrations,
+  toRow,
+  assertReferences,
+  nowStamp,
+});

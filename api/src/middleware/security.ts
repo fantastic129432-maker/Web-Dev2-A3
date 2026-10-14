@@ -1,5 +1,5 @@
 /**
- * src/middleware/security.js
+ * src/middleware/security.ts
  * ---------------------------------------------------------------------------
  * The security measures the brief asks us to think about, implemented without
  * pulling in extra dependencies:
@@ -19,17 +19,19 @@
  */
 'use strict';
 
-const env = require('../config/env');
-const { HttpError } = require('../utils/errors');
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
+
+import env = require('../config/env');
+import { HttpError } from '../utils/errors';
 
 /** The HTTP methods this API implements. */
-const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
+export const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
 
 /** Headers a browser is allowed to send with a cross-origin request. */
-const ALLOWED_HEADERS = ['Content-Type', 'Accept'];
+export const ALLOWED_HEADERS = ['Content-Type', 'Accept'];
 
 /** Response headers the client websites are allowed to read. */
-const EXPOSED_HEADERS = [
+export const EXPOSED_HEADERS = [
   'X-RateLimit-Limit',
   'X-RateLimit-Remaining',
   'X-RateLimit-Reset',
@@ -39,8 +41,20 @@ const EXPOSED_HEADERS = [
   'X-Deleted-Registration-Id',
 ];
 
+/**
+ * The rate limiter is a RequestHandler that can also be stopped: the interval
+ * that prunes expired windows has to be clearable in a test or on shutdown.
+ */
+export interface RateLimiter extends RequestHandler {
+  stop(): void;
+}
+
 /** Sensible defaults for a JSON API. */
-function securityHeaders(req, res, next) {
+export function securityHeaders(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -50,14 +64,14 @@ function securityHeaders(req, res, next) {
 }
 
 /** Build the CORS middleware from the configured origin list. */
-function createCors() {
+export function createCors(): RequestHandler {
   const allowed = env.CORS_ORIGIN.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
   const allowAny = allowed.includes('*');
 
-  return function cors(req, res, next) {
+  return function cors(req: Request, res: Response, next: NextFunction): void {
     const requestOrigin = req.headers.origin;
 
     if (allowAny) {
@@ -89,8 +103,9 @@ function createCors() {
  * Fixed-window rate limiter keyed by client IP.
  * Chosen over a dependency so the marker can read and understand the logic.
  */
-function createRateLimiter() {
-  const hits = new Map();
+export function createRateLimiter(): RateLimiter {
+  /** One fixed window per client IP. */
+  const hits = new Map<string, { count: number; resetAt: number }>();
   const windowMs = env.RATE_LIMIT_WINDOW_MS;
   const max = env.RATE_LIMIT_MAX;
 
@@ -102,7 +117,11 @@ function createRateLimiter() {
     }
   }, windowMs).unref();
 
-  function rateLimiter(req, res, next) {
+  const rateLimiter = function rateLimiter(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): void {
     if (max <= 0) return next();
 
     const key = req.ip || req.socket.remoteAddress || 'unknown';
@@ -131,16 +150,8 @@ function createRateLimiter() {
     }
 
     return next();
-  }
+  } as RateLimiter;
 
   rateLimiter.stop = () => clearInterval(cleanup);
   return rateLimiter;
 }
-
-module.exports = {
-  securityHeaders,
-  createCors,
-  createRateLimiter,
-  ALLOWED_METHODS,
-  EXPOSED_HEADERS,
-};

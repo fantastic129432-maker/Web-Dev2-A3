@@ -1,5 +1,5 @@
 /**
- * src/services/registrationService.js
+ * src/services/registrationService.ts
  * ---------------------------------------------------------------------------
  * The business rules behind event registration - the feature Assessment 3 adds
  * to the client website.
@@ -30,8 +30,9 @@
  */
 'use strict';
 
-const repository = require('../repositories');
-const { HttpError } = require('../utils/errors');
+import repository = require('../repositories');
+import type { DataRecord, UntrustedInput, ValidationIssue } from '../types';
+import { HttpError } from '../utils/errors';
 const {
   requiredDate,
   requiredText,
@@ -40,13 +41,13 @@ const {
   requiredEmail,
   throwIfInvalid,
   parseInteger,
-} = require('../utils/validators');
+} = require('../utils/validators') as typeof import('../utils/validators');
 
 /** The largest number of tickets one registration may buy. */
 const MAX_TICKETS_PER_REGISTRATION = 20;
 
 /** Lower-case and trim - the one place that decides what "the same email" means. */
-function normaliseEmail(email) {
+function normaliseEmail(email: unknown): string {
   return String(email || '').trim().toLowerCase();
 }
 
@@ -57,10 +58,13 @@ function normaliseEmail(email) {
  * @param {{partial:boolean}} options  true for PUT
  * @returns {object} camelCase values ready for the repository
  */
-function validateRegistrationBody(body = {}, { partial = false } = {}) {
-  const errors = [];
+function validateRegistrationBody(
+  body: UntrustedInput = {},
+  { partial = false }: { partial?: boolean } = {}
+): DataRecord {
+  const errors: ValidationIssue[] = [];
   const required = !partial;
-  const values = {};
+  const values: DataRecord = {};
 
   const attendeeName = requiredText(body, 'attendeeName', errors, {
     required,
@@ -131,7 +135,7 @@ function validateRegistrationBody(body = {}, { partial = false } = {}) {
  * string. A bare date becomes midday so that a date-only entry still sorts
  * sensibly against the registrations that carry a real time.
  */
-function normaliseRegisteredAt(raw, datePart) {
+function normaliseRegisteredAt(raw: unknown, datePart: string): string {
   const text = String(raw).trim();
   if (text.length <= 10) return `${datePart} 12:00:00`;
 
@@ -148,7 +152,10 @@ function normaliseRegisteredAt(raw, datePart) {
  * @throws {HttpError} 400 invalid body or id, 404 unknown event,
  *        409 the email is already registered for this event
  */
-async function createRegistration(rawEventId, body) {
+async function createRegistration(
+  rawEventId: string | number,
+  body: UntrustedInput
+): Promise<DataRecord> {
   const eventId = parsePositiveId(rawEventId, 'event');
 
   const values = validateRegistrationBody(body, { partial: false });
@@ -175,14 +182,18 @@ async function createRegistration(rawEventId, body) {
  * Only tiers that publish `quantity_available` are limited; a NULL means
  * unlimited, which is how the virtual challenge tiers are seeded.
  */
-async function assertTicketsAvailable(eventId, ticketTypeId, requested) {
+async function assertTicketsAvailable(
+  eventId: number,
+  ticketTypeId: number,
+  requested: number
+): Promise<void> {
   const event = await repository.findEventById(eventId, { status: 'all' });
   if (!event) {
     throw HttpError.notFound(`No event was found with id ${eventId}.`);
   }
 
   const tier = (event.ticketTypes || []).find(
-    (ticket) => Number(ticket.ticketTypeId) === Number(ticketTypeId)
+    (ticket: DataRecord) => Number(ticket.ticketTypeId) === Number(ticketTypeId)
   );
   if (!tier) {
     throw HttpError.badRequest(`Ticket type ${ticketTypeId} is not offered by this event.`, [
@@ -193,8 +204,8 @@ async function assertTicketsAvailable(eventId, ticketTypeId, requested) {
   if (tier.quantityAvailable === null || tier.quantityAvailable === undefined) return;
 
   const sold = (event.registrations || [])
-    .filter((row) => Number(row.ticketTypeId) === Number(ticketTypeId))
-    .reduce((sum, row) => sum + Number(row.ticketsPurchased || 0), 0);
+    .filter((row: DataRecord) => Number(row.ticketTypeId) === Number(ticketTypeId))
+    .reduce((sum: number, row: DataRecord) => sum + Number(row.ticketsPurchased || 0), 0);
 
   const remaining = Number(tier.quantityAvailable) - sold;
   if (requested > remaining) {
@@ -219,7 +230,10 @@ async function assertTicketsAvailable(eventId, ticketTypeId, requested) {
  * @throws {HttpError} 400 invalid body or id, 404 unknown registration,
  *        409 the new email is already used for that event
  */
-async function updateRegistration(rawId, body) {
+async function updateRegistration(
+  rawId: string | number,
+  body: UntrustedInput
+): Promise<DataRecord> {
   const registrationId = parsePositiveId(rawId, 'registration');
 
   const values = validateRegistrationBody(body, { partial: true });
@@ -242,7 +256,9 @@ async function updateRegistration(rawId, body) {
  * DELETE /api/registrations/:id
  * @throws {HttpError} 400 invalid id, 404 unknown registration
  */
-async function deleteRegistration(rawId) {
+async function deleteRegistration(
+  rawId: string | number
+): Promise<{ registrationId: number; deleted: true }> {
   const registrationId = parsePositiveId(rawId, 'registration');
 
   const removed = await repository.deleteRegistration(registrationId);
@@ -258,7 +274,7 @@ async function deleteRegistration(rawId) {
  * GET /api/events/:id/registrations
  * Newest first, which is the order the event page displays.
  */
-async function listForEvent(rawEventId) {
+async function listForEvent(rawEventId: string | number) {
   const eventId = parsePositiveId(rawEventId, 'event');
 
   const event = await repository.findEventById(eventId, { status: 'all' });
@@ -283,10 +299,10 @@ async function listForEvent(rawEventId) {
  * GET /api/registrations - the optional admin list across every event.
  * Supports ?eventId=, ?email=, ?keyword=, ?limit= and ?offset=.
  */
-async function listRegistrations(query = {}) {
-  const errors = [];
+async function listRegistrations(query: UntrustedInput = {}) {
+  const errors: ValidationIssue[] = [];
 
-  let eventId;
+  let eventId: number | undefined;
   if (query.eventId !== undefined && query.eventId !== '') {
     eventId = parseInteger(query.eventId, 'eventId', { min: 1, errors });
   }
@@ -327,7 +343,7 @@ async function listRegistrations(query = {}) {
  * GET /api/registrations/:id
  * @throws {HttpError} 404 when it does not exist
  */
-async function getRegistration(rawId) {
+async function getRegistration(rawId: string | number) {
   const registrationId = parsePositiveId(rawId, 'registration');
   const registration = await repository.registrationQueries.findById(registrationId);
   if (!registration) {
@@ -337,7 +353,7 @@ async function getRegistration(rawId) {
 }
 
 /** Shared id parsing. */
-function parsePositiveId(rawId, noun) {
+function parsePositiveId(rawId: string | number, noun: string): number {
   const id = Number(rawId);
   if (!Number.isInteger(id) || id <= 0) {
     throw HttpError.badRequest(
@@ -347,7 +363,7 @@ function parsePositiveId(rawId, noun) {
   return id;
 }
 
-module.exports = {
+export = {
   createRegistration,
   updateRegistration,
   deleteRegistration,

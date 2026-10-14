@@ -1,9 +1,9 @@
 /**
- * src/repositories/local-store.js
+ * src/repositories/local-store.ts
  * ---------------------------------------------------------------------------
  * The mutable state behind DATA_SOURCE=local.
  *
- * local-data.js is a frozen snapshot generated from database/02_seed.sql. This
+ * local-data.ts is a frozen snapshot generated from database/02_seed.sql. This
  * module wraps it in the smallest possible layer that lets the offline data
  * source support Assessment 3's write operations:
  *
@@ -17,30 +17,32 @@
  * and why the two repositories must expose the same interface instead of
  * sharing an implementation.
  *
- * Deliberately import-free (it only reads local-data.js) so that
- * repository.local.js, write.repository.local.js and
- * registration.repository.local.js can all use it without an import cycle.
+ * Deliberately import-free (it only reads local-data.ts) so that
+ * repository.local.ts, write.repository.local.ts and
+ * registration.repository.local.ts can all use it without an import cycle.
  */
 'use strict';
 
-const data = require('./local-data');
+import type { DataRecord } from '../types';
+
+import data = require('./local-data');
 
 /** Events created or updated at run time, keyed by event id. */
-const overrides = new Map();
+const overrides = new Map<number, DataRecord>();
 
 /** Ids of events deleted at run time. */
-const removedEventIds = new Set();
+const removedEventIds = new Set<number>();
 
 /** A working copy of the seeded registrations. */
-const registrations = data.event_registrations.map((row) => ({ ...row }));
+const registrations: DataRecord[] = data.event_registrations.map((row) => ({ ...row }));
 
 /**
  * Ticket tiers added at run time for newly created events.
  *
  * They are kept here rather than pushed into data.ticket_types so the generated
- * local-data.js array is never mutated - RESET simply empties this list.
+ * local-data.ts array is never mutated - RESET simply empties this list.
  */
-const addedTicketTypes = [];
+const addedTicketTypes: DataRecord[] = [];
 
 /** AUTO_INCREMENT equivalents. */
 let nextEventId =
@@ -51,10 +53,10 @@ let nextTicketTypeId =
   data.ticket_types.reduce((max, row) => Math.max(max, Number(row.ticket_type_id)), 0) + 1;
 
 /** The seeded event rows with every run-time change applied. */
-function effectiveEvents() {
+function effectiveEvents(): DataRecord[] {
   const rows = data.events
     .filter((row) => !removedEventIds.has(row.event_id))
-    .map((row) => (overrides.has(row.event_id) ? overrides.get(row.event_id) : row));
+    .map((row) => (overrides.has(row.event_id) ? overrides.get(row.event_id)! : row));
 
   // Events created at run time are appended, so they take their place at the
   // end of the standard date ordering exactly as a fresh primary key would.
@@ -66,24 +68,24 @@ function effectiveEvents() {
 }
 
 /** Insert or replace one event row. */
-function saveEvent(row) {
+function saveEvent(row: DataRecord): DataRecord {
   overrides.set(row.event_id, row);
   return row;
 }
 
 /** Remove one event row. */
-function removeEvent(eventId) {
+function removeEvent(eventId: number): void {
   removedEventIds.add(eventId);
   overrides.delete(eventId);
 }
 
 /** Snapshot of the current event rows (used when an update needs the old one). */
-function findEventRow(eventId) {
+function findEventRow(eventId: number): DataRecord | null {
   return effectiveEvents().find((row) => row.event_id === Number(eventId)) || null;
 }
 
 /** Every ticket tier of one event: the seeded rows plus any added at run time. */
-function ticketTypesFor(eventId) {
+function ticketTypesFor(eventId: number): DataRecord[] {
   const seeded = data.ticket_types.filter(
     (row) => Number(row.event_id) === Number(eventId)
   );
@@ -93,18 +95,18 @@ function ticketTypesFor(eventId) {
   return seeded.concat(added);
 }
 
-/** Every ticket tier, seeded and added, so @see repository.local.js decorate(). */
-function allTicketTypes() {
+/** Every ticket tier, seeded and added, so @see repository.local.ts decorate(). */
+function allTicketTypes(): DataRecord[] {
   return data.ticket_types.concat(addedTicketTypes);
 }
 
-function allocateEventId() {
+function allocateEventId(): number {
   const id = nextEventId;
   nextEventId += 1;
   return id;
 }
 
-function allocateRegistrationId() {
+function allocateRegistrationId(): number {
   const id = nextRegistrationId;
   nextRegistrationId += 1;
   return id;
@@ -116,7 +118,7 @@ function allocateRegistrationId() {
  * same session can never be given the same tier id - which is what the previous
  * "highest seeded + count" arithmetic got wrong.
  */
-function allocateTicketTypeId() {
+function allocateTicketTypeId(): number {
   const id = nextTicketTypeId;
   nextTicketTypeId += 1;
   return id;
@@ -128,7 +130,7 @@ function allocateTicketTypeId() {
  * Restore the seeded state. Used by the automated test suite so one test's
  * writes cannot affect the next one.
  */
-function reset() {
+function reset(): void {
   overrides.clear();
   removedEventIds.clear();
   addedTicketTypes.length = 0;
@@ -143,7 +145,7 @@ function reset() {
     data.ticket_types.reduce((max, row) => Math.max(max, Number(row.ticket_type_id)), 0) + 1;
 }
 
-module.exports = {
+export = {
   data,
   overrides,
   removedEventIds,

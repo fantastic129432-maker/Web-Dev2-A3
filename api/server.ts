@@ -1,31 +1,33 @@
 /**
- * server.js
+ * server.ts
  * ---------------------------------------------------------------------------
  * Application entry point.
  *
  * Startup order
- *   1. load configuration (config/env.js reads api/.env)
+ *   1. load configuration (config/env.ts reads api/.env)
  *   2. build the Express application
  *   3. mount security middleware, routes and error handling
  *   4. confirm the database connection (mysql mode) and start listening
  *   5. shut down cleanly on Ctrl+C / SIGTERM
  *
- * Run with:  npm start        (api folder)
+ * Run with:  npm start        (api folder, runs the compiled dist/server.js)
+ * Build first: npm run build
  */
 'use strict';
 
-const express = require('express');
-const path = require('path');
+import express = require('express');
+import fs = require('fs');
+import path = require('path');
 
-const env = require('./src/config/env');
-const apiRoutes = require('./src/routes/apiRoutes');
-const { notFound, errorHandler } = require('./src/middleware/errorHandler');
-const {
+import env = require('./src/config/env');
+import apiRoutes = require('./src/routes/apiRoutes');
+import { notFound, errorHandler } from './src/middleware/errorHandler';
+import {
   securityHeaders,
   createCors,
   createRateLimiter,
-} = require('./src/middleware/security');
-const repository = require('./src/repositories');
+} from './src/middleware/security';
+import repository = require('./src/repositories');
 
 const app = express();
 
@@ -96,9 +98,26 @@ app.use((req, res, next) => {
 // ---------------------------------------------------------------------------
 app.use('/api', apiRoutes);
 
-// Friendly landing page so opening http://localhost:3000 in a browser is useful.
+/**
+ * The friendly landing page so opening http://localhost:3000 in a browser is
+ * useful.
+ *
+ * The page is a static .html file and `tsc` does not copy it, so its location
+ * is resolved from the API ROOT - the folder holding package.json, found by
+ * walking up from the compiled file (see src/config/env.ts). Computing it from
+ * __dirname alone would look for api/dist/src/views and answer 404 instead.
+ * The second candidate only covers a deployment that ships api/dist on its
+ * own; the build's copy step places the page there as well.
+ */
+const LANDING_PAGE =
+  [
+    path.join(env.API_ROOT, 'src', 'views', 'api-index.html'),
+    path.join(__dirname, 'src', 'views', 'api-index.html'),
+  ].find((candidate) => fs.existsSync(candidate)) ??
+  path.join(env.API_ROOT, 'src', 'views', 'api-index.html');
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(env.API_ROOT, 'src', 'views', 'api-index.html'), (error) => {
+  res.sendFile(LANDING_PAGE, (error) => {
     if (error) {
       res.json({
         success: true,
@@ -144,12 +163,14 @@ async function start() {
     // started
   });
 
-  const shutdown = async (signal) => {
+  const shutdown = async (signal: string) => {
     console.log(`\n${signal} received - shutting down.`);
     server.close(async () => {
       try {
         // Safe in both modes: the local data source has nothing to close.
-        const db = require('./src/db/event_db');
+        // The require stays INSIDE the handler so that the pool module is only
+        // loaded when the process actually shuts down, exactly as before.
+        const db = require('./src/db/event_db') as typeof import('./src/db/event_db');
         await db.close();
       } catch (error) {
         console.warn('Database pool cleanup skipped:', error.message);
@@ -170,7 +191,7 @@ async function start() {
  * ---------------------------------------------------------------------------
  * The guard has to cover two different ways this file gets loaded.
  *
- *   1. `node server.js` (local development, `npm start`)
+ *   1. `node dist/server.js` (local development, `npm start`)
  *      -> require.main === module is true.
  *
  *   2. Passenger, which is what the SCU cPanel uses for its Node.js apps.
@@ -200,4 +221,6 @@ if (require.main === module || IS_PASSENGER) {
   });
 }
 
-module.exports = { app, start };
+// Named exports: the compiled CommonJS output is `exports.app` / `exports.start`,
+// so `const { app } = require('./dist/server.js')` keeps working unchanged.
+export { app, start };

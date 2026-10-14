@@ -1,5 +1,5 @@
 /**
- * src/services/eventWriteService.js
+ * src/services/eventWriteService.ts
  * ---------------------------------------------------------------------------
  * Assessment 3, Part 2 - the business rules behind the three new admin
  * endpoints:
@@ -8,7 +8,7 @@
  *   updateEvent()  PUT    /api/events/:id
  *   deleteEvent()  DELETE /api/events/:id
  *
- * Why a separate service from eventService.js? eventService owns the read
+ * Why a separate service from eventService.ts? eventService owns the read
  * rules (turning a query string into a validated filter). This file owns the
  * write rules (turning a JSON body into a validated event, and deciding whether
  * a delete is allowed). Keeping them apart means the read path that A2 was
@@ -22,8 +22,9 @@
  */
 'use strict';
 
-const repository = require('../repositories');
-const { HttpError } = require('../utils/errors');
+import repository = require('../repositories');
+import type { DataRecord, UntrustedInput, ValidationIssue } from '../types';
+import { HttpError } from '../utils/errors';
 const {
   requiredDate,
   requiredTime,
@@ -33,7 +34,7 @@ const {
   requiredEnum,
   requiredId,
   throwIfInvalid,
-} = require('../utils/validators');
+} = require('../utils/validators') as typeof import('../utils/validators');
 
 /** The publishing states the events.status column allows. */
 const PUBLISH_STATUSES = ['active', 'suspended', 'cancelled'];
@@ -63,10 +64,13 @@ const KNOWN_IMAGES = [
  *        are present are validated and changed
  * @returns {object} the values to write, in camelCase
  */
-function validateEventBody(body = {}, { partial = false } = {}) {
-  const errors = [];
+function validateEventBody(
+  body: UntrustedInput = {},
+  { partial = false }: { partial?: boolean } = {}
+): DataRecord {
+  const errors: ValidationIssue[] = [];
   const required = !partial;
-  const values = {};
+  const values: DataRecord = {};
 
   // ---- foreign keys: must exist, which the database also enforces ----------
   const organizationId = requiredId(body, 'organizationId', errors, { required });
@@ -186,7 +190,7 @@ function validateEventBody(body = {}, { partial = false } = {}) {
     if (!Array.isArray(body.ticketTypes)) {
       errors.push({ field: 'ticketTypes', message: 'ticketTypes must be a list.' });
     } else {
-      const tiers = body.ticketTypes.map((ticket, index) =>
+      const tiers = body.ticketTypes.map((ticket: UntrustedInput, index: number) =>
         validateTicketType(ticket, index, errors)
       );
       values.ticketTypes = tiers.filter(Boolean);
@@ -199,7 +203,11 @@ function validateEventBody(body = {}, { partial = false } = {}) {
 }
 
 /** One ticket tier inside an event body. */
-function validateTicketType(ticket = {}, index, errors) {
+function validateTicketType(
+  ticket: UntrustedInput = {},
+  index: number,
+  errors: ValidationIssue[]
+): DataRecord | null {
   const label = `ticketTypes[${index}]`;
 
   const ticketName = requiredText(ticket, 'ticketName', errors, {
@@ -242,7 +250,7 @@ function validateTicketType(ticket = {}, index, errors) {
  * @param {object} body
  * @returns {Promise<object>} the created event
  */
-async function createEvent(body) {
+async function createEvent(body: UntrustedInput): Promise<DataRecord> {
   const values = validateEventBody(body, { partial: false });
   return repository.insertEvent(values);
 }
@@ -254,7 +262,7 @@ async function createEvent(body) {
  *
  * @throws {HttpError} 400 for an invalid id, 404 when no event has that id
  */
-async function updateEvent(rawId, body) {
+async function updateEvent(rawId: string | number, body: UntrustedInput): Promise<DataRecord> {
   const eventId = parseEventId(rawId);
 
   const values = validateEventBody(body, { partial: true });
@@ -284,7 +292,11 @@ async function updateEvent(rawId, body) {
  * @throws {HttpError} 400 for an invalid id, 404 when it does not exist,
  *        409 when registrations block the delete
  */
-async function deleteEvent(rawId) {
+async function deleteEvent(rawId: string | number): Promise<{
+  eventId: number;
+  eventName: string;
+  deleted: true;
+}> {
   const eventId = parseEventId(rawId);
 
   const outcome = await repository.deleteEvent(eventId);
@@ -315,7 +327,7 @@ async function deleteEvent(rawId) {
 }
 
 /** Shared id parsing so all three endpoints reject a bad id identically. */
-function parseEventId(rawId) {
+function parseEventId(rawId: string | number): number {
   const eventId = Number(rawId);
   if (!Number.isInteger(eventId) || eventId <= 0) {
     throw HttpError.badRequest(
@@ -325,7 +337,7 @@ function parseEventId(rawId) {
   return eventId;
 }
 
-module.exports = {
+export = {
   createEvent,
   updateEvent,
   deleteEvent,

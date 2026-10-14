@@ -1,5 +1,5 @@
 /**
- * src/controllers/adminController.js
+ * src/controllers/adminController.ts
  * ---------------------------------------------------------------------------
  * Assessment 3, Part 2 - the HTTP layer for the admin-side endpoints.
  *
@@ -33,13 +33,14 @@
  */
 'use strict';
 
-const eventService = require('../services/eventService');
-const eventWriteService = require('../services/eventWriteService');
-const repository = require('../repositories');
-const { asyncHandler } = require('../utils/asyncHandler');
+import eventService = require('../services/eventService');
+import eventWriteService = require('../services/eventWriteService');
+import repository = require('../repositories');
+import type { DataRecord } from '../types';
+import { asyncHandler } from '../utils/asyncHandler';
 
 /** The standard success envelope used across the whole API. */
-function envelope(resource, data, extraMeta = {}) {
+function envelope(resource: string, data: unknown, extraMeta: DataRecord = {}) {
   return {
     success: true,
     meta: {
@@ -136,7 +137,7 @@ const getReferenceData = asyncHandler(async (req, res) => {
   res.json(envelope('reference-data', reference));
 });
 
-module.exports = {
+export = {
   listAllEvents,
   getEventById,
   createEvent,

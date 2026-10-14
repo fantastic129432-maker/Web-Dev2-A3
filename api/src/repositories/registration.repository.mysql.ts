@@ -1,5 +1,5 @@
 /**
- * src/repositories/registration.repository.mysql.js
+ * src/repositories/registration.repository.mysql.ts
  * ---------------------------------------------------------------------------
  * Assessment 3, Part 2 - writes for the event_registrations table.
  *
@@ -12,7 +12,7 @@
  *   deleteRegistration()  DELETE /api/registrations/:id
  *
  * Business rules enforced here (and mirrored one-to-one in
- * registration.repository.local.js)
+ * registration.repository.local.ts)
  *   * The event must exist. A registration for a missing event is a 404, not a
  *     foreign key crash.
  *   * One user may register for an event ONCE (Part 1 requirement). The
@@ -29,19 +29,20 @@
  */
 'use strict';
 
-const db = require('../db/event_db');
-const { HttpError } = require('../utils/errors');
-const mysqlRepository = require('./repository.mysql');
+import db = require('../db/event_db');
+import type { DataRecord, RegistrationWriteRepository } from '../types';
+import { HttpError } from '../utils/errors';
+import mysqlRepository = require('./repository.mysql');
 
 const q = db;
 
 /** Lower-case and trim an email so the unique key behaves as users expect. */
-function normaliseEmail(email) {
+function normaliseEmail(email: unknown): string {
   return String(email || '').trim().toLowerCase();
 }
 
 /** Does the event exist? Returns its name, or null. */
-async function findEventName(eventId) {
+async function findEventName(eventId: number) {
   const rows = await q.query('SELECT event_name AS eventName FROM events WHERE event_id = ?', [
     eventId,
   ]);
@@ -49,7 +50,7 @@ async function findEventName(eventId) {
 }
 
 /** Is the ticket tier valid for this event? */
-async function ticketBelongsToEvent(ticketTypeId, eventId) {
+async function ticketBelongsToEvent(ticketTypeId: number, eventId: number) {
   if (ticketTypeId === null || ticketTypeId === undefined) return true;
   const rows = await q.query(
     `SELECT ticket_type_id
@@ -60,7 +61,7 @@ async function ticketBelongsToEvent(ticketTypeId, eventId) {
   return rows.length > 0;
 }
 
-const registrationRepository = {
+const registrationRepository: RegistrationWriteRepository = {
   /**
    * POST /api/events/:id/registrations
    *
@@ -134,7 +135,7 @@ const registrationRepository = {
       );
       insertId = Number(result.insertId);
     } catch (error) {
-      const code = error.code || (error.errors || []).find((item) => item && item.code)?.code;
+      const code = error.code || (error.errors || []).find((item: any) => item && item.code)?.code;
       if (code === 'ER_DUP_ENTRY') {
         // Someone registered with the same email for the same event in the
         // fraction of a second since the check above.
@@ -211,7 +212,7 @@ const registrationRepository = {
           [...params, registrationId]
         );
       } catch (error) {
-        const code = error.code || (error.errors || []).find((item) => item && item.code)?.code;
+        const code = error.code || (error.errors || []).find((item: any) => item && item.code)?.code;
         if (code === 'ER_DUP_ENTRY') {
           throw HttpError.conflict(
             'That email is already registered for this event.',
@@ -244,5 +245,6 @@ const registrationRepository = {
   },
 };
 
-module.exports = registrationRepository;
-module.exports.normaliseEmail = normaliseEmail;
+/* One export: the helpers the original attached to module.exports afterwards
+ * ride along on the same object. */
+export = Object.assign(registrationRepository, { normaliseEmail });

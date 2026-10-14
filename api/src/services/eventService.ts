@@ -1,5 +1,5 @@
 /**
- * src/services/eventService.js
+ * src/services/eventService.ts
  * ---------------------------------------------------------------------------
  * The only place where query-string text becomes a validated filter object.
  *
@@ -10,15 +10,23 @@
  */
 'use strict';
 
-const env = require('../config/env');
-const repository = require('../repositories');
-const { HttpError } = require('../utils/errors');
+import env = require('../config/env');
+import type {
+  DataRecord,
+  EventFilters,
+  FindEventOptions,
+  Paging,
+  UntrustedInput,
+  ValidationIssue,
+} from '../types';
+import repository = require('../repositories');
+import { HttpError } from '../utils/errors';
 const {
   parseIdList,
   parseInteger,
   parseText,
   isValidDate,
-} = require('../utils/validators');
+} = require('../utils/validators') as typeof import('../utils/validators');
 
 const ALLOWED_STATES = ['upcoming', 'ongoing', 'past', 'all'];
 const ALLOWED_SORTS = ['date', 'name', 'goal', 'progress', 'category', 'city'];
@@ -44,8 +52,8 @@ const ALLOWED_AUDIENCES = ['public', 'admin'];
  *   sort, direction       whitelisted sort keys
  *   limit, offset, page   pagination
  */
-function buildQuery(query = {}) {
-  const errors = [];
+function buildQuery(query: UntrustedInput = {}) {
+  const errors: ValidationIssue[] = [];
 
   const categoryIds = [
     ...parseIdList(query.category, 'category', errors),
@@ -111,7 +119,7 @@ function buildQuery(query = {}) {
     errors.push({ field: 'direction', message: 'Direction must be asc or desc.' });
   }
 
-  let isFree;
+  let isFree: boolean | undefined;
   const freeText = parseText(query.isFree);
   if (freeText !== undefined) {
     if (freeText === 'true') isFree = true;
@@ -199,7 +207,7 @@ function buildQuery(query = {}) {
 }
 
 /** List events (home page and search page both use this). */
-async function searchEvents(query) {
+async function searchEvents(query: UntrustedInput) {
   const { filters, paging } = buildQuery(query);
   const result = await repository.findEvents(filters, paging);
 
@@ -216,7 +224,7 @@ async function searchEvents(query) {
 }
 
 /** Listing for the home page: everything that has not finished yet. */
-async function listActiveEvents(query = {}) {
+async function listActiveEvents(query: UntrustedInput = {}) {
   return searchEvents({ ...query, state: 'upcoming' });
 }
 
@@ -229,7 +237,7 @@ async function listActiveEvents(query = {}) {
  * @throws {HttpError} 400 when the id is not a positive whole number
  * @throws {HttpError} 404 when no event has that id
  */
-async function getEventById(rawId, options = {}) {
+async function getEventById(rawId: string | number, options: FindEventOptions = {}) {
   const eventId = Number(rawId);
   if (!Number.isInteger(eventId) || eventId <= 0) {
     throw HttpError.badRequest(
@@ -256,7 +264,7 @@ async function getEventById(rawId, options = {}) {
  * query parameter alone - `getEventById` and `searchEvents` keep their own
  * defaults and only the admin controller asks for the wider view.
  */
-async function listAllEvents(query = {}) {
+async function listAllEvents(query: UntrustedInput = {}) {
   return searchEvents({
     ...query,
     audience: 'admin',
@@ -298,8 +306,8 @@ async function getStats() {
 }
 
 /** Echo back what was actually applied, for the "no results" message. */
-function describeFilters(filters) {
-  const applied = {};
+function describeFilters(filters: EventFilters): DataRecord {
+  const applied: DataRecord = {};
   if (filters.categoryIds && filters.categoryIds.length > 0) {
     applied.categoryIds = filters.categoryIds;
   }
@@ -321,7 +329,7 @@ function describeFilters(filters) {
   return applied;
 }
 
-module.exports = {
+export = {
   buildQuery,
   searchEvents,
   listActiveEvents,

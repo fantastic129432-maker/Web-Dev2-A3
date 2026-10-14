@@ -1,5 +1,5 @@
 /**
- * src/repositories/repository.mysql.js
+ * src/repositories/repository.mysql.ts
  * ---------------------------------------------------------------------------
  * The submission read data source: every question the API asks the database is
  * written here as one parameterised MySQL statement, built against the views
@@ -21,8 +21,14 @@
  */
 'use strict';
 
-const env = require('../config/env');
-const db = require('../db/event_db');
+import env = require('../config/env');
+import db = require('../db/event_db');
+import type {
+  DataRecord,
+  EventFilters,
+  EventReadRepository,
+  RegistrationQueries,
+} from '../types';
 const q = db;
 
 /** Column list shared by the list and detail queries. */
@@ -77,9 +83,9 @@ const PRIMARY_PRICE = `
  * @param {object} filters  normalised filters from eventService
  * @returns {{where:string, having:string, params:Array}}
  */
-function buildEventFilter(filters = {}) {
-  const params = [];
-  const conditions = [];
+function buildEventFilter(filters: Partial<EventFilters> = {}) {
+  const params: any[] = [];
+  const conditions: string[] = [];
 
   if (filters.categoryIds && filters.categoryIds.length > 0) {
     const placeholders = filters.categoryIds.map(() => '?').join(', ');
@@ -156,7 +162,7 @@ function buildEventFilter(filters = {}) {
 }
 
 /** Whitelist of sortable columns - prevents SQL injection through ?sort=. */
-const SORT_COLUMNS = {
+const SORT_COLUMNS: Record<string, string> = {
   date: 'dateStart',
   name: 'eventName',
   goal: 'goalAmount',
@@ -168,14 +174,14 @@ const SORT_COLUMNS = {
 };
 
 /** Turn a requested sort key/direction into safe SQL. */
-function buildOrderBy(sort, direction, defaultSort = 'date', defaultDir = 'ASC') {
+function buildOrderBy(sort: string, direction: string, defaultSort = 'date', defaultDir = 'ASC'): string {
   const column = SORT_COLUMNS[sort] || SORT_COLUMNS[defaultSort];
   const dir = String(direction).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
   return `ORDER BY ${column} ${dir}, eventId ASC`;
 }
 
 /** Shared normalisation so both repositories return identical field types. */
-function normaliseEvent(row) {
+function normaliseEvent(row: DataRecord | null): DataRecord | null {
   if (!row) return null;
   return {
     ...row,
@@ -203,7 +209,7 @@ function normaliseEvent(row) {
  * A derived table (rather than a CTE) is used so the statement also runs on
  * MySQL 5.7 and on MariaDB.
  */
-function buildFilteredSubquery(filters, orderBy, view = 'vw_public_events') {
+function buildFilteredSubquery(filters: EventFilters, orderBy: string, view = 'vw_public_events') {
   const { where, having, params } = buildEventFilter(filters);
   const sql = `
     SELECT ${EVENT_COLUMNS}, ${PRIMARY_PRICE}
@@ -214,7 +220,7 @@ function buildFilteredSubquery(filters, orderBy, view = 'vw_public_events') {
   return { sql, params };
 }
 
-const repository = {
+const repository: EventReadRepository = {
   driver: 'mysql',
 
   /** Does the database answer, and do the tables exist? */
@@ -278,7 +284,8 @@ const repository = {
     );
     if (rows.length === 0) return null;
 
-    const event = normaliseEvent(rows[0]);
+    // rows.length was checked above, so there is always a row to normalise.
+    const event = normaliseEvent(rows[0]) as DataRecord;
     return decorateEventDetail(event, eventId);
   },
 
@@ -296,7 +303,7 @@ const repository = {
         GROUP BY c.category_id, c.category_name, c.slug, c.description, c.icon
         ORDER BY c.category_name ASC`
     );
-    return rows.map((row) => ({
+    return rows.map((row: DataRecord) => ({
       ...row,
       eventCount: Number(row.eventCount),
       categoryId: Number(row.categoryId),
@@ -318,7 +325,7 @@ const repository = {
         GROUP BY l.location_id, l.venue_name, l.city, l.state, l.latitude, l.longitude
         ORDER BY l.city ASC, l.venue_name ASC`
     );
-    return rows.map((row) => ({
+    return rows.map((row: DataRecord) => ({
       ...row,
       locationId: Number(row.locationId),
       latitude: row.latitude === null ? null : Number(row.latitude),
@@ -403,10 +410,10 @@ const repository = {
  * Attach the ticket tiers, the days remaining and (A3) the registration list
  * to an event that has already been read from a view.
  *
- * Kept as a plain function so repository.local.js can reuse the identical
+ * Kept as a plain function so repository.local.ts can reuse the identical
  * field names and ordering rules.
  */
-async function decorateEventDetail(event, eventId) {
+async function decorateEventDetail(event: DataRecord, eventId: number): Promise<DataRecord> {
   const tickets = await q.query(
     `SELECT ticket_type_id      AS ticketTypeId,
             ticket_name         AS ticketName,
@@ -419,7 +426,7 @@ async function decorateEventDetail(event, eventId) {
     [eventId]
   );
 
-  event.ticketTypes = tickets.map((ticket) => ({
+  event.ticketTypes = tickets.map((ticket: DataRecord) => ({
     ...ticket,
     ticketTypeId: Number(ticket.ticketTypeId),
     price: Number(ticket.price),
@@ -439,7 +446,7 @@ async function decorateEventDetail(event, eventId) {
   // display ("sorted by the latest date when the tickets were purchased").
   event.registrations = await registrationQueries.findByEventId(eventId);
   event.totalTicketsSold = event.registrations.reduce(
-    (sum, row) => sum + row.ticketsPurchased,
+    (sum: number, row: DataRecord) => sum + row.ticketsPurchased,
     0
   );
 
@@ -477,7 +484,7 @@ const REGISTRATION_COLUMNS_BARE = `
   r.notes                AS notes`;
 
 /** Normalise a registration row so both repositories emit the same types. */
-function normaliseRegistration(row) {
+function normaliseRegistration(row: DataRecord | null): DataRecord | null {
   if (!row) return null;
   return {
     ...row,
@@ -496,7 +503,7 @@ function normaliseRegistration(row) {
   };
 }
 
-const registrationQueries = {
+const registrationQueries: RegistrationQueries = {
   /**
    * Every registration for one event, newest first.
    *
@@ -535,8 +542,8 @@ const registrationQueries = {
    * optional admin registrations page.
    */
   async findAll(filters = {}, paging = { limit: 100, offset: 0 }) {
-    const params = [];
-    const conditions = [];
+    const params: any[] = [];
+    const conditions: string[] = [];
 
     if (filters.eventId) {
       conditions.push('r.event_id = ?');
@@ -598,19 +605,27 @@ const registrationQueries = {
   },
 };
 
-module.exports = repository;
-module.exports.buildEventFilter = buildEventFilter;
-module.exports.buildOrderBy = buildOrderBy;
-module.exports.normaliseEvent = normaliseEvent;
-module.exports.normaliseRegistration = normaliseRegistration;
-module.exports.SORT_COLUMNS = SORT_COLUMNS;
-module.exports.EVENT_COLUMNS = EVENT_COLUMNS;
-module.exports.REGISTRATION_COLUMNS = REGISTRATION_COLUMNS;
-module.exports.REGISTRATION_COLUMNS_BARE = REGISTRATION_COLUMNS_BARE;
-module.exports.PRIMARY_PRICE = PRIMARY_PRICE;
-module.exports.decorateEventDetail = decorateEventDetail;
-module.exports.queryOne = async function queryOne(sql, params = []) {
+/** The first row of a query, or null. */
+async function queryOne(sql: string, params: any[] = []): Promise<any> {
   const rows = await q.query(sql, params);
   return rows.length > 0 ? rows[0] : null;
-};
-module.exports.registrationQueries = registrationQueries;
+}
+
+/* One export: the SQL helpers and column lists the original attached to
+ * module.exports afterwards ride along on the same object. registrationQueries
+ * is a member of the object literal above because the repository contract
+ * (src/types.ts) requires it. */
+export = Object.assign(repository, {
+  buildEventFilter,
+  buildOrderBy,
+  normaliseEvent,
+  normaliseRegistration,
+  SORT_COLUMNS,
+  EVENT_COLUMNS,
+  REGISTRATION_COLUMNS,
+  REGISTRATION_COLUMNS_BARE,
+  PRIMARY_PRICE,
+  decorateEventDetail,
+  queryOne,
+  registrationQueries,
+});

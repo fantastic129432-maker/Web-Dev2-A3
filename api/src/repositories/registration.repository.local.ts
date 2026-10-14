@@ -1,17 +1,17 @@
 /**
- * src/repositories/registration.repository.local.js
+ * src/repositories/registration.repository.local.ts
  * ---------------------------------------------------------------------------
  * The registration repository for DATA_SOURCE=local: reads AND writes.
  *
- * In MySQL the reads live in repository.mysql.js
+ * In MySQL the reads live in repository.mysql.ts
  * (`registrationQueries`) and the writes live in
- * registration.repository.mysql.js, because in MySQL the database itself holds
+ * registration.repository.mysql.ts, because in MySQL the database itself holds
  * the state. Offline there is no database, so both halves operate on the single
- * mutable array held by local-store.js. That array is what makes a POST
+ * mutable array held by local-store.ts. That array is what makes a POST
  * performed by one request visible to the GET performed by the next.
  *
  * Every method here returns exactly the object shape that
- * repository.mysql.js produces, because the same controller and the same
+ * repository.mysql.ts produces, because the same controller and the same
  * client code consume both.
  *
  * Field naming follows the database: the raw rows use snake_case
@@ -21,11 +21,12 @@
  */
 'use strict';
 
-const store = require('./local-store');
-const { HttpError } = require('../utils/errors');
+import store = require('./local-store');
+import type { DataRecord, RegistrationFilters } from '../types';
+import { HttpError } from '../utils/errors';
 
-/** Lower-case and trim an email, matching registration.repository.mysql.js. */
-function normaliseEmail(email) {
+/** Lower-case and trim an email, matching registration.repository.mysql.ts. */
+function normaliseEmail(email: unknown): string {
   return String(email || '').trim().toLowerCase();
 }
 
@@ -37,7 +38,7 @@ function normaliseEmail(email) {
  * against a tier that only came into existence a moment ago in the same
  * session. Looking in data.ticket_types alone would reject it.
  */
-function ticketFor(ticketTypeId) {
+function ticketFor(ticketTypeId: unknown): DataRecord | null {
   if (ticketTypeId === null || ticketTypeId === undefined) return null;
   return (
     store
@@ -46,12 +47,12 @@ function ticketFor(ticketTypeId) {
   );
 }
 
-function eventFor(eventId) {
+function eventFor(eventId: number): DataRecord | null {
   return store.findEventRow(eventId);
 }
 
 /** Convert one raw row into the API shape used by both data sources. */
-function toApiShape(row) {
+function toApiShape(row: DataRecord): DataRecord {
   const ticket = ticketFor(row.ticket_type_id);
   const event = eventFor(row.event_id);
   const price = ticket ? Number(ticket.price) : null;
@@ -83,7 +84,7 @@ function toApiShape(row) {
  * a plain string comparison sorts it correctly, and registration_id breaks a
  * tie between two rows written in the same second.
  */
-function compareNewestFirst(left, right) {
+function compareNewestFirst(left: DataRecord, right: DataRecord): number {
   if (left.registered_at !== right.registered_at) {
     return left.registered_at < right.registered_at ? 1 : -1;
   }
@@ -91,7 +92,7 @@ function compareNewestFirst(left, right) {
 }
 
 /** The raw rows for one event, newest first. */
-function rawForEvent(eventId) {
+function rawForEvent(eventId: number): DataRecord[] {
   return store.registrations
     .filter((row) => Number(row.event_id) === Number(eventId))
     .sort(compareNewestFirst);
@@ -101,12 +102,12 @@ const registrationStore = {
   driver: 'local',
 
   /** Newest first - the event detail page. */
-  findByEventId(eventId) {
+  findByEventId(eventId: number): DataRecord[] {
     return rawForEvent(eventId).map(toApiShape);
   },
 
   /** One registration, or null. */
-  findById(registrationId) {
+  findById(registrationId: number): DataRecord | null {
     const row = store.registrations.find(
       (item) => Number(item.registration_id) === Number(registrationId)
     );
@@ -114,7 +115,7 @@ const registrationStore = {
   },
 
   /** The optional admin list: every registration, newest first, filterable. */
-  findAll(filters = {}, paging = { limit: 100, offset: 0 }) {
+  findAll(filters: RegistrationFilters = {}, paging: { limit: number; offset: number } = { limit: 100, offset: 0 }) {
     let rows = store.registrations.slice().sort(compareNewestFirst);
 
     if (filters.eventId) {
@@ -142,12 +143,12 @@ const registrationStore = {
   },
 
   /** How many registrations an event has. Used by the delete rule. */
-  countByEventId(eventId) {
+  countByEventId(eventId: number): number {
     return rawForEvent(eventId).length;
   },
 
   /** Has this email already registered for this event? */
-  existsForEventAndEmail(eventId, email) {
+  existsForEventAndEmail(eventId: number, email: string): boolean {
     const needle = normaliseEmail(email);
     return store.registrations.some(
       (row) =>
@@ -157,7 +158,7 @@ const registrationStore = {
   },
 
   /** The raw rows, for the statistics strip. */
-  findAllRaw() {
+  findAllRaw(): DataRecord[] {
     return store.registrations;
   },
 
@@ -167,7 +168,7 @@ const registrationStore = {
    * POST /api/events/:id/registrations
    * @returns {object|null} the stored registration, or null when the event does not exist
    */
-  insertRegistration(eventId, values) {
+  insertRegistration(eventId: number, values: DataRecord): DataRecord | null {
     const event = eventFor(eventId);
     if (!event) return null;
 
@@ -227,7 +228,7 @@ const registrationStore = {
    * PUT /api/registrations/:id
    * @returns {object|null} the updated row, or null when it does not exist
    */
-  updateRegistration(registrationId, values) {
+  updateRegistration(registrationId: number, values: DataRecord): DataRecord | null {
     const row = store.registrations.find(
       (item) => Number(item.registration_id) === Number(registrationId)
     );
@@ -278,7 +279,7 @@ const registrationStore = {
   },
 
   /** DELETE /api/registrations/:id */
-  deleteRegistration(registrationId) {
+  deleteRegistration(registrationId: number): boolean {
     const index = store.registrations.findIndex(
       (item) => Number(item.registration_id) === Number(registrationId)
     );
@@ -289,17 +290,20 @@ const registrationStore = {
 };
 
 /** "YYYY-MM-DD HH:MM:SS" in local time, matching a MySQL DATETIME literal. */
-function nowStamp() {
+function nowStamp(): string {
   const now = new Date();
-  const pad = (value) => String(value).padStart(2, '0');
+  const pad = (value: number): string => String(value).padStart(2, '0');
   return (
     `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
     `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
   );
 }
 
-module.exports = registrationStore;
-module.exports.toApiShape = toApiShape;
-module.exports.rawForEvent = rawForEvent;
-module.exports.normaliseEmail = normaliseEmail;
-module.exports.nowStamp = nowStamp;
+/* One export: the helpers the original attached to module.exports afterwards
+ * ride along on the same object. */
+export = Object.assign(registrationStore, {
+  toApiShape,
+  rawForEvent,
+  normaliseEmail,
+  nowStamp,
+});

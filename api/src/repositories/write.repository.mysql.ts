@@ -1,5 +1,5 @@
 /**
- * src/repositories/write.repository.mysql.js
+ * src/repositories/write.repository.mysql.ts
  * ---------------------------------------------------------------------------
  * Assessment 3, Part 2 - the WRITE half of the MySQL data source:
  *
@@ -7,9 +7,9 @@
  *   updateEvent()  PUT    /api/events/:id
  *   deleteEvent()  DELETE /api/events/:id
  *
- * The read half stays in repository.mysql.js. Splitting the two keeps each file
+ * The read half stays in repository.mysql.ts. Splitting the two keeps each file
  * about one thing, and it makes the two data sources easy to compare:
- * write.repository.local.js must expose exactly the same three methods.
+ * write.repository.local.ts must expose exactly the same three methods.
  *
  * Data integrity rules implemented here
  *   * An event can only be deleted when it has no registrations. The check and
@@ -25,9 +25,10 @@
  */
 'use strict';
 
-const db = require('../db/event_db');
-const { HttpError } = require('../utils/errors');
-const mysqlRepository = require('./repository.mysql');
+import db = require('../db/event_db');
+import type { DataRecord, EventWriteRepository } from '../types';
+import { HttpError } from '../utils/errors';
+import mysqlRepository = require('./repository.mysql');
 
 const q = db;
 
@@ -53,7 +54,7 @@ const WRITABLE_COLUMNS = [
 ];
 
 /** Map the camelCase keys of a validated payload onto database columns. */
-function toColumns(values) {
+function toColumns(values: DataRecord): { columns: string[]; params: any[] } {
   const mapping = {
     organizationId: 'organization_id',
     categoryId: 'category_id',
@@ -75,7 +76,7 @@ function toColumns(values) {
   };
 
   const columns = [];
-  const params = [];
+  const params: any[] = [];
 
   for (const [key, column] of Object.entries(mapping)) {
     if (values[key] === undefined) continue;
@@ -94,8 +95,8 @@ function toColumns(values) {
  * Only the cases a member of staff can actually cause are translated; anything
  * else is re-thrown and becomes a 500 with a stack trace in development.
  */
-function translateMysqlError(error, context = {}) {
-  const code = error.code || (error.errors || []).find((item) => item && item.code)?.code;
+function translateMysqlError(error: any, context: DataRecord = {}) {
+  const code = error.code || (error.errors || []).find((item: any) => item && item.code)?.code;
 
   switch (code) {
     case 'ER_ROW_IS_REFERENCED_2':
@@ -150,11 +151,22 @@ function translateMysqlError(error, context = {}) {
  * Re-read the row that was just written, through the admin view, so the API
  * returns the same shape for a create/update as it does for a read.
  */
-async function readBack(eventId) {
+async function readBack(eventId: number) {
   return mysqlRepository.findEventById(eventId, { status: 'all' });
 }
 
-const writeRepository = {
+/* The two lookup helpers are not part of the repository contract; they ride
+ * along on the exported object for the unit tests, as they did before. */
+async function registrationExists(eventId: number, email: string): Promise<boolean> {
+  return mysqlRepository.registrationQueries.existsForEventAndEmail(eventId, email);
+}
+
+/** How many registrations an event has. */
+async function countRegistrations(eventId: number): Promise<number> {
+  return mysqlRepository.registrationQueries.countByEventId(eventId);
+}
+
+const writeRepository: EventWriteRepository = {
   /**
    * POST /api/events
    * @param {object} values validated payload from eventService
@@ -187,7 +199,8 @@ const writeRepository = {
       await replaceTicketTypes(eventId, values.ticketTypes);
     }
 
-    return readBack(eventId);
+    // The row was inserted a moment ago, so the read-back can never be null here.
+    return (await readBack(eventId)) as DataRecord;
   },
 
   /**
@@ -209,7 +222,7 @@ const writeRepository = {
     const { columns, params } = toColumns(values);
 
     if (columns.length > 0) {
-      const assignments = columns.map((column) => `${column} = ?`).join(', ');
+      const assignments = columns.map((column: string) => `${column} = ?`).join(', ');
       try {
         await q.query(
           `UPDATE events SET ${assignments} WHERE event_id = ?`,
@@ -272,16 +285,6 @@ const writeRepository = {
     });
   },
 
-  /** Does this (event, email) pair already exist? Used for a friendly message. */
-  async registrationExists(eventId, email) {
-    return mysqlRepository.registrationQueries.existsForEventAndEmail(eventId, email);
-  },
-
-  /** How many registrations an event has. */
-  async countRegistrations(eventId) {
-    return mysqlRepository.registrationQueries.countByEventId(eventId);
-  },
-
   /**
    * Add ticket tiers when the admin form supplies them.
    *
@@ -312,7 +315,7 @@ const writeRepository = {
  * @param {Array<{ticketName:string, price:number, quantityAvailable?:number|null,
  *                description?:string|null}>} ticketTypes
  */
-async function replaceTicketTypes(eventId, ticketTypes) {
+async function replaceTicketTypes(eventId: number, ticketTypes: DataRecord[]) {
   try {
     await db.transaction(async (connection) => {
       const [existing] = await connection.execute(
@@ -345,8 +348,13 @@ async function replaceTicketTypes(eventId, ticketTypes) {
   }
 }
 
-module.exports = writeRepository;
-module.exports.translateMysqlError = translateMysqlError;
-module.exports.toColumns = toColumns;
-module.exports.replaceTicketTypes = replaceTicketTypes;
-module.exports.WRITABLE_COLUMNS = WRITABLE_COLUMNS;
+/* One export: the helpers the original attached to module.exports afterwards
+ * ride along on the same object. */
+export = Object.assign(writeRepository, {
+  translateMysqlError,
+  toColumns,
+  replaceTicketTypes,
+  WRITABLE_COLUMNS,
+  registrationExists,
+  countRegistrations,
+});

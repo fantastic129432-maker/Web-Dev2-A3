@@ -1,5 +1,5 @@
 /**
- * src/repositories/local-data.js
+ * src/repositories/local-data.ts
  * ---------------------------------------------------------------------------
  * GENERATED FILE - do not edit by hand.
  * Produced by: node tools/generate-local-data.js
@@ -9,10 +9,17 @@
  * DATA_SOURCE=local on a machine without a MySQL server. The MySQL database
  * remains the submitted data source; this file exists only so the website can
  * still be demonstrated and marked offline.
+ *
+ * TypeScript since the API moved to TypeScript. The rows are typed as DataRecord
+ * (an open, string-keyed row) rather than a hand-written interface per table,
+ * because this file IS the schema's mirror: a column added to 02_seed.sql must
+ * appear here without anyone also editing a type by hand.
  */
 'use strict';
 
-const organizations = [
+import type { DataRecord } from '../types';
+
+const organizations: DataRecord[] = [
   {
     "organization_id": 1,
     "name": "Unity Heart Foundation",
@@ -75,7 +82,7 @@ const organizations = [
   }
 ];
 
-const categories = [
+const categories: DataRecord[] = [
   {
     "category_id": 1,
     "category_name": "Fun Run",
@@ -134,7 +141,7 @@ const categories = [
   }
 ];
 
-const locations = [
+const locations: DataRecord[] = [
   {
     "location_id": 1,
     "venue_name": "Lismore Riverside Park",
@@ -227,7 +234,7 @@ const locations = [
   }
 ];
 
-const events = [
+const events: DataRecord[] = [
   {
     "event_id": 1,
     "organization_id": 1,
@@ -450,7 +457,7 @@ const events = [
   }
 ];
 
-const ticket_types = [
+const ticket_types: DataRecord[] = [
   {
     "ticket_type_id": 1,
     "event_id": 1,
@@ -597,7 +604,7 @@ const ticket_types = [
   }
 ];
 
-const donations = [
+const donations: DataRecord[] = [
   {
     "event_id": 1,
     "donor_name": "Margaret Ellery",
@@ -852,7 +859,7 @@ const donations = [
   }
 ];
 
-const event_registrations = [
+const event_registrations: DataRecord[] = [
   {
     "registration_id": 1,
     "event_id": 1,
@@ -1075,7 +1082,7 @@ const event_registrations = [
   }
 ];
 
-module.exports = {
+export = {
   organizations,
   categories,
   locations,

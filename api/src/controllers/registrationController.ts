@@ -1,5 +1,5 @@
 /**
- * src/controllers/registrationController.js
+ * src/controllers/registrationController.ts
  * ---------------------------------------------------------------------------
  * HTTP layer for event registration.
  *
@@ -22,11 +22,12 @@
  */
 'use strict';
 
-const registrationService = require('../services/registrationService');
-const repository = require('../repositories');
-const { asyncHandler } = require('../utils/asyncHandler');
+import registrationService = require('../services/registrationService');
+import repository = require('../repositories');
+import type { DataRecord } from '../types';
+import { asyncHandler } from '../utils/asyncHandler';
 
-function envelope(resource, data, extraMeta = {}) {
+function envelope(resource: string, data: unknown, extraMeta: DataRecord = {}) {
   return {
     success: true,
     meta: {
@@ -117,7 +118,7 @@ const deleteRegistration = asyncHandler(async (req, res) => {
   res.status(204).end();
 });
 
-module.exports = {
+export = {
   createRegistration,
   listForEvent,
   listRegistrations,

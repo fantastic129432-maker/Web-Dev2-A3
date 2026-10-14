@@ -1,0 +1,51 @@
+{
+  /*
+   * api/tsconfig.json
+   * -------------------------------------------------------------------------
+   * The API is compiled, not run from source: `npm run build` writes the whole
+   * api/ folder into api/dist and the deployment (and the test suite) runs
+   * api/dist/server.js.
+   *
+   * rootDir "." + outDir "dist" is what makes the output MIRROR the source
+   * layout, which the test suite depends on:
+   *
+   *   api/server.ts            -> api/dist/server.js
+   *   api/src/db/event_db.ts   -> api/dist/src/db/event_db.js
+   *
+   * `module: commonjs` keeps the compiled output require()-able, so the
+   * published entry points (`{ app, start }` from server.js, the merged
+   * repository object from src/repositories) keep exactly the shape they had
+   * before the migration. There is deliberately no `baseUrl`: TypeScript 6
+   * reports it as deprecated, and no import in this project needs a path alias.
+   */
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+
+    "module": "commonjs",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "esModuleInterop": true,
+
+    "sourceMap": true,
+    "declaration": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    /*
+     * Strictness. `strict` is on; the data layer keeps the one concession below
+     * because every catch block in this API handles a Node/MySQL driver error
+     * and reads the driver's own fields (error.code, error.sqlMessage,
+     * error.errors) exactly as it did in JavaScript.
+     */
+    "strict": true,
+    "useUnknownInCatchVariables": false,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Only the @types packages installed inside api/ are used - the monorepo
+     * root has its own copy for the Angular applications. */
+    "typeRoots": ["./node_modules/@types"]
+  },
+  "include": ["server.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "scripts"]
+}

@@ -1,10 +1,10 @@
 /**
- * src/repositories/repository.local.js
+ * src/repositories/repository.local.ts
  * ---------------------------------------------------------------------------
- * Offline twin of repository.mysql.js.
+ * Offline twin of repository.mysql.ts.
  *
  * It exposes exactly the same methods and returns exactly the same object
- * shapes, but the rows come from local-data.js (a generated mirror of
+ * shapes, but the rows come from local-data.ts (a generated mirror of
  * database/02_seed.sql) instead of MySQL. It exists so the website can be run,
  * demonstrated and marked on a computer that has no MySQL server, and so the
  * API logic can be tested in isolation.
@@ -15,15 +15,16 @@
  * stored, and - as in MySQL - one email may register for an event only once.
  *
  * A3 note: the registration list lives in a mutable array created by
- * `createRegistrationStore()` (see registration.repository.local.js), not in
+ * `createRegistrationStore()` (see registration.repository.local.ts), not in
  * this module, so a write performed by one request is visible to the next.
  * That is what lets the test suite exercise a create followed by a read.
  */
 'use strict';
 
-const env = require('../config/env');
-const store = require('./local-store');
-const registrationStore = require('./registration.repository.local');
+import env = require('../config/env');
+import store = require('./local-store');
+import registrationStore = require('./registration.repository.local');
+import type { DataRecord, EventFilters, EventReadRepository } from '../types';
 
 const data = store.data;
 
@@ -32,24 +33,24 @@ const data = store.data;
  * DATA_SOURCE=local + DEMO_TODAY=2026-09-28 makes the demo reproducible; when
  * DEMO_TODAY is not set the real current date is used, matching CURDATE().
  */
-function today() {
+function today(): string {
   const override = process.env.DEMO_TODAY;
   if (override && /^\d{4}-\d{2}-\d{2}$/.test(override)) return override;
   return new Date().toISOString().slice(0, 10);
 }
 
 /** upcoming | ongoing | past - the same rule as vw_public_events. */
-function eventState(row, currentDate = today()) {
+function eventState(row: DataRecord, currentDate = today()): string {
   if (row.date_end < currentDate) return 'past';
   if (row.date_start <= currentDate) return 'ongoing';
   return 'upcoming';
 }
 
-function byId(collection, key, value) {
+function byId(collection: DataRecord[], key: string, value: unknown): DataRecord | null {
   return collection.find((row) => row[key] === value) || null;
 }
 
-function daysBetween(fromDate, toDate) {
+function daysBetween(fromDate: string, toDate: string): number {
   const from = Date.parse(`${fromDate}T00:00:00Z`);
   const to = Date.parse(`${toDate}T00:00:00Z`);
   return Math.round((to - from) / 86_400_000);
@@ -58,9 +59,9 @@ function daysBetween(fromDate, toDate) {
 /**
  * Join the lookup tables, the ticket tiers and the donation totals for one
  * event. These names must stay identical to the aliases in
- * repository.mysql.js, because both are consumed by the same client code.
+ * repository.mysql.ts, because both are consumed by the same client code.
  */
-function decorate(row) {
+function decorate(row: DataRecord): DataRecord {
   const organization = byId(data.organizations, 'organization_id', row.organization_id);
   const category = byId(data.categories, 'category_id', row.category_id);
   const location = byId(data.locations, 'location_id', row.location_id);
@@ -146,16 +147,16 @@ function decorate(row) {
  * A3 added `overrides`: the write repository can replace or add a row, so a
  * freshly created event is visible to the very next read.
  */
-function allEvents() {
+function allEvents(): DataRecord[] {
   return store.effectiveEvents().map(decorate);
 }
 
 /** Public events only: status = 'active' is what vw_public_events enforces. */
-function publicEvents() {
+function publicEvents(): DataRecord[] {
   return allEvents().filter((event) => event.status === 'active');
 }
 
-function matches(event, filters) {
+function matches(event: DataRecord, filters: EventFilters): boolean {
   if (filters.categoryIds && filters.categoryIds.length > 0) {
     if (!filters.categoryIds.includes(Number(event.categoryId))) return false;
   }
@@ -211,7 +212,7 @@ function matches(event, filters) {
   return true;
 }
 
-const SORT_KEYS = {
+const SORT_KEYS: Record<string, string> = {
   date: 'dateStart',
   name: 'eventName',
   goal: 'goalAmount',
@@ -222,7 +223,7 @@ const SORT_KEYS = {
   updated: 'eventId',
 };
 
-function sortEvents(events, sort, direction, defaultSort = 'date', defaultDir = 'ASC') {
+function sortEvents(events: DataRecord[], sort: string, direction: string, defaultSort = 'date', defaultDir = 'ASC'): DataRecord[] {
   const key = SORT_KEYS[sort] || SORT_KEYS[defaultSort];
   const dir = String(direction).toLowerCase() === 'desc' ? -1 : 1;
 
@@ -238,7 +239,7 @@ function sortEvents(events, sort, direction, defaultSort = 'date', defaultDir = 
 }
 
 /** The columns the admin ticket-tier panel may contain. */
-function normaliseTicketTypes(eventId, ticketTypes) {
+function normaliseTicketTypes(eventId: number, ticketTypes: DataRecord[]): DataRecord[] {
   return ticketTypes.map((ticket, index) => ({
     ticket_type_id: index + 1,
     event_id: eventId,
@@ -252,7 +253,7 @@ function normaliseTicketTypes(eventId, ticketTypes) {
   }));
 }
 
-const repository = {
+const repository: EventReadRepository = {
   driver: 'local',
 
   async health() {
@@ -407,12 +408,15 @@ const repository = {
   registrationQueries: registrationStore,
 };
 
-module.exports = repository;
-module.exports.decorate = decorate;
-module.exports.eventState = eventState;
-module.exports.today = today;
-module.exports.publicEvents = publicEvents;
-module.exports.allEvents = allEvents;
-module.exports.normaliseTicketTypes = normaliseTicketTypes;
-module.exports.matches = matches;
-module.exports.sortEvents = sortEvents;
+/* One export: the pure helpers the original attached to module.exports
+ * afterwards (for the unit tests) ride along on the same object. */
+export = Object.assign(repository, {
+  decorate,
+  eventState,
+  today,
+  publicEvents,
+  allEvents,
+  normaliseTicketTypes,
+  matches,
+  sortEvents,
+});

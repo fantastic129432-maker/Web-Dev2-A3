@@ -1,5 +1,5 @@
 /**
- * src/repositories/index.js
+ * src/repositories/index.ts
  * ---------------------------------------------------------------------------
  * Chooses the data source once, at start-up, based on DATA_SOURCE in .env.
  *
@@ -11,25 +11,40 @@
  *
  * A3 shape
  *   Each data source is now two modules instead of one:
- *     read  -> repository.mysql.js          | repository.local.js
- *     write -> write.repository.mysql.js    | write.repository.local.js
+ *     read  -> repository.mysql.ts          | repository.local.ts
+ *     write -> write.repository.mysql.ts    | write.repository.local.ts
  *   They are merged into one object below, so a caller still writes
  *   `repository.insertEvent(...)` and never needs to know which half it came
  *   from. Both halves expose exactly the same method names in both modes, which
  *   is what lets the automated test suite run twice - once against MySQL and
  *   once against the offline mirror - and compare the results.
+ *
+ * TypeScript note
+ *   The two halves are merged by ASSIGNMENT (exactly as they were merged in
+ *   JavaScript) rather than by inheritance, because that is what makes the
+ *   merged object the same object the read repository already exported. The
+ *   compiler cannot see members that are attached after a module is loaded, so
+ *   the read half is asserted once against the `Repository` contract in
+ *   src/types.ts - the same contract that types every caller. Each half still
+ *   checks its own exports against that contract where it is defined.
  */
 'use strict';
 
-const env = require('../config/env');
+import env = require('../config/env');
+import type {
+  EventWriteRepository,
+  RegistrationQueries,
+  RegistrationWriteRepository,
+  Repository,
+} from '../types';
 
-const mysqlRepository = require('./repository.mysql');
-const localRepository = require('./repository.local');
-const mysqlWrites = require('./write.repository.mysql');
-const localWrites = require('./write.repository.local');
-const mysqlRegistrations = require('./registration.repository.mysql');
-const localRegistrations = require('./registration.repository.local');
-const localStore = require('./local-store');
+import mysqlRepository = require('./repository.mysql');
+import localRepository = require('./repository.local');
+import mysqlWrites = require('./write.repository.mysql');
+import localWrites = require('./write.repository.local');
+import mysqlRegistrations = require('./registration.repository.mysql');
+import localRegistrations = require('./registration.repository.local');
+import localStore = require('./local-store');
 
 const useMysql = env.DATA_SOURCE !== 'local';
 
@@ -39,11 +54,31 @@ if (env.DATA_SOURCE !== 'mysql' && env.DATA_SOURCE !== 'local') {
   );
 }
 
-const repository = useMysql ? mysqlRepository : localRepository;
-const writes = useMysql ? mysqlWrites : localWrites;
-const registrations = useMysql ? mysqlRegistrations : localRegistrations;
+/** The read half of the selected data source, plus every write method below. */
+const repository = (
+  useMysql ? mysqlRepository : localRepository
+) as unknown as Repository;
 
 /** Every write method, surfaced on the same object as the read methods. */
+const writes: EventWriteRepository = useMysql ? mysqlWrites : localWrites;
+
+/**
+ * Registration writes, plus the reads MySQL keeps in its own module.
+ *
+ * MySQL publishes its registration reads as `registrationQueries` on the read
+ * repository and keeps the writes in registration.repository.mysql.ts. The
+ * offline mirror keeps reads AND writes on one object
+ * (registration.repository.local.ts). The assertion below records that both
+ * pairs expose the same member names; the `if` underneath is the documented
+ * fallback for a data source whose reads are not already on the read half, so
+ * it is a no-op for both configured sources - and is kept so the intent stays
+ * visible.
+ */
+const registrations = (useMysql
+  ? mysqlRegistrations
+  : localRegistrations) as unknown as RegistrationQueries &
+  RegistrationWriteRepository;
+
 repository.insertEvent = writes.insertEvent.bind(writes);
 repository.updateEvent = writes.updateEvent.bind(writes);
 repository.deleteEvent = writes.deleteEvent.bind(writes);
@@ -74,7 +109,7 @@ if (!repository.registrationQueries) {
  * creates or deletes an event cannot change the result of the next one. Calling
  * it against MySQL would drop rows from the real database, so it refuses.
  */
-repository.resetLocalData = function resetLocalData() {
+repository.resetLocalData = function resetLocalData(): boolean {
   if (useMysql) {
     throw new Error(
       'resetLocalData() is only available with DATA_SOURCE=local. ' +
@@ -88,5 +123,9 @@ repository.resetLocalData = function resetLocalData() {
 /** The write half, exported on its own for the unit tests. */
 repository.writes = writes;
 
-module.exports = repository;
-module.exports.driver = repository.driver;
+/*
+ * `driver` used to be re-assigned here as a named export of its own
+ * (`module.exports.driver = repository.driver`). It is already a member of the
+ * object below, so the single export still exposes `repository.driver`.
+ */
+export = repository;

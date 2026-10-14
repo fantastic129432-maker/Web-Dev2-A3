@@ -1,5 +1,5 @@
 /**
- * src/controllers/eventController.js
+ * src/controllers/eventController.ts
  * ---------------------------------------------------------------------------
  * HTTP layer for the event endpoints. A controller has three jobs only:
  *   1. read the request,
@@ -13,9 +13,9 @@
  */
 'use strict';
 
-const eventService = require('../services/eventService');
-const repository = require('../repositories');
-const { asyncHandler } = require('../utils/asyncHandler');
+import eventService = require('../services/eventService');
+import repository = require('../repositories');
+import { asyncHandler } from '../utils/asyncHandler';
 
 /**
  * GET /api/events
@@ -112,7 +112,7 @@ const getFeaturedOrganization = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = {
+export = {
   getEvents,
   getUpcomingEvents,
   getEventById,

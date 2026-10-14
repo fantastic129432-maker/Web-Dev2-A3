@@ -1,5 +1,5 @@
 /**
- * src/routes/apiRoutes.js
+ * src/routes/apiRoutes.ts
  * ---------------------------------------------------------------------------
  * The public RESTful surface of the API.
  *
@@ -17,17 +17,17 @@
  *
  * Assessment 2 was read-only (GET only). Assessment 3 adds the full C.R.U.D.
  * cycle: POST, PUT and DELETE are registered below, and the CORS middleware in
- * src/middleware/security.js allows exactly the same four methods.
+ * src/middleware/security.ts allows exactly the same four methods.
  */
 'use strict';
 
-const express = require('express');
-const eventController = require('../controllers/eventController');
-const categoryController = require('../controllers/categoryController');
-const adminController = require('../controllers/adminController');
-const registrationController = require('../controllers/registrationController');
-const repository = require('../repositories');
-const env = require('../config/env');
+import express = require('express');
+import eventController = require('../controllers/eventController');
+import categoryController = require('../controllers/categoryController');
+import adminController = require('../controllers/adminController');
+import registrationController = require('../controllers/registrationController');
+import repository = require('../repositories');
+import env = require('../config/env');
 
 const router = express.Router();
 
@@ -234,4 +234,4 @@ router.delete('/admin/events/:id', adminController.deleteEvent);
 router.get('/organization', eventController.getFeaturedOrganization);
 router.get('/stats', eventController.getStats);
 
-module.exports = router;
+export = router;

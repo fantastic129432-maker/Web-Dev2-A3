@@ -1,8 +1,11 @@
 /**
- * src/db/event_db.js
+ * src/db/event_db.ts
  * ---------------------------------------------------------------------------
  * REQUIRED FILE: "Set up a Node.js file, named event_db.js, that connects to
  * your database." (Assessment 2, Part 1 - extended for Assessment 3.)
+ *
+ * The module is authored in TypeScript and compiles to exactly that name:
+ * api/dist/src/db/event_db.js.
  *
  * Responsibilities
  *   1. Create one shared MySQL connection pool for the whole application
@@ -26,17 +29,29 @@
  *
  * The pool is created lazily: simply requiring this file never touches the
  * network, which keeps unit tests and the alternative local data source fast.
+ *
+ * Typing note
+ *   `query()` is deliberately typed as `Promise<any>` and the pool as
+ *   `mysql.Pool`. A statement's result is the union mysql2 itself publishes
+ *   (a row array for a SELECT, a ResultSetHeader for an INSERT/UPDATE), and the
+ *   repository layer narrows that per call site - typing it more tightly here
+ *   would mean a cast on every one of the ~30 statements in the repositories,
+ *   which is the data-layer concession described in src/types.ts. The pool and
+ *   the transaction callback ARE fully typed, which is where the extra safety
+ *   actually pays off.
  */
 'use strict';
 
-const mysql = require('mysql2/promise');
-const env = require('../config/env');
+import mysql = require('mysql2/promise');
 
-/** @type {import('mysql2/promise').Pool | null} */
-let pool = null;
+import env = require('../config/env');
+import type { DataRecord } from '../types';
+
+/** The shared pool, created on first use (see getPool). */
+let pool: mysql.Pool | null = null;
 
 /** The exact connection settings being used (password never logged). */
-const connectionSettings = {
+const connectionSettings: mysql.PoolOptions = {
   host: env.DB_HOST,
   port: env.DB_PORT,
   user: env.DB_USER,
@@ -54,18 +69,21 @@ const connectionSettings = {
   namedPlaceholders: false,
 };
 
-/**
- * Create (once) and return the shared pool.
- * @returns {import('mysql2/promise').Pool}
- */
-function getPool() {
+/** Create (once) and return the shared pool. */
+function getPool(): mysql.Pool {
   if (pool) return pool;
 
   pool = mysql.createPool(connectionSettings);
 
   // A pool level error listener stops an idle-connection failure from
-  // crashing the Node process.
-  pool.on('error', (error) => {
+  // crashing the Node process. mysql2's own typings only list the pool's
+  // lifecycle events ('connection', 'acquire', ...), but the pool is an
+  // EventEmitter at run time and 'error' is the event that matters here, so
+  // the listener is registered through that narrow shape.
+  const emitter = pool as unknown as {
+    on(event: string, listener: (error: any) => void): void;
+  };
+  emitter.on('error', (error) => {
     console.error('[event_db] MySQL pool error:', error.code || error.message);
   });
 
@@ -79,35 +97,53 @@ function getPool() {
  * concatenation. mysql2 escapes every value in `params`, which is what
  * prevents SQL injection on the search endpoint.
  *
- * @param {string} sql    SQL text containing "?" placeholders.
- * @param {Array}  params Values bound to the placeholders.
- * @returns {Promise<Array>} rows (SELECT) or a result header (INSERT/UPDATE).
+ * @param sql    SQL text containing "?" placeholders.
+ * @param params Values bound to the placeholders.
+ * @returns rows (SELECT) or a result header (INSERT/UPDATE).
  */
-async function query(sql, params = []) {
+async function query(sql: string, params: any[] = []): Promise<any> {
   const [rows] = await getPool().execute(sql, params);
   return rows;
 }
 
 /** Borrow a connection for a manual transaction. Remember to release it. */
-async function getConnection() {
+async function getConnection(): Promise<mysql.PoolConnection> {
   return getPool().getConnection();
+}
+
+/**
+ * The connection a transaction callback receives.
+ *
+ * It is a mysql2 PoolConnection at run time, but the result of each statement is
+ * `any` here so that one callback can read either a row array or a
+ * ResultSetHeader from the same call - which is exactly what the delete rule
+ * does (SELECT the event, SELECT the registration count, then DELETE). See the
+ * typing note at the top of this file.
+ */
+interface TransactionConnection {
+  execute(sql: string, params?: any[]): Promise<[any, any[]]>;
+  query(sql: string, params?: any[]): Promise<[any, any[]]>;
 }
 
 /**
  * Run `work` inside a database transaction.                        A3
  *
- * @param {(connection: import('mysql2/promise').PoolConnection) => Promise<any>} work
- * @returns {Promise<any>} whatever `work` returned
+ * @param work receives the connection the transaction runs on
+ * @returns whatever `work` returned
  *
  * The connection is always released, and the transaction is rolled back if
  * `work` throws, so a failed write can never leave half-applied data behind.
  * Used by the event delete rule, which must decide and act as one unit.
  */
-async function transaction(work) {
+async function transaction<T>(
+  work: (connection: TransactionConnection) => Promise<T>
+): Promise<T> {
   const connection = await getPool().getConnection();
   try {
     await connection.beginTransaction();
-    const result = await work(connection);
+    // The cast is the one place the statement result is widened to `any`; see
+    // TransactionConnection above.
+    const result = await work(connection as unknown as TransactionConnection);
     await connection.commit();
     return result;
   } catch (error) {
@@ -129,7 +165,7 @@ async function transaction(work) {
  * A3 report: `registrationTable` tells the marker at a glance whether the
  * new event_registrations table was created by 01_schema.sql.
  */
-async function ping() {
+async function ping(): Promise<DataRecord> {
   try {
     const rows = await query('SELECT DATABASE() AS db, VERSION() AS version');
     const tables = await query(
@@ -174,7 +210,7 @@ async function ping() {
 }
 
 /** Close the pool (used on shutdown and after the test suite). */
-async function close() {
+async function close(): Promise<void> {
   if (!pool) return;
   const closing = pool;
   pool = null;
@@ -182,7 +218,7 @@ async function close() {
 }
 
 /** Expose the settings for diagnostics (password deliberately omitted). */
-function describe() {
+function describe(): DataRecord {
   return {
     host: connectionSettings.host,
     port: connectionSettings.port,
@@ -192,7 +228,7 @@ function describe() {
   };
 }
 
-module.exports = {
+export = {
   // main API
   query,
   getConnection,
