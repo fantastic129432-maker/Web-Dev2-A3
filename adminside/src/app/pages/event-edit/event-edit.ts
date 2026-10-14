@@ -27,7 +27,7 @@
  *   instant ("18:30" vs "18:30:00") so that saving an untouched form is reported
  *   as "nothing changed" instead of sending a pointless request.
  */
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -58,6 +58,13 @@ export class EventEdit {
   private readonly api = inject(ApiService);
   private readonly i18n = inject(TranslationService);
   private readonly route = inject(ActivatedRoute);
+
+  /**
+   * Held so every subscription made OUTSIDE the constructor can still be tied to
+   * this component's lifetime. takeUntilDestroyed() with no argument needs an
+   * injection context, and a click handler is not one.
+   */
+  private readonly destroyRef = inject(DestroyRef);
 
   /**
    * The form, so it can be re-filled from the API's answer after a save.
@@ -99,7 +106,7 @@ export class EventEdit {
       reference: this.api.getReferenceData(),
       event: this.api.getAdminEventById(id),
     })
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ reference, event }) => {
           this.reference.set(reference);
@@ -146,7 +153,7 @@ export class EventEdit {
 
     this.api
       .updateEvent(this.eventId(), changes)
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (updated) => {
           this.saving.set(false);
@@ -187,7 +194,7 @@ export class EventEdit {
   private reload(): void {
     this.api
       .getAdminEventById(this.eventId())
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (detail) => {
           this.event.set(detail);
@@ -233,7 +240,7 @@ export class EventEdit {
 
     this.api
       .deleteRegistration(target.registrationId)
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.deleting.set(false);

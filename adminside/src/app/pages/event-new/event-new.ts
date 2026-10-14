@@ -24,6 +24,7 @@
  * EventForm.serverErrors (so the fix is where the person is looking).
  */
 import { Component, computed, inject, signal } from '@angular/core';
+import { DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 
@@ -49,6 +50,12 @@ export class EventNew {
   private readonly api = inject(ApiService);
   private readonly i18n = inject(TranslationService);
   private readonly router = inject(Router);
+
+  /**
+   * Held so every subscription made OUTSIDE the constructor can still be tied to
+   * this component's lifetime; see the note in create().
+   */
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly reference = signal<ReferenceData | null>(null);
   protected readonly loading = signal(true);
@@ -98,7 +105,10 @@ export class EventNew {
 
     this.api
       .createEvent(input)
-      .pipe(takeUntilDestroyed())
+      // takeUntilDestroyed is passed the DestroyRef explicitly: this method runs
+      // from a click, which is NOT an injection context, and the no-argument form
+      // throws NG0203 there - leaving the Save button disabled forever.
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (created) => {
           this.saving.set(false);

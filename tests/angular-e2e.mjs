@@ -469,6 +469,45 @@ async function main() {
     );
     await adminRegistrations.page.close();
 
+    /* ============================================ admin interactions (clicks) */
+    // Why click and not just render? A subscription created OUTSIDE a constructor
+    // (in a Save or Delete handler) cannot call `takeUntilDestroyed()` with no
+    // argument, because that needs an Angular injection context. Getting it wrong
+    // throws the moment a staff member clicks, and a render-only assertion would
+    // never see it. So this edits a field and saves, then checks nothing threw.
+    const editor = await visit(`${ADMIN}/events/2/edit`, { waitFor: eventName });
+
+    const nameChanged = await editor.page.evaluate(() => {
+      const input = [...document.querySelectorAll('input, textarea')].find(
+        (element) =>
+          /name/i.test(element.getAttribute('name') ?? '') ||
+          /name/i.test(element.id ?? '') ||
+          /name/i.test(element.getAttribute('formcontrolname') ?? '')
+      );
+      if (!input) return false;
+
+      // Angular's signal forms listen for `input`; a plain assignment would not
+      // notify them, so the native setter is used and the event dispatched.
+      const descriptor = Object.getOwnPropertyDescriptor(input.constructor.prototype, 'value');
+      if (descriptor?.set) descriptor.set.call(input, 'Coastal Stars Gala Dinner (verified)');
+      else input.value = 'Coastal Stars Gala Dinner (verified)';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    });
+
+    const saveClicked = await clickByText(editor.page, 'save');
+    await sleep(2500);
+
+    const afterSave = await editor.page.evaluate(() => document.body.innerText);
+    record(
+      'editing an event and saving triggers no runtime error (click-handler subscription)',
+      nameChanged && saveClicked && editor.errors.length === 0,
+      editor.errors.join('; ') ||
+        `field changed: ${nameChanged}, save clicked: ${saveClicked}; page says: ${excerpt(afterSave)}`
+    );
+    await editor.page.close();
+
     /* ============================================== the API write contract */
     section('API write contract used by the admin forms');
 
