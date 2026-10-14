@@ -1,0 +1,14 @@
+/*
+ * The footer columns are a plain <div> in the legacy markup and the shared
+ * stylesheet styles them only as grid items, so nothing here needs to change
+ * except one thing: a column can hold two lists (brand note plus contact
+ * details), and the last list must not leave a stray gap before the bottom bar.
+ */
+.site-footer__column > :last-child {
+  margin-bottom: 0;
+}
+
+.site-footer__admin-link {
+  display: inline-block;
+  margin-top: var(--space-2);
+}

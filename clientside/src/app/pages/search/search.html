@@ -1,0 +1,341 @@
+<!-- ==================================================================
+     SEARCH PAGE
+     Ported from legacy/clientside/search.html + js/search.js. Same class
+     names, so clientside/src/styles.css styles the two-column
+     filter/results layout exactly as before.
+
+     A note on the form bindings: every control carries a template reference
+     variable (#from, #free, ...) and passes THAT to the handler, e.g.
+     `(input)="setTextField('from', from.value)"`. Reading `.value` off a
+     reference to a real <input> is fully typed under strictTemplates, so no
+     `$any($event.target)` escape hatch is needed anywhere on this page.
+     ================================================================== -->
+
+<section class="page-header">
+  <div class="container">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
+        <li aria-current="page">{{ 'search.breadcrumb' | t }}</li>
+      </ol>
+    </nav>
+    <h1>{{ 'search.title' | t }}</h1>
+    <p>{{ 'search.lead' | t }}</p>
+  </div>
+</section>
+
+<div class="container">
+  <div class="search-layout">
+    <!-- ==============================================================
+         FILTER FORM
+         Native HTML controls only: date inputs for dates, checkboxes for
+         categories, a select for the venue or town, a toggle for free
+         events and a radio group for the event state.
+
+         (input) and (change) write into one `form` signal rather than
+         using ngModel: there is no form model to validate with Angular's
+         forms module, because the single rule that can fail (a reversed
+         date range) is checked by validate() before the API is called and
+         every message is a translated dictionary key.
+         ============================================================== -->
+    <section class="filter-panel" aria-labelledby="filter-heading">
+      <h2 id="filter-heading">{{ 'search.filtersHeading' | t }}</h2>
+      <p class="filter-panel__hint">{{ 'search.filtersHint' | t }}</p>
+
+      <form novalidate (submit)="$event.preventDefault(); runSearch()">
+        <!-- Criterion 1: when -->
+        <fieldset>
+          <legend>{{ 'search.when' | t }}</legend>
+          <div class="form-row">
+            <div class="field">
+              <label for="filter-from">{{ 'search.fromDate' | t }}</label>
+              <!--
+                The placeholder inside a native date field is drawn by the browser
+                in the language of the operating system and cannot be changed from
+                HTML, CSS or JavaScript. On a Chinese-language Windows it reads
+                年/月/日, so the accepted format is stated here instead.
+              -->
+              <p class="field__format" id="filter-from-format">{{ 'search.dateFormat' | t }}</p>
+              <input
+                type="date"
+                id="filter-from"
+                name="from"
+                lang="en-AU"
+                #from
+                aria-describedby="filter-from-format filter-from-message"
+                [attr.aria-invalid]="invalidField() === 'from' ? 'true' : null"
+                [value]="form().from"
+                (input)="setTextField('from', from.value)"
+              />
+              <p class="field-message field-message--error" id="filter-from-message" role="status" aria-live="polite">
+                {{ messageFor('from') }}
+              </p>
+            </div>
+
+            <div class="field">
+              <label for="filter-to">{{ 'search.toDate' | t }}</label>
+              <p class="field__format" id="filter-to-format">{{ 'search.dateFormat' | t }}</p>
+              <input
+                type="date"
+                id="filter-to"
+                name="to"
+                lang="en-AU"
+                #to
+                aria-describedby="filter-to-format filter-to-message"
+                [attr.aria-invalid]="invalidField() === 'to' ? 'true' : null"
+                [value]="form().to"
+                (input)="setTextField('to', to.value)"
+              />
+              <p class="field-message field-message--error" id="filter-to-message" role="status" aria-live="polite">
+                {{ messageFor('to') }}
+              </p>
+            </div>
+          </div>
+          <p class="field__hint">{{ 'search.dateHint' | t }}</p>
+        </fieldset>
+
+        <!-- Criterion 2: where, from GET /api/locations -->
+        <fieldset>
+          <legend>{{ 'search.where' | t }}</legend>
+          <div class="field">
+            <label for="filter-location">{{ 'search.city' | t }}</label>
+            <select
+              id="filter-location"
+              name="location"
+              #location
+              aria-describedby="filter-location-hint"
+              [value]="form().location"
+              (change)="setLocation(location.value)"
+            >
+              <option value="">{{ 'search.cityPlaceholder' | t }}</option>
+              @for (option of locationOptions(); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            <p class="field__hint" id="filter-location-hint">{{ 'search.cityHint' | t }}</p>
+          </div>
+        </fieldset>
+
+        <!-- Criterion 3: what kind of event, from GET /api/categories -->
+        <fieldset>
+          <legend>{{ 'search.what' | t }}</legend>
+          <div class="checkbox-grid">
+            @if (categoriesFailed()) {
+              <p class="field__hint">{{ 'search.categoriesFailed' | t }}</p>
+            } @else if (categories().length === 0) {
+              <p class="field__hint">{{ 'search.categoriesLoading' | t }}</p>
+            } @else {
+              @for (category of categories(); track category.categoryId) {
+                <label class="checkbox">
+                  <input
+                    type="checkbox"
+                    name="category"
+                    #category_box
+                    [id]="'category-' + category.categoryId"
+                    [value]="category.categoryId"
+                    [checked]="isCategoryChecked(category.categoryId)"
+                    (change)="toggleCategory(category.categoryId, category_box.checked); runSearch()"
+                  />
+                  <span>{{ category.categoryName }}</span>
+                  <span class="checkbox__count">{{ category.eventCount }}</span>
+                </label>
+              }
+            }
+          </div>
+        </fieldset>
+
+        <!-- Criterion 4: other options -->
+        <fieldset>
+          <legend>{{ 'search.other' | t }}</legend>
+          <label class="checkbox">
+            <input
+              type="checkbox"
+              id="filter-free"
+              name="isFree"
+              #free
+              [checked]="form().isFree"
+              (change)="setFreeOnly(free.checked)"
+            />
+            <span>{{ 'search.freeOnly' | t }}</span>
+          </label>
+
+          <div class="field" style="margin-top: 0.75rem">
+            <label for="filter-keyword">{{ 'search.keyword' | t }}</label>
+            <input
+              type="search"
+              id="filter-keyword"
+              name="keyword"
+              #keyword
+              [attr.placeholder]="'search.keywordPlaceholder' | t"
+              [value]="form().keyword"
+              (input)="setTextField('keyword', keyword.value)"
+            />
+          </div>
+        </fieldset>
+
+        <!--
+          Criterion 5: the event state. A radio group rather than a checkbox,
+          because "upcoming only / everything / finished only" are three mutually
+          exclusive answers to one question and the API takes exactly one `state`
+          value. The legacy "include past events" checkbox could express only two of
+          the three, and it could not ask for past events ONLY - which is the
+          question a visitor looking at last year's results is asking.
+        -->
+        <fieldset>
+          <legend>{{ 'search.eventState' | t }}</legend>
+          <div class="radio-row">
+            <label class="checkbox">
+              <input
+                type="radio"
+                name="state"
+                value="upcoming"
+                [checked]="form().state === 'upcoming'"
+                (change)="setState('upcoming')"
+              />
+              <span>{{ 'search.stateUpcoming' | t }}</span>
+            </label>
+            <label class="checkbox">
+              <input
+                type="radio"
+                name="state"
+                value="all"
+                [checked]="form().state === 'all'"
+                (change)="setState('all')"
+              />
+              <span>{{ 'search.stateAll' | t }}</span>
+            </label>
+            <label class="checkbox">
+              <input
+                type="radio"
+                name="state"
+                value="past"
+                [checked]="form().state === 'past'"
+                (change)="setState('past')"
+              />
+              <span>{{ 'search.statePast' | t }}</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="filter-actions">
+          <!--
+            The submit button is deliberately NOT disabled while a search is in
+            flight. A disabled control would lose focus the moment it was pressed,
+            which drops a keyboard user back to the top of the document, and the
+            API is idempotent for a GET so two requests cost nothing but a little
+            bandwidth.
+          -->
+          <button type="submit" class="button button--block">{{ 'search.submit' | t }}</button>
+          <button type="button" class="button button--outline button--block" (click)="clearFilters()">
+            {{ 'search.clear' | t }}
+          </button>
+        </div>
+
+        <!--
+          The validation message, produced by client-side checking before the API
+          is called. role="status" rather than an alert() dialog: the brief asks for
+          a message on the page, and a modal would be dismissed before it was read.
+        -->
+        <p
+          class="field-message"
+          [class.field-message--error]="validationMessage() !== null"
+          role="status"
+          aria-live="polite"
+        >{{ validationMessage() }}</p>
+      </form>
+    </section>
+
+    <!-- ==============================================================
+         RESULTS  (GET /api/events)
+         ============================================================== -->
+    <section aria-labelledby="results-heading">
+      <div class="results-head">
+        <h2 id="results-heading">{{ 'search.resultsHeading' | t }}</h2>
+        <p class="results-count" aria-live="polite">
+          @if (results().status === 'done') {
+            {{ results().total }}
+          }
+        </p>
+      </div>
+
+      <!-- Active filters, each removable. Rendered only when something is set. -->
+      @if (hasActiveFilters()) {
+        <div class="chip-list">
+          <span class="chip-list__label">{{ 'search.activeFilters' | t }}</span>
+          @for (chip of activeFilters(); track chip.label) {
+            <button
+              type="button"
+              class="filter-chip"
+              [attr.title]="'a11y.removeFilter' | t: { filter: chip.label }"
+              (click)="chip.clear(); runSearch()"
+            >
+              <span>{{ chip.label }}</span>
+              <span aria-hidden="true">&times;</span>
+            </button>
+          }
+        </div>
+      }
+
+      <div class="results-head">
+        <p class="results-count">
+          @if (results().status === 'idle') {
+            {{ 'search.idleHint' | t }}
+          } @else if (results().status === 'done') {
+            {{ 'search.resultsHintDone' | t }}
+          }
+        </p>
+        <p class="sort-control">
+          <label for="results-sort">{{ 'search.sortLabel' | t }}</label>
+          <select
+            id="results-sort"
+            #resultsSort
+            [value]="sort()"
+            (change)="setSort(resultsSort.value); runSearch()"
+          >
+            <option value="date-asc">{{ 'home.sortDateAsc' | t }}</option>
+            <option value="date-desc">{{ 'home.sortDateDesc' | t }}</option>
+            <option value="name-asc">{{ 'home.sortNameAsc' | t }}</option>
+            <option value="name-desc">{{ 'search.sortNameDesc' | t }}</option>
+            <option value="goal-desc">{{ 'search.sortGoalDesc' | t }}</option>
+            <option value="progress-desc">{{ 'home.sortProgressDesc' | t }}</option>
+          </select>
+        </p>
+      </div>
+
+      <div class="grid grid--events" aria-live="polite">
+        @switch (results().status) {
+          @case ('loading') {
+            <div class="state state--loading">
+              <div class="spinner" aria-hidden="true"></div>
+              <p>{{ 'search.loading' | t }}</p>
+            </div>
+          }
+          @case ('error') {
+            <div class="state state--error" role="alert">
+              <h3>{{ 'error.title' | t }}</h3>
+              <p>{{ results().message }}</p>
+            </div>
+          }
+          @case ('done') {
+            @if (results().events.length === 0) {
+              <div class="state state--empty">
+                <h3>{{ 'search.noResultsTitle' | t }}</h3>
+                <p>{{ 'search.noResultsHint' | t }}</p>
+              </div>
+            } @else {
+              @for (event of results().events; track event.eventId) {
+                <app-event-card [event]="event" />
+              }
+            }
+          }
+          @default {
+            <div class="state state--empty">
+              <h3>{{ 'search.idleTitle' | t }}</h3>
+              <p>{{ 'search.idleHint' | t }}</p>
+            </div>
+          }
+        }
+      </div>
+    </section>
+  </div>
+</div>

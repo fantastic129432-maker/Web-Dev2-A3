@@ -1,0 +1,385 @@
+<!-- ==================================================================
+     EVENT DETAIL PAGE
+     Ported from legacy/clientside/event.html + js/event.js. The whole page
+     is built from one call to GET /api/events/:id, which (from Assessment 3)
+     also returns every registration for the event, newest purchase first.
+     ================================================================== -->
+
+<div class="container">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <ol>
+      <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
+      <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
+      <li aria-current="page">{{ event()?.eventName || ('event.breadcrumb' | t) }}</li>
+    </ol>
+  </nav>
+</div>
+
+<div aria-live="polite">
+  @if (state().loading) {
+    <div class="container section">
+      <div class="state state--loading">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>{{ 'event.loading' | t }}</p>
+      </div>
+    </div>
+  } @else if (state().error !== null) {
+    <!--
+      A failure panel with the two ways out. A 404 additionally explains that the
+      organisation may have suspended the event, which is a normal outcome for an
+      old link rather than a fault.
+    -->
+    <div class="container section">
+      <div class="state state--error" role="alert">
+        <h3>{{ 'error.title' | t }}</h3>
+        <p>{{ state().error }}</p>
+        @if (state().details.length > 0) {
+          <ul class="state__details">
+            @for (detail of state().details; track detail) {
+              <li>{{ detail }}</li>
+            }
+          </ul>
+        }
+      </div>
+      <p style="text-align: center">
+        <a class="button button--outline" routerLink="/">{{ 'error.backHome' | t }}</a>
+        <a class="button button--ghost" routerLink="/search">{{ 'error.searchForEvent' | t }}</a>
+      </p>
+    </div>
+  } @else if (event(); as current) {
+    <!-- ==============================================================
+         HERO: the headline facts
+         ============================================================== -->
+    <section class="event-hero">
+      <div class="container">
+        <div class="event-hero__grid">
+          <div>
+            <div class="event-hero__meta">
+              <span [class]="badgeClass()">{{ stateLabelKey() | t }}</span>
+              <span class="chip">
+                @if (current.categoryName) {
+                  {{ current.categoryName }}
+                } @else {
+                  {{ 'state.charityEvent' | t }}
+                }
+              </span>
+              <span class="price">{{ priceSummary() }}</span>
+            </div>
+
+            <h1>{{ current.eventName }}</h1>
+            <p class="event-hero__lead">{{ current.shortDescription }}</p>
+
+            <ul class="fact-list">
+              <li>
+                <span class="fact-list__label">{{ 'event.detailDate' | t }}</span>
+                <span class="fact-list__value">{{ fullDate() }}</span>
+              </li>
+              <li>
+                <span class="fact-list__label">{{ 'event.detailTime' | t }}</span>
+                <span class="fact-list__value">{{ timeRange() }}</span>
+              </li>
+              <li>
+                <span class="fact-list__label">{{ 'event.detailVenue' | t }}</span>
+                <span class="fact-list__value">{{ venueLine() }}</span>
+              </li>
+              <li>
+                <span class="fact-list__label">{{ 'event.detailLocation' | t }}</span>
+                <span class="fact-list__value">{{ locationLine() }}</span>
+              </li>
+              <li>
+                <span class="fact-list__label">{{ 'event.detailOrganiser' | t }}</span>
+                <span class="fact-list__value">{{ current.organizationName }}</span>
+              </li>
+              <li>
+                <span class="fact-list__label">{{ 'event.detailCapacity' | t }}</span>
+                <span class="fact-list__value">
+                  @if (current.capacity) {
+                    {{ 'event.capacityPlaces' | t: { count: current.capacity } }}
+                  } @else {
+                    {{ 'event.capacityUnlimited' | t }}
+                  }
+                </span>
+              </li>
+              <!-- A3: how many registrations the event has attracted so far. -->
+              <li>
+                <span class="fact-list__label">{{ 'event.registrationsTotal' | t }}</span>
+                <span class="fact-list__value">
+                  {{ 'event.registeredCount' | t: { count: current.registrationCount || 0 } }}
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="event-hero__media">
+            <img
+              [src]="image()"
+              [alt]="'a11y.eventIllustration' | t: { name: current.eventName }"
+              width="720"
+              height="450"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================================
+         MAIN COLUMN + SIDEBAR
+         ============================================================== -->
+    <div class="container">
+      <div class="detail-grid">
+        <!-- ---------------- prose ---------------- -->
+        <div class="prose">
+          <h2>{{ 'event.aboutHeading' | t }}</h2>
+          @for (paragraph of descriptionParagraphs(); track $index) {
+            <p>{{ paragraph }}</p>
+          }
+
+          <h2>{{ 'event.purposeHeading' | t }}</h2>
+          <p>{{ current.purpose }}</p>
+
+          <h2>{{ 'event.fundsHeading' | t }}</h2>
+          <ul>
+            <li>{{ 'event.funds1' | t }}</li>
+            <li>{{ 'event.funds2' | t }}</li>
+            <li>{{ 'event.funds3' | t }}</li>
+          </ul>
+
+          <!-- ==========================================================
+               REGISTRATIONS FOR THIS EVENT  (the key Assessment 3 feature)
+
+               The list arrives inside the GET /api/events/:id response,
+               already ordered newest purchase first, and is rendered in
+               that order without a second sort. A real <table> is used
+               because the data is tabular: a caption and column headers
+               are what let a screen reader navigate it, and a totals row
+               answers "how much has this raised in tickets" without the
+               visitor adding up a column by hand.
+               ========================================================== -->
+          <section class="registrations" aria-labelledby="registrations-heading">
+            <h2 id="registrations-heading">{{ 'event.registrationsHeading' | t }}</h2>
+
+            @if (registrations().length === 0) {
+              <p class="registrations__empty">{{ 'event.registrationsEmpty' | t }}</p>
+            } @else {
+              <p class="registrations__lead">
+                {{ 'event.registrationsLead' | t: { count: registrations().length } }}
+              </p>
+
+              <div class="table-wrap">
+                <table class="data-table">
+                  <caption class="sr-only">{{ 'event.registrationsHeading' | t }}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">{{ 'event.registrationsName' | t }}</th>
+                      <th scope="col">{{ 'event.registrationsTier' | t }}</th>
+                      <th scope="col" class="is-numeric">{{ 'event.registrationsTickets' | t }}</th>
+                      <th scope="col" class="is-numeric">{{ 'event.registrationsValue' | t }}</th>
+                      <th scope="col">{{ 'event.registrationsDate' | t }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (registration of registrations(); track registration.registrationId) {
+                      <tr>
+                        <!--
+                          The attendee cell carries the name plus the contact
+                          details underneath, so the table stays narrow on a phone
+                          while still showing the email and phone.
+                        -->
+                        <th scope="row">
+                          @if (registration.attendeeName) {
+                            <span class="data-table__primary">{{ registration.attendeeName }}</span>
+                            <span class="data-table__secondary">
+                              {{ registration.attendeeEmail }}
+                              @if (registration.attendeePhone) {
+                                &nbsp;&middot;&nbsp;{{ registration.attendeePhone }}
+                              }
+                            </span>
+                          } @else {
+                            <!--
+                              A registration with no name is a data problem, not a
+                              display one, but the row stays identifiable by its id.
+                            -->
+                            <span class="data-table__primary">
+                              {{ 'event.registrationsLogin' | t }} #{{ registration.registrationId }}
+                            </span>
+                          }
+                        </th>
+                        <td>
+                          @if (registration.ticketName) {
+                            {{ registration.ticketName }}
+                          } @else {
+                            {{ 'event.tierGeneral' | t }}
+                          }
+                        </td>
+                        <td class="is-numeric">{{ registration.ticketsPurchased }}</td>
+                        <td class="is-numeric">{{ money(registration.totalAmount) }}</td>
+                        <td [attr.title]="registration.registeredAt">{{ purchasedAt(registration) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                  <!-- The totals row: tickets sold and the value of those tickets. -->
+                  <tfoot>
+                    <tr>
+                      <th scope="row">{{ 'event.registrationsTotal' | t }}</th>
+                      <td></td>
+                      <td class="is-numeric">{{ ticketsSold() }}</td>
+                      <td class="is-numeric">{{ money(ticketsValue()) }}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            }
+          </section>
+
+          <!-- ==========================================================
+               WEATHER  (optional external API: Open-Meteo)
+
+               Three states and no error state:
+                 * no forecast possible   -> the panel is not rendered at all
+                 * forecast requested     -> a short "loading" line
+                 * forecast arrived       -> the card
+               `weatherPossible()` is false for a past event, for a venue with
+               no coordinates (the "Online" pseudo-venue) and for an event more
+               than 16 days away, so those cases show nothing rather than a
+               broken or empty panel.
+               ========================================================== -->
+          @if (weatherPossible()) {
+            <section class="weather" aria-live="polite">
+              <h2>{{ 'weather.heading' | t }}</h2>
+
+              @if (forecast(); as currentForecast) {
+                <p class="weather__lead">{{ weatherLead() }}</p>
+
+                <div class="weather__card" [class.weather__card--wet]="weatherWet()">
+                  <span class="weather__glyph" aria-hidden="true">{{ weatherIcon() }}</span>
+                  <div class="weather__summary">
+                    <span class="weather__code">{{ weatherLabel() }}</span>
+                    @if (temperatures()) {
+                      <span class="weather__temps">{{ temperatures() }}</span>
+                    }
+                  </div>
+
+                  @if (rainChance() !== null || windMax() !== null) {
+                    <ul class="weather__details">
+                      @if (rainChance(); as rain) {
+                        <li>{{ rain }}</li>
+                      }
+                      @if (windMax(); as wind) {
+                        <li>{{ wind }}</li>
+                      }
+                    </ul>
+                  }
+                </div>
+
+                <!-- The "bring a coat" hint, added only when rain is forecast. -->
+                @if (weatherWet()) {
+                  <p class="weather__hint">{{ 'weather.bringACoat' | t }}</p>
+                }
+                <p class="weather__hint">{{ 'weather.outdoorHint' | t }}</p>
+                <p class="weather__credit">{{ 'weather.attribution' | t }}</p>
+              } @else {
+                <p class="weather__loading">{{ 'weather.loading' | t }}</p>
+              }
+            </section>
+          }
+
+          <h2>{{ 'event.accessHeading' | t }}</h2>
+          <p>{{ 'event.accessBody' | t }}</p>
+
+          <h2>{{ 'event.statusHeading' | t }}</h2>
+          <p>{{ statusSentence() }}</p>
+        </div>
+
+        <!-- ---------------- sidebar ---------------- -->
+        <div class="side-column">
+          <!-- Goal vs progress: the fundraising figure required by the brief. -->
+          <div class="panel panel--brand">
+            <h2>{{ 'event.goalHeading' | t }}</h2>
+            <p>{{ 'event.goalLead' | t: { organisation: current.organizationName || '' } }}</p>
+
+            <app-progress-bar [event]="current" />
+
+            <ul class="contact-list">
+              <li>
+                <span>{{ 'event.goalRow' | t }}</span>
+                <span>{{ money(current.goalAmount) }}</span>
+              </li>
+              <li>
+                <span>{{ 'event.raisedRow' | t }}</span>
+                <span>{{ money(current.raisedAmount) }}</span>
+              </li>
+              <li>
+                <span>{{ 'event.remainingRow' | t }}</span>
+                <span>{{ remaining() }}</span>
+              </li>
+              <li>
+                <span>{{ 'event.donationsRow' | t }}</span>
+                <span>{{ 'event.donationsValue' | t: { count: current.donationCount || 0 } }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Ticket tiers, plus the Register / Registration closed control. -->
+          <div class="panel panel--accent">
+            <h2>{{ 'event.ticketsHeading' | t }}</h2>
+
+            @if (current.ticketTypes.length === 0) {
+              <p>{{ 'event.ticketsMissing' | t }}</p>
+            } @else {
+              <ul class="ticket-list">
+                @for (tier of current.ticketTypes; track tier.ticketTypeId) {
+                  <li class="ticket" [class.ticket--free]="tier.price === 0">
+                    <span class="ticket__name">
+                      {{ tier.ticketName }}
+                      @if (tier.description) {
+                        <span class="ticket__desc">{{ tier.description }}</span>
+                      }
+                      @if (tierAvailability(tier)) {
+                        <span class="ticket__availability">{{ tierAvailability(tier) }}</span>
+                      }
+                    </span>
+                    <span class="ticket__price">{{ tierPrice(tier) }}</span>
+                  </li>
+                }
+              </ul>
+            }
+
+            <!--
+              A past event gets a <button disabled> rather than a link: there is
+              nothing left to book, and a link would lead to a form that refuses to
+              submit. Everything else links to the registration page carrying the
+              event id in the URL, which is the "pass the event ID between pages"
+              mechanism the brief suggests.
+            -->
+            @if (current.eventState === 'past') {
+              <button class="button button--block" type="button" disabled>
+                {{ 'event.registerClosed' | t }}
+              </button>
+            } @else {
+              <a class="button button--block" [routerLink]="['/register', current.eventId]">
+                {{ 'event.register' | t }}
+              </a>
+            }
+          </div>
+
+          <!-- Who is running the event. -->
+          <div class="panel">
+            <h2>{{ 'event.organisedBy' | t }}</h2>
+            <h3>{{ current.organizationName }}</h3>
+            <p>{{ 'event.organiserBody' | t }}</p>
+            <ul class="contact-list">
+              <li>
+                <span>{{ 'event.basedIn' | t }}</span>
+                <span>{{ current.city }}</span>
+              </li>
+            </ul>
+            <a class="button button--small button--outline" routerLink="/search">
+              {{ 'event.moreEvents' | t }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

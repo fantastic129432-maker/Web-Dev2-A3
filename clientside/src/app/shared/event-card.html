@@ -1,0 +1,93 @@
+<!--
+  Event card - the same markup the legacy dom.js eventCard() built, so the shared
+  stylesheet's `.event-card` rules apply unchanged.
+
+  `data-event-id` is kept from the legacy card: the automated test suite uses it
+  to find a specific card, and it is also the easiest handle for a marker
+  inspecting the rendered page.
+-->
+<article [class]="cardClass()" [attr.data-event-id]="event().eventId">
+  <!-- Artwork, itself a link to the event page. -->
+  <a
+    class="event-card__media"
+    [routerLink]="detailLink()"
+    [attr.aria-label]="'a11y.viewDetailsFor' | t: { name: event().eventName }"
+  >
+    <img
+      [src]="image()"
+      [alt]="'a11y.eventIllustration' | t: { name: event().eventName }"
+      loading="lazy"
+      width="640"
+      height="360"
+    />
+    <span [class]="badgeClass()">
+      {{ stateLabelKey() | t }}
+    </span>
+  </a>
+
+  <div class="event-card__body">
+    <div class="event-card__meta">
+      <span class="chip">
+        @if (categoryName()) {
+          {{ categoryName() }}
+        } @else {
+          {{ 'state.charityEvent' | t }}
+        }
+      </span>
+
+      <!--
+        Three price cases, one pill. "From $185.00" needs the amount formatted
+        into the sentence, so the substitution is done here rather than in a
+        helper: the two branches that need no value are rendered literally.
+      -->
+      <span [class]="priceClass()">
+        @switch (priceText()) {
+          @case ('event.ticketsClosed') {
+            {{ 'event.ticketsClosed' | t }}
+          }
+          @case ('event.freeEntry') {
+            {{ 'event.freeEntry' | t }}
+          }
+          @case ('event.seeEventPage') {
+            {{ 'event.seeEventPage' | t }}
+          }
+          @default {
+            {{ 'event.fromPrice' | t: { price: primaryPrice() } }}
+          }
+        }
+      </span>
+    </div>
+
+    <h3 class="event-card__title">
+      <a [routerLink]="detailLink()">{{ event().eventName }}</a>
+    </h3>
+
+    <p class="event-card__summary">{{ event().shortDescription }}</p>
+
+    <!-- When / Where / Cause: the three questions a card has to answer. -->
+    <ul class="event-card__details">
+      <li>
+        <span class="event-card__label">{{ 'card.when' | t }}</span>
+        <span class="event-card__value">{{ when() }}</span>
+      </li>
+      <li>
+        <span class="event-card__label">{{ 'card.where' | t }}</span>
+        <span class="event-card__value">{{ where() }}</span>
+      </li>
+      <li>
+        <span class="event-card__label">{{ 'card.cause' | t }}</span>
+        <span class="event-card__value">{{ cause() }}</span>
+      </li>
+    </ul>
+
+    <div class="event-card__footer">
+      <app-progress-bar [event]="event()" [compact]="true" />
+
+      <a
+        class="button button--small"
+        [routerLink]="detailLink()"
+        [attr.aria-label]="'a11y.viewDetailsFor' | t: { name: event().eventName }"
+      >{{ 'common.viewDetails' | t }}</a>
+    </div>
+  </div>
+</article>

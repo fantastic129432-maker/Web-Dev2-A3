@@ -1,0 +1,52 @@
+<!--
+  Site footer: brand note, quick links, project note and the live API indicator.
+
+  The contact details are real anchors with mailto: and tel: hrefs, and the ABN
+  value is labelled as fictional in the dictionary itself, so nothing here reads
+  as a claim about a real organisation.
+-->
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__column">
+      <h3>{{ 'nav.siteName' | t }}</h3>
+      <p>{{ 'nav.footerAbout' | t }}</p>
+      <h3>{{ 'contact.heading' | t }}</h3>
+      <ul>
+        <li>
+          <a href="mailto:hello@unityheart.org.au">hello@unityheart.org.au</a>
+        </li>
+        <li>
+          <a href="tel:+61266201001">(02) 6620 1001</a>
+        </li>
+        <li>{{ 'contact.officeValue' | t }}</li>
+        <li>{{ 'contact.hoursValue' | t }}</li>
+      </ul>
+    </div>
+
+    <div class="site-footer__column">
+      <h3>{{ 'nav.explore' | t }}</h3>
+      <ul>
+        <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
+        <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
+      </ul>
+    </div>
+
+    <div class="site-footer__column">
+      <h3>{{ 'nav.projectHeading' | t }}</h3>
+      <p>{{ 'nav.projectNote' | t }}</p>
+      <!--
+        A plain href, not routerLink: the admin site is a separate application on
+        its own origin. rel="noopener" because the link opens in a new tab.
+      -->
+      <a class="site-footer__admin-link" [href]="otherSiteUrl" target="_blank" rel="noopener">
+        {{ 'nav.admin' | t }}
+      </a>
+    </div>
+  </div>
+
+  <div class="site-footer__bottom">
+    <p>&copy; {{ year }} {{ 'nav.siteName' | t }}. {{ 'nav.rights' | t }}</p>
+    <!-- The live "Event server: online" indicator, from GET /api/health. -->
+    <app-api-status />
+  </div>
+</footer>

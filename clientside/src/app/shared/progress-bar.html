@@ -1,0 +1,45 @@
+<!--
+  The fundraising progress bar.
+
+  Markup mirrors the legacy dom.js progressBar() exactly - same class names, same
+  order - so clientside/src/styles.css draws it without change. The only
+  difference is that `width` is an Angular style binding instead of an inline
+  style written by JavaScript.
+-->
+<div class="progress" [class.progress--compact]="compact()">
+  <div class="progress__header">
+    <span class="progress__label">{{ 'event.raisedSoFar' | t }}</span>
+    <span class="progress__percent">
+      {{ 'event.percentOfGoal' | t: { percent: percentText() } }}
+    </span>
+  </div>
+
+  <div
+    class="progress__track"
+    role="progressbar"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="percent()"
+    [attr.aria-label]="ariaLabel()"
+  >
+    <div class="progress__fill" [style.width.%]="percent()"></div>
+  </div>
+
+  <p class="progress__amounts">
+    {{ 'event.raisedOfGoal' | t: { raised: raised(), goal: goal() } }}
+  </p>
+
+  <!--
+    The donation count is only meaningful at full size: on a card it would be a
+    third line of small print competing with the date and venue.
+  -->
+  @if (!compact() && donationCount() > 0) {
+    <p class="progress__meta">
+      @if (donationCount() === 1) {
+        {{ 'event.basedOnDonationsOne' | t }}
+      } @else {
+        {{ 'event.basedOnDonationsMany' | t: { count: donationCount() } }}
+      }
+    </p>
+  }
+</div>

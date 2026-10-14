@@ -1,0 +1,50 @@
+<!--
+  Language and theme controls, shared by the header on every page.
+
+  Markup follows the legacy js/nav.js buildSettingsBar() exactly, so the 52 kB
+  shared stylesheet styles it without any component CSS beyond the one rule that
+  lets the settings bar wrap onto its own line inside the header.
+-->
+<div class="settings-bar">
+  <!-- Language: every supported language, each shown in its own script. -->
+  <div class="settings-bar__group">
+    <label class="settings-bar__label" for="language-select">
+      {{ 'settings.language' | t }}:
+    </label>
+    <select
+      class="language-select"
+      id="language-select"
+      #languageSelect
+      [attr.aria-label]="'settings.languageLabel' | t"
+      [value]="language()"
+      (change)="setLanguage(languageSelect.value)"
+    >
+      @for (entry of languages; track entry.code) {
+        <option [value]="entry.code">{{ entry.nativeLabel }}</option>
+      }
+    </select>
+  </div>
+
+  <!-- Theme: one button that cycles light -> dark -> system. -->
+  <div class="settings-bar__group">
+    <button
+      class="theme-toggle"
+      type="button"
+      id="theme-toggle"
+      [attr.aria-label]="themeAriaLabel()"
+      (click)="cycleTheme()"
+    >
+      <span class="theme-toggle__icon" aria-hidden="true">{{ icon() }}</span>
+      <span>{{ themeLabel() }}</span>
+    </button>
+  </div>
+
+  <!--
+    Only shown while a language other than English is active: the event names,
+    descriptions and venue names come from the database in English, so the
+    visitor is told that switching language translates the interface only.
+  -->
+  @if (!isEnglish) {
+    <p class="settings-note">{{ 'settings.interfaceOnly' | t }}</p>
+  }
+</div>

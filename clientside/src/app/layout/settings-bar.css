@@ -1,0 +1,20 @@
+/*
+ * The settings bar needs only two declarations beyond the shared stylesheet:
+ * the header lays its children out in a row, so the bar has to be allowed to
+ * wrap (a four-option language picker plus a theme button is wide) and the
+ * "interface language only" note has to be able to take a line of its own
+ * underneath both controls rather than squeezing between them.
+ *
+ * Everything else - the pill-shaped theme button, the language <select>, the
+ * colour of each control - comes from clientside/src/styles.css, which is the
+ * same stylesheet the pre-Angular pages used.
+ */
+:host {
+  display: block;
+  width: 100%;
+}
+
+.settings-bar {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

@@ -1,0 +1,18 @@
+/*
+ * Only one layout adjustment is needed on top of the shared stylesheet.
+ *
+ * The legacy header inserted the settings bar and the menu into a wrapper with
+ * `justify-content: space-between`, where two children put one at each end. The
+ * Angular header has one more element - the mobile menu button - so
+ * space-between would place the menu in the middle of a wide screen. Pushing
+ * `.site-header__nav` to the right with an automatic left margin produces the
+ * same arrangement for any number of children, and the mobile button is hidden
+ * above 760px anyway.
+ */
+.site-header__inner {
+  justify-content: flex-start;
+}
+
+.site-header__nav {
+  margin-left: auto;
+}

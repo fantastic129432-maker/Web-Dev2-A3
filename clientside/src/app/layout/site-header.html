@@ -1,0 +1,88 @@
+<!--
+  Site header, identical on every page.
+
+  The heart-in-a-circle mark is inline SVG rather than a file: it is four lines of
+  path data, it inherits the brand colour from CSS, and it cannot 404. The legacy
+  header did the same.
+-->
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" routerLink="/" [attr.aria-label]="'a11y.orgHome' | t: { name: ('nav.siteName' | t) }">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="34" height="34" role="presentation">
+          <circle cx="16" cy="16" r="15" fill="#0f7b6c"></circle>
+          <path
+            d="M16 25s-7.4-4.6-9.3-9.1C5.2 12.3 7.4 8.6 11 8.6c2 0 3.7 1.1 5 3 1.3-1.9 3-3 5-3 3.6 0 5.8 3.7 4.3 7.3C23.4 20.4 16 25 16 25z"
+            fill="#ffffff"
+          ></path>
+        </svg>
+      </span>
+      <span class="brand__text">
+        <strong>{{ 'nav.siteName' | t }}</strong>
+        <small>{{ 'nav.tagline' | t }}</small>
+      </span>
+    </a>
+
+    <!--
+      The mobile menu button. Hidden above 760px by the stylesheet; below that it
+      reveals `.site-nav` by adding `.site-nav--open`. aria-expanded is kept in
+      step with the signal so assistive technology knows the state.
+    -->
+    <button
+      class="site-nav__toggle"
+      type="button"
+      aria-controls="primary-navigation"
+      [attr.aria-expanded]="menuOpen()"
+      (click)="toggleMenu()"
+    >
+      <span class="sr-only">{{ 'nav.toggle' | t }}</span>
+      <span aria-hidden="true">&#9776;</span>
+    </button>
+
+    <div class="site-header__nav">
+      <app-settings-bar />
+
+      @if (showNav()) {
+        <nav
+          class="site-nav"
+          id="primary-navigation"
+          [class.site-nav--open]="menuOpen()"
+          [attr.aria-label]="'nav.toggle' | t"
+        >
+          <ul class="site-nav__list">
+            <li>
+              <a
+                class="site-nav__link"
+                routerLink="/"
+                routerLinkActive="site-nav__link--active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                ariaCurrentWhenActive="page"
+                (click)="closeMenu()"
+              >{{ 'nav.home' | t }}</a>
+            </li>
+            <li>
+              <a
+                class="site-nav__link"
+                routerLink="/search"
+                routerLinkActive="site-nav__link--active"
+                ariaCurrentWhenActive="page"
+                (click)="closeMenu()"
+              >{{ 'nav.search' | t }}</a>
+            </li>
+            <li>
+              <!--
+                A plain <a href>, not routerLink: the admin site is a separate
+                Angular application on its own origin, so the click must be a real
+                document navigation. rel="noopener" stops the new tab from reaching
+                back into this page through window.opener.
+              -->
+              <a class="site-nav__link" [href]="otherSiteUrl" rel="noopener">
+                {{ 'nav.admin' | t }}
+              </a>
+            </li>
+          </ul>
+        </nav>
+      }
+    </div>
+  </div>
+</header>

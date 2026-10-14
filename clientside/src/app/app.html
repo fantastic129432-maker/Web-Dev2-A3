@@ -1,0 +1,20 @@
+<!--
+  Application shell.
+
+  The header and footer are siblings of the routed page rather than part of each
+  page's template, so navigating between pages never rebuilds them: the language
+  and theme controls keep their state, and GET /api/health is called once per
+  full page load instead of once per navigation.
+
+  On the wildcard 404 route only the MENU is hidden (`showNav`). The header itself
+  stays so the visitor still has the language and theme controls, and the footer
+  stays because its contact details are often how someone recovers from a broken
+  link. A menu of links to pages they were not looking for would only add noise.
+-->
+<app-site-header [showNav]="showSiteChrome()" />
+
+<main id="main">
+  <router-outlet />
+</main>
+
+<app-site-footer />

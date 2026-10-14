@@ -1,0 +1,17 @@
+<!--
+  The 404 page. Deliberately NOT styled as an error: a visitor who followed an old
+  link has not broken anything, and a red panel would suggest they had. The plain
+  `.state` treatment is used instead, with the two useful destinations.
+-->
+<div class="container section">
+  <div class="state">
+    <h1>{{ 'notFound.title' | t }}</h1>
+    <p>{{ 'notFound.lead' | t }}</p>
+    <p>{{ 'notFound.hint' | t }}</p>
+
+    <p style="margin-top: 1.5rem">
+      <a class="button" routerLink="/">{{ 'error.backHome' | t }}</a>
+      <a class="button button--outline" routerLink="/search">{{ 'error.searchForEvent' | t }}</a>
+    </p>
+  </div>
+</div>

@@ -1,0 +1,258 @@
+<!-- ==================================================================
+     HOME PAGE
+     Ported from legacy/clientside/index.html + js/home.js. Every section
+     keeps the same class names, so clientside/src/styles.css styles it
+     exactly as it styled the pre-Angular page.
+     ================================================================== -->
+
+<!-- ------------------------------------------------------------------
+     HERO
+     Static welcome copy on the left; the "next events at a glance"
+     panel on the right is filled from the same
+     GET /api/events/upcoming response the grid below uses, so the two
+     can never disagree.
+     ------------------------------------------------------------------ -->
+<section class="hero" aria-labelledby="hero-heading">
+  <div class="hero__inner">
+    <div>
+      <span class="hero__eyebrow">{{ 'home.eyebrow' | t }}</span>
+      <h1 id="hero-heading">{{ 'home.title' | t }}</h1>
+      <p class="hero__lead">{{ 'home.lead' | t }}</p>
+      <div class="hero__actions">
+        <a class="button button--on-dark" href="#upcoming-events">
+          {{ 'home.ctaBrowse' | t }}
+        </a>
+        <a class="button button--on-dark" routerLink="/search">
+          {{ 'home.ctaSearch' | t }}
+        </a>
+      </div>
+    </div>
+
+    <aside class="hero__panel" aria-labelledby="hero-panel-heading">
+      <h2 id="hero-panel-heading">{{ 'home.panelHeading' | t }}</h2>
+      <ul aria-live="polite">
+        @if (eventsState().loading) {
+          <li>{{ 'home.panelLoading' | t }}</li>
+        } @else if (heroEvents().length === 0) {
+          <li>{{ 'home.panelEmpty' | t }}</li>
+        } @else {
+          @for (event of heroEvents(); track event.eventId) {
+            <li>
+              <span aria-hidden="true">&#9679;</span>
+              <div>
+                <a [routerLink]="['/events', event.eventId]">
+                  <strong>{{ event.eventName }}</strong>
+                </a>
+                <div>{{ heroLine(event) }}</div>
+              </div>
+            </li>
+          }
+        }
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------------
+     IMPACT FIGURES  (GET /api/stats)
+     These are read live, so the numbers always match the events below.
+     A failure replaces the four cards with one explanatory card rather
+     than leaving "Loading..." on screen forever or breaking the page:
+     the listing further down is the important part of this page.
+     ------------------------------------------------------------------ -->
+<section class="section section--tint" aria-labelledby="stats-heading">
+  <div class="container">
+    <div class="section__head">
+      <span class="section__eyebrow">{{ 'home.statsEyebrow' | t }}</span>
+      <h2 id="stats-heading">{{ 'home.statsHeading' | t }}</h2>
+      <p class="section__lead">{{ 'home.statsLead' | t }}</p>
+    </div>
+
+    <div class="stats" aria-live="polite">
+      @if (statsFailed()) {
+        <div class="stat">{{ 'home.statUnavailable' | t }}</div>
+      } @else if (statCards().length === 0) {
+        @for (placeholder of [1, 2, 3, 4]; track placeholder) {
+          <div class="stat">
+            <div class="stat__value">&ndash;</div>
+            <div class="stat__label">{{ 'common.loading' | t }}</div>
+          </div>
+        }
+      } @else {
+        @for (card of statCards(); track card.labelKey) {
+          <div class="stat">
+            <div class="stat__value">{{ card.value }}</div>
+            <div class="stat__label">{{ card.labelKey | t }}</div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------------
+     UPCOMING EVENTS  (GET /api/events/upcoming?limit=12&sort=&direction=)
+     The sort dropdown re-asks the API rather than reordering the twelve
+     rows already on screen, so the order is decided over the whole
+     table. The in-flight request is cancelled when the sort changes.
+     ------------------------------------------------------------------ -->
+<section class="section" id="upcoming-events" aria-labelledby="events-heading">
+  <div class="container">
+    <div class="section__head">
+      <span class="section__eyebrow">{{ 'home.eventsEyebrow' | t }}</span>
+      <h2 id="events-heading">{{ 'home.eventsHeading' | t }}</h2>
+      <p class="section__lead">{{ 'home.eventsLead' | t }}</p>
+    </div>
+
+    <div class="results-head">
+      <!--
+        "12 events matched your filters" style count. The singular/plural pairs
+        are separate dictionary keys rather than a pluralisation rule, because the
+        four supported languages do not share English's -s plural and a rule would
+        be wrong in three of them.
+      -->
+      <p class="results-count" aria-live="polite">
+        @if (!eventsState().loading && eventsState().error === null) {
+          @if (eventsState().events.length === 1) {
+            {{ 'search.eventCountOne' | t: { count: eventsState().events.length } }}
+          } @else {
+            {{ 'search.eventCountMany' | t: { count: eventsState().events.length } }}
+          }
+        }
+      </p>
+      <p class="sort-control">
+        <label for="home-sort">{{ 'home.sortLabel' | t }}</label>
+        <select id="home-sort" #homeSort [value]="sort()" (change)="onSortChange(homeSort.value)">
+          <option value="date-asc">{{ 'home.sortDateAsc' | t }}</option>
+          <option value="date-desc">{{ 'home.sortDateDesc' | t }}</option>
+          <option value="name-asc">{{ 'home.sortNameAsc' | t }}</option>
+          <option value="progress-desc">{{ 'home.sortProgressDesc' | t }}</option>
+        </select>
+      </p>
+    </div>
+
+    <div class="grid grid--events" aria-live="polite">
+      @if (eventsState().loading) {
+        <div class="state state--loading">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>{{ 'home.loadingEvents' | t }}</p>
+        </div>
+      } @else if (eventsState().error !== null) {
+        <div class="state state--error" role="alert">
+          <h3>{{ 'error.title' | t }}</h3>
+          <p>{{ eventsState().error }}</p>
+        </div>
+      } @else if (eventsState().events.length === 0) {
+        <div class="state state--empty">
+          <h3>{{ 'home.emptyTitle' | t }}</h3>
+          <p>{{ 'home.emptyHint' | t }}</p>
+        </div>
+      } @else {
+        @for (event of eventsState().events; track event.eventId) {
+          <app-event-card [event]="event" />
+        }
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------------
+     ABOUT
+     The mission sentence comes from GET /api/organization when that
+     call succeeds, and falls back to the translated static sentence
+     when it does not - which is why the heading and the bullet list are
+     never at risk from a failed request.
+     ------------------------------------------------------------------ -->
+<section class="section section--tint" id="about" aria-labelledby="about-heading">
+  <div class="container">
+    <div class="section__head">
+      <span class="section__eyebrow">{{ 'about.eyebrow' | t }}</span>
+      <h2 id="about-heading">{{ 'about.heading' | t }}</h2>
+      <p class="section__lead">
+        {{ organization()?.mission || ('about.mission' | t) }}
+      </p>
+    </div>
+
+    <div class="grid grid--two">
+      <div class="info-card">
+        <h3>{{ 'about.useHeading' | t }}</h3>
+        <ul>
+          <li>{{ 'about.use1' | t }}</li>
+          <li>{{ 'about.use2' | t }}</li>
+          <li>{{ 'about.use3' | t }}</li>
+          <li>{{ 'about.use4' | t }}</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h3>{{ 'about.hostHeading' | t }}</h3>
+        <p>{{ 'about.hostBody' | t }}</p>
+        <p>
+          <a class="button button--small" href="#contact">{{ 'about.hostCta' | t }}</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------------
+     CONTACT
+     Static, except that the organisation's own phone and email replace
+     the fictional defaults once GET /api/organization has answered. The
+     href is rebuilt from the same value, so the link and its label can
+     never point at different addresses.
+     ------------------------------------------------------------------ -->
+<section class="section" id="contact" aria-labelledby="contact-heading">
+  <div class="container">
+    <div class="section__head">
+      <span class="section__eyebrow">{{ 'contact.eyebrow' | t }}</span>
+      <h2 id="contact-heading">{{ 'contact.heading' | t }}</h2>
+      <p class="section__lead">{{ 'contact.lead' | t }}</p>
+    </div>
+
+    <div class="grid grid--two">
+      <div class="info-card">
+        <h3>{{ organization()?.name || ('contact.orgHeading' | t) }}</h3>
+        <ul class="contact-list">
+          <li>
+            <span>{{ 'contact.email' | t }}</span>
+            <span>
+              <a [href]="'mailto:' + (organization()?.email || 'hello@unityheart.org.au')">
+                {{ organization()?.email || 'hello@unityheart.org.au' }}
+              </a>
+            </span>
+          </li>
+          <li>
+            <span>{{ 'contact.phone' | t }}</span>
+            <span>
+              <a [href]="'tel:' + (organization()?.phone || '(02) 6620 1001')">
+                {{ organization()?.phone || '(02) 6620 1001' }}
+              </a>
+            </span>
+          </li>
+          <li>
+            <span>{{ 'contact.office' | t }}</span>
+            <span>{{ 'contact.officeValue' | t }}</span>
+          </li>
+          <li>
+            <span>{{ 'contact.hours' | t }}</span>
+            <span>{{ 'contact.hoursValue' | t }}</span>
+          </li>
+          <li>
+            <span>{{ 'contact.abn' | t }}</span>
+            <span>{{ 'contact.abnValue' | t }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="info-card">
+        <h3>{{ 'contact.beforeHeading' | t }}</h3>
+        <p>{{ 'contact.beforeBody' | t }}</p>
+        <p>
+          <a class="button button--small button--outline" href="#upcoming-events">
+            {{ 'contact.beforeCta' | t }}
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

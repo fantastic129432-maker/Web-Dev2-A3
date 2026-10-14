@@ -1,0 +1,397 @@
+<!-- ==================================================================
+     REGISTRATION PAGE
+     Ported from legacy/clientside/registration.html + js/registration.js.
+     Reads the event id from the route (/register/:id), loads the event so
+     the visitor can see what they are registering for, validates the form
+     client-side, then POSTs to /api/events/:id/registrations.
+     ================================================================== -->
+
+<div class="container">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <ol>
+      <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
+      <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
+      @if (event(); as current) {
+        <li><a [routerLink]="['/events', current.eventId]">{{ current.eventName }}</a></li>
+      }
+      <li aria-current="page">{{ 'form.title' | t }}</li>
+    </ol>
+  </nav>
+</div>
+
+<div aria-live="polite">
+  <!--
+    One @switch over the page's view, because exactly one of loading / no-event /
+    problem / confirmation / form is true at any moment. A chain of @if blocks
+    could express impossible combinations; this cannot.
+
+    Note for anyone editing this file: an HTML comment may not sit between two
+    @case blocks - the Angular template parser only accepts @case and @default
+    directly inside @switch - so the labels for each branch are written as the
+    first line of the branch instead.
+  -->
+  @switch (view()) {
+    @case ('loading') {
+      <!-- The event is being fetched. -->
+      <div class="container section">
+        <div class="state state--loading">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>{{ 'event.loading' | t }}</p>
+        </div>
+      </div>
+    }
+
+    @case ('no-event') {
+      <!--
+        Not an error: the page was reached without an id, and registration needs
+        an event to attach to. A neutral note plus the way in, using the plain
+        `.state` styling rather than the red error variant.
+      -->
+      <div class="container section">
+        <div class="state">
+          <h3>{{ 'event.noIdTitle' | t }}</h3>
+          <p>{{ 'event.noIdHint' | t }}</p>
+        </div>
+        <p style="text-align: center">
+          <a class="button button--outline" routerLink="/">{{ 'error.backHome' | t }}</a>
+          <a class="button button--ghost" routerLink="/search">{{ 'error.searchForEvent' | t }}</a>
+        </p>
+      </div>
+    }
+
+    @case ('problem') {
+      <!-- A failed load, or an event that is already over. -->
+      <div class="container section">
+        <div class="state state--error" role="alert">
+          <h3>{{ 'error.title' | t }}</h3>
+          <p>{{ problem() }}</p>
+          @if (problemDetails().length > 0) {
+            <ul class="state__details">
+              @for (detail of problemDetails(); track detail) {
+                <li>{{ detail }}</li>
+              }
+            </ul>
+          }
+        </div>
+        <p style="text-align: center">
+          <a class="button button--outline" routerLink="/">{{ 'error.backHome' | t }}</a>
+          <a class="button button--ghost" routerLink="/search">{{ 'error.searchForEvent' | t }}</a>
+        </p>
+      </div>
+    }
+
+    @case ('confirmation') {
+      <!-- The registration was accepted: a receipt, not a form. -->
+      <div class="container section">
+        <section class="panel confirmation" role="status">
+          <p class="confirmation__glyph" aria-hidden="true">&#10003;</p>
+          <h1>{{ 'form.successHeading' | t }}</h1>
+          <p class="confirmation__lead">{{ successLead() }}</p>
+          <p>{{ successEmail() }}</p>
+
+          <!--
+            A receipt: every value is read back from the API's response rather
+            than from the form, so what is shown is what the database holds.
+          -->
+          <ul class="contact-list confirmation__receipt">
+            @for (row of receiptRows(); track row.labelKey) {
+              <li>
+                <span>{{ row.labelKey | t }}</span>
+                <span>{{ row.value }}</span>
+              </li>
+            }
+          </ul>
+
+          <p class="confirmation__actions">
+            <a class="button" [routerLink]="['/events', event()?.eventId]">
+              {{ 'form.viewEvent' | t }}
+            </a>
+            <a class="button button--outline" routerLink="/search">
+              {{ 'form.browseMore' | t }}
+            </a>
+          </p>
+        </section>
+      </div>
+    }
+
+    @default {
+      <!-- The form, with the event summary beside it. -->
+      @if (event(); as current) {
+        <div class="container section">
+          <header class="page-header">
+            <p class="section__eyebrow">{{ 'form.eyebrow' | t }}</p>
+            <h1>{{ 'form.title' | t }}</h1>
+            <p class="section__lead">{{ 'form.lead' | t }}</p>
+          </header>
+
+          <div class="registration-layout">
+            <!-- ==========================================================
+                 THE EVENT BEING REGISTERED FOR  (GET /api/events/:id)
+
+                 The brief is explicit that the page must make it clear which
+                 event is being registered for, so the essentials are repeated
+                 rather than relying on the visitor remembering the last page.
+                 ========================================================== -->
+            <aside class="panel panel--brand registration-summary">
+              <h2 class="registration-summary__title">{{ current.eventName }}</h2>
+
+              <div class="registration-summary__media">
+                <img
+                  [src]="image()"
+                  [alt]="'a11y.eventIllustration' | t: { name: current.eventName }"
+                  width="480"
+                  height="300"
+                />
+              </div>
+
+              <div class="registration-summary__meta">
+                <span [class]="badgeClass()">{{ stateLabelKey() | t }}</span>
+                @if (current.categoryName) {
+                  <span class="chip">{{ current.categoryName }}</span>
+                }
+              </div>
+
+              <p>{{ current.shortDescription }}</p>
+
+              <ul class="fact-list">
+                <li>
+                  <span class="fact-list__label">{{ 'event.detailDate' | t }}</span>
+                  <span class="fact-list__value">{{ fullDate() }}</span>
+                </li>
+                <li>
+                  <span class="fact-list__label">{{ 'event.detailTime' | t }}</span>
+                  <span class="fact-list__value">{{ timeRange() }}</span>
+                </li>
+                <li>
+                  <span class="fact-list__label">{{ 'event.detailVenue' | t }}</span>
+                  <span class="fact-list__value">{{ current.venueName }}</span>
+                </li>
+                <li>
+                  <span class="fact-list__label">{{ 'event.detailLocation' | t }}</span>
+                  <span class="fact-list__value">{{ locationLine() }}</span>
+                </li>
+                <!-- Places left is only meaningful against a published capacity. -->
+                @if (seatsRemaining()) {
+                  <li>
+                    <span class="fact-list__label">{{ 'event.detailCapacity' | t }}</span>
+                    <span class="fact-list__value">{{ seatsRemaining() }}</span>
+                  </li>
+                }
+              </ul>
+
+              <a class="button button--small button--outline" [routerLink]="['/events', current.eventId]">
+                {{ 'common.viewDetails' | t }}
+              </a>
+            </aside>
+
+            <!-- ==========================================================
+                 THE FORM
+                 One control per column the API stores. Every field has a
+                 <label for>, and its message paragraph is linked with
+                 aria-describedby so the reason a field was rejected is
+                 announced together with the field.
+                 ========================================================== -->
+            <section class="panel registration-form-card">
+              <h2>{{ 'form.title' | t }}</h2>
+
+              <form id="registration-form" novalidate (submit)="$event.preventDefault(); submit()">
+                <!--
+                  The summary alert. role="alert" makes a screen reader announce it
+                  as soon as the text is set, which is the accessible equivalent of
+                  the "client-side alert" the brief asks for - without a modal
+                  dialog that would be dismissed before it was read.
+                -->
+                @if (summaryMessage(); as message) {
+                  <p class="field-message field-message--error" role="alert" aria-live="assertive">
+                    {{ message }}
+                  </p>
+                }
+
+                <h3>{{ 'form.detailsHeading' | t }}</h3>
+
+                <div class="form-row">
+                  <div class="field">
+                    <label for="reg-attendeeName">{{ 'form.name' | t }} *</label>
+                    <input
+                      type="text"
+                      id="reg-attendeeName"
+                      #attendeeName
+                      name="attendeeName"
+                      autocomplete="name"
+                      maxlength="120"
+                      [attr.placeholder]="'form.namePlaceholder' | t"
+                      [attr.aria-invalid]="errorFor('attendeeName') ? 'true' : null"
+                      [attr.aria-describedby]="messageId('attendeeName')"
+                      [value]="form().attendeeName"
+                      (input)="setField('attendeeName', attendeeName.value)"
+                    />
+                    <p class="field-message field-message--error" [id]="messageId('attendeeName')" role="status" aria-live="polite">
+                      {{ errorFor('attendeeName') }}
+                    </p>
+                  </div>
+
+                  <div class="field">
+                    <label for="reg-attendeeEmail">{{ 'form.email' | t }} *</label>
+                    <input
+                      type="email"
+                      id="reg-attendeeEmail"
+                      #attendeeEmail
+                      name="attendeeEmail"
+                      autocomplete="email"
+                      maxlength="150"
+                      [attr.placeholder]="'form.emailPlaceholder' | t"
+                      [attr.aria-invalid]="errorFor('attendeeEmail') ? 'true' : null"
+                      [attr.aria-describedby]="messageId('attendeeEmail') + ' reg-attendeeEmail-hint'"
+                      [value]="form().attendeeEmail"
+                      (input)="setField('attendeeEmail', attendeeEmail.value)"
+                    />
+                    <p class="field__hint" id="reg-attendeeEmail-hint">{{ 'form.emailHint' | t }}</p>
+                    <p class="field-message field-message--error" [id]="messageId('attendeeEmail')" role="status" aria-live="polite">
+                      {{ errorFor('attendeeEmail') }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="field">
+                    <label for="reg-attendeePhone">{{ 'form.phone' | t }}</label>
+                    <input
+                      type="tel"
+                      id="reg-attendeePhone"
+                      #attendeePhone
+                      name="attendeePhone"
+                      autocomplete="tel"
+                      maxlength="30"
+                      [attr.placeholder]="'form.phonePlaceholder' | t"
+                      [attr.aria-invalid]="errorFor('attendeePhone') ? 'true' : null"
+                      [attr.aria-describedby]="messageId('attendeePhone') + ' reg-attendeePhone-hint'"
+                      [value]="form().attendeePhone"
+                      (input)="setField('attendeePhone', attendeePhone.value)"
+                    />
+                    <p class="field__hint" id="reg-attendeePhone-hint">{{ 'form.phoneHint' | t }}</p>
+                    <p class="field-message field-message--error" [id]="messageId('attendeePhone')" role="status" aria-live="polite">
+                      {{ errorFor('attendeePhone') }}
+                    </p>
+                  </div>
+
+                  <div class="field">
+                    <label for="reg-registeredAt">{{ 'form.date' | t }} *</label>
+                    <input
+                      type="date"
+                      id="reg-registeredAt"
+                      #registeredAt
+                      name="registeredAt"
+                      lang="en-AU"
+                      [attr.aria-invalid]="errorFor('registeredAt') ? 'true' : null"
+                      [attr.aria-describedby]="messageId('registeredAt') + ' reg-registeredAt-hint'"
+                      [value]="form().registeredAt"
+                      (input)="setField('registeredAt', registeredAt.value)"
+                    />
+                    <p class="field__hint" id="reg-registeredAt-hint">{{ 'form.dateHint' | t }}</p>
+                    <p class="field-message field-message--error" [id]="messageId('registeredAt')" role="status" aria-live="polite">
+                      {{ errorFor('registeredAt') }}
+                    </p>
+                  </div>
+                </div>
+
+                <h3>{{ 'form.bookingHeading' | t }}</h3>
+
+                <div class="field">
+                  <label for="reg-ticketTypeId">{{ 'form.ticketType' | t }}</label>
+                  <select
+                    id="reg-ticketTypeId"
+                    #ticketTier
+                    name="ticketTypeId"
+                    [attr.aria-invalid]="errorFor('ticketTypeId') ? 'true' : null"
+                    [attr.aria-describedby]="messageId('ticketTypeId')"
+                    [value]="form().ticketTypeId"
+                    (change)="setTier(ticketTier.value)"
+                  >
+                    <!--
+                      An event with no tiers can still be registered for: the tier
+                      column is nullable, which is exactly what "general entry"
+                      means here.
+                    -->
+                    @if (tiers().length === 0) {
+                      <option value="">{{ 'form.ticketNone' | t }}</option>
+                    } @else {
+                      @for (tier of tiers(); track tier.ticketTypeId) {
+                        <option [value]="tier.ticketTypeId">{{ tierLabel(tier) }}</option>
+                      }
+                    }
+                  </select>
+                  <p class="field-message field-message--error" [id]="messageId('ticketTypeId')" role="status" aria-live="polite">
+                    {{ errorFor('ticketTypeId') }}
+                  </p>
+                </div>
+
+                <div class="field">
+                  <label for="reg-ticketsPurchased">{{ 'form.quantity' | t }} *</label>
+                  <input
+                    type="number"
+                    id="reg-ticketsPurchased"
+                    #quantity
+                    name="ticketsPurchased"
+                    min="1"
+                    step="1"
+                    [attr.max]="quantityMax()"
+                    [attr.aria-invalid]="errorFor('ticketsPurchased') ? 'true' : null"
+                    [attr.aria-describedby]="messageId('ticketsPurchased') + ' reg-ticketsPurchased-hint'"
+                    [value]="form().ticketsPurchased"
+                    (input)="setQuantity(quantity.value)"
+                  />
+                  <p class="field__hint" id="reg-ticketsPurchased-hint">
+                    {{ 'form.quantityHint' | t: { max: maxTickets } }}
+                  </p>
+                  <p class="field-message field-message--error" [id]="messageId('ticketsPurchased')" role="status" aria-live="polite">
+                    {{ errorFor('ticketsPurchased') }}
+                  </p>
+                </div>
+
+                <!-- The running total, recomputed from the signals on every change. -->
+                @if (totalLine()) {
+                  <p class="registration-total" aria-live="polite">{{ totalLine() }}</p>
+                }
+
+                <div class="field">
+                  <label for="reg-notes">{{ 'form.notes' | t }}</label>
+                  <textarea
+                    id="reg-notes"
+                    #notes
+                    name="notes"
+                    rows="3"
+                    maxlength="300"
+                    [attr.placeholder]="'form.notesPlaceholder' | t"
+                    [attr.aria-describedby]="messageId('notes')"
+                    [value]="form().notes"
+                    (input)="setField('notes', notes.value)"
+                  ></textarea>
+                  <p class="field-message field-message--error" [id]="messageId('notes')" role="status" aria-live="polite">
+                    {{ errorFor('notes') }}
+                  </p>
+                </div>
+
+                <!--
+                  The button says what it is doing while the POST is in flight and
+                  is disabled meanwhile, which prevents a double click creating two
+                  registrations. The API would reject the second with a 409 anyway,
+                  but the button should not invite it.
+                -->
+                <button
+                  type="submit"
+                  class="button button--block"
+                  id="registration-submit"
+                  [disabled]="submitting()"
+                >
+                  {{ (submitting() ? 'form.submitting' : 'form.submit') | t }}
+                </button>
+
+                <p class="field__hint">{{ 'form.requiredNotice' | t }}</p>
+              </form>
+            </section>
+          </div>
+        </div>
+      }
+    }
+  }
+</div>

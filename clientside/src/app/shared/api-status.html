@@ -1,0 +1,23 @@
+<!--
+  The footer's live API indicator.
+
+  The colour variant is applied with a per-class binding rather than a plain
+  [class]="...", because a [class] binding REPLACES the whole class attribute
+  and would wipe the static `site-footer__status` class that positions and
+  colours the text. Angular's [class.name] form adds or removes one class and
+  leaves the rest alone, which is what is wanted here.
+
+  The status text is an aria-live region, so a screen reader announces
+  "Event server: online" when the health request comes back instead of the
+  visitor having to hunt for it.
+-->
+<p
+  class="site-footer__status"
+  [class.is-online]="state() === 'online'"
+  [class.is-warning]="state() === 'warning'"
+  [class.is-offline]="state() === 'offline'"
+  role="status"
+  aria-live="polite"
+>
+  {{ labelKey() | t }}
+</p>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <title>Unity Heart Foundation - Charity Events</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse and register for charity events run by the Unity Heart Foundation.">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <!--
+    Applied BEFORE Angular bootstraps, so a dark-mode visitor never sees a white
+    flash while the bundle loads. This mirrors shared/src/theme/theme.service.ts
+    (EARLY_THEME_SNIPPET) and reads the same localStorage key; if you change the
+    key or the attribute name, change it in both places.
+  -->
+  <script>
+    (function () {
+      try {
+        var p = localStorage.getItem('charity-events:theme') || 'system';
+        var d = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme-preference', p);
+        document.documentElement.style.colorScheme = d ? 'dark' : 'light';
+      } catch (e) { /* private browsing: fall back to the light default */ }
+    })();
+  </script>
+</head>
+<body>
+  <!-- The whole page is rendered by the Angular application; see src/app/. -->
+  <app-root>
+    <!--
+      Visible only for the moment before the application bootstraps, so the page
+      is never a blank white screen on a slow connection.
+    -->
+    <p style="font-family: system-ui, sans-serif; padding: 2rem;">Loading the charity events website...</p>
+  </app-root>
+</body>
+</html>
