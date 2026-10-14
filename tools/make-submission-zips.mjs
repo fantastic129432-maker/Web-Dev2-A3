@@ -127,10 +127,25 @@ function isExcluded(name, isDirectory) {
 
 /**
  * Collect every file under `directory`, as paths relative to `directory`.
- * `zipPrefix` is prepended inside the archive so the marker sees a folder name
- * rather than a loose pile of files.
+ *
+ * `zipPrefix` is prepended inside the archive. It is empty for all three
+ * archives on purpose:
+ *
+ * The deployment walkthrough extracts each zip straight into its destination
+ * and says, in as many words, "the CONTENTS of the zip go to the site root, do
+ * not wrap them in an extra folder". A leading folder name would therefore cost
+ * the student a manual move on the host, and a marker following the same notes
+ * would see a directory listing instead of the site. The archive file name
+ * already identifies the submission, so the folder adds nothing inside.
+ *
+ * `admin/` is still a real directory in the admin archive, because the admin
+ * pages import ../../js/api.js by relative path and have to sit one level down
+ * for that to resolve.
+ *
+ * The completeness check below relies on this: it compares unprefixed paths,
+ * which is what a marker sees after extracting.
  */
-function collect(directory, { zipPrefix, filter = () => true } = {}) {
+function collect(directory, { zipPrefix = '', filter = () => true } = {}) {
   const entries = [];
 
   const walk = (current) => {
@@ -152,7 +167,7 @@ function collect(directory, { zipPrefix, filter = () => true } = {}) {
   walk(directory);
   return entries.map((entry) => ({
     ...entry,
-    zipPath: `${zipPrefix}/${entry.inside}`,
+    zipPath: zipPrefix ? `${zipPrefix}/${entry.inside}` : entry.inside,
   }));
 }
 
@@ -174,11 +189,14 @@ const CLIENT_SHARED = [
 const archives = [
   {
     file: `${username}A3-clientside.zip`,
-    prefix: `${username}A3-clientside`,
+    /*
+     * No leading folder: the walkthrough extracts this zip into public_html and
+     * expects index.html to land directly in the web root.
+     */
+    prefix: '',
     description: 'The public website (home, search, event detail, registration)',
     files: () =>
       collect(join(ROOT, 'clientside'), {
-        zipPrefix: `${username}A3-clientside`,
         // The admin pages are a separate deliverable, so they are excluded here
         // and shipped in the admin archive instead.
         filter: (inside) => !inside.startsWith('admin/'),
@@ -186,12 +204,14 @@ const archives = [
   },
   {
     file: `${username}A3-adminside.zip`,
-    prefix: `${username}A3-adminside`,
+    prefix: '',
     description: 'The staff website, with the shared modules it reuses',
     files: () => {
       const clientDir = join(ROOT, 'clientside');
+
+      /* admin pages stay under admin/ - their imports are ../../js/... */
       const adminEntries = collect(join(clientDir, 'admin'), {
-        zipPrefix: `${username}A3-adminside/admin`,
+        zipPrefix: 'admin',
       });
 
       /*
@@ -220,7 +240,7 @@ const archives = [
         sharedEntries.push({
           full,
           inside,
-          zipPath: `${username}A3-adminside/${inside}`,
+          zipPath: inside,
         });
       }
 
@@ -229,10 +249,10 @@ const archives = [
   },
   {
     file: `${username}A3-api.zip`,
-    prefix: `${username}A3-api`,
+    /* Extracted straight into the Node.js application root. */
+    prefix: '',
     description: 'The Node.js/Express REST API',
-    files: () =>
-      collect(join(ROOT, 'api'), { zipPrefix: `${username}A3-api` }),
+    files: () => collect(join(ROOT, 'api')),
   },
 ];
 
@@ -372,8 +392,12 @@ for (const archive of archives) {
   // folder prefix stripped, because that is the path a marker sees after
   // extracting. Comparing `inside` directly would compare prefixed paths such as
   // "LiuXuA3-adminside/admin/index.html" against unprefixed expectations.
+  //
+  // The prefix is empty for all three archives, so the strip is skipped rather
+  // than done blindly: `slice(''.length + 1)` would be `slice(1)`, which eats
+  // the first character of every path and makes the check silently useless.
   const inArchive = entries.map((entry) =>
-    entry.zipPath.slice(`${archive.prefix}/`.length)
+    archive.prefix ? entry.zipPath.slice(`${archive.prefix}/`.length) : entry.zipPath
   );
   const required =
     archive.file.includes('api')

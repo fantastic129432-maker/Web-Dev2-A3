@@ -4,12 +4,18 @@ mysql/
 start-mysql.cmd
 stop-mysql.cmd
 
-# Local one-click launcher. It is a convenience for this machine only: the
+# Local one-click launchers. They are a convenience for this machine only: the
 # documented entry point is `node tools/start-all.mjs`, which the README
-# describes and which needs no batch file. Keeping it untracked also keeps
+# describes and which needs no batch file. Keeping them untracked also keeps
 # Batchfile out of the GitHub language bar, which otherwise reports it as a
 # language used in the project.
+#
+# start-local.cmd runs start-local.ps1, which checks Node.js, installs the
+# dependencies the README asks for, creates api/.env when it is missing and
+# points the client at the local API before handing over to start-all.mjs.
 start.cmd
+start-local.cmd
+start-local.ps1
 
 # Dependencies
 node_modules/

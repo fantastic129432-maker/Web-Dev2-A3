@@ -184,46 +184,89 @@ VALUES (1, 'Duplicate Tester', 'amelia.hartley@example.com', 1);
 
 **Show:** Postman. First `GET /events/1`, and point at the new part of the body.
 
+In Postman this is already there, under **Event detail**:
+
+```
+/events/{{eventId}}  (full detail)      a GET, and {{eventId}} = 1
+```
+
+Every request in this section exists in the collection
+`docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json`, so nothing
+has to be built by hand. Two things make that possible:
+
+- **The requests use collection variables, not literal ids.** `{{newEventId}}`
+  holds the id of the event the create request just made, and
+  `{{registrationId}}` holds the id of the registration just created. The create
+  and register requests have a test script that saves them, so the ids chain from
+  one request to the next and no URL has to be edited between steps.
+- **The order matters.** `{{newEventId}}` is empty until the create request has
+  run, so the A3 folder is run from its first request onwards, in the order
+  listed. The whole collection can also be run top to bottom with the Collection
+  Runner.
+
+| Step | Folder and request | Expect |
+| --- | --- | --- |
+| 1 | `Event detail` -> `/events/{{eventId}}  (full detail)` | 200 |
+| 2 | `Assessment 3` -> `Events` -> `POST /events  (create, and save the id)` | 201 |
+| 3 | `Events` -> `POST /events  (missing required fields)  -> 400` | 400 |
+| 4 | `Events` -> `PUT /events/{{newEventId}}  (partial update, two fields)` | 200 |
+| 5 | `Registrations` -> `POST /events/{{newEventId}}/registrations  (register, and save the id)` | 201 |
+| 6 | `Registrations` -> same request, sent again unchanged | 409 |
+| 7 | `Registrations` -> `DELETE /events/{{newEventId}}  (blocked while it has registrations)` | 409 |
+| 8 | `Registrations` -> `DELETE /registrations/{{registrationId}}  (204, unblock the event)` | 204 |
+| 9 | `Registrations` -> `DELETE /events/{{newEventId}}  (204, the event that was created)` | 204 |
+
+Steps 7 and 9 are the same endpoint on the same event; only the registration in
+between changes, which is the comparison worth pointing at.
+
 > "The detail endpoint now also returns this event's registrations, ordered by
 > `registered_at` descending - the brief asks for 'sorted by the latest date when
 > the tickets were purchased' - with `ticketName`, `ticketPrice` and a computed
 > `totalAmount`. The id is the tie-breaker, so two registrations made in the same
 > second still order predictably."
 
-**Do:** send `POST /events` with a valid body.
+**Do:** in `Events`, send `POST /events  (create, and save the id)`.
 
 > "This is the create endpoint. It answers **201 Created** with a `Location`
 > header pointing at the new resource - `/api/events/12` - which is the RESTful
 > way to say 'it exists and here is where'. The body is the created event, read
 > back through the admin view, so a create response looks exactly like a later
-> read of the same event."
+> read of the same event.
 
-**Do:** send the same request with several fields missing, then point at the
-`details` array.
+> That id is saved into the `{{newEventId}}` collection variable by this
+> request's test script, which is why every later request can refer to it
+> without me editing a URL."
+
+**Do:** in `Events`, send `POST /events  (missing required fields)  -> 400`, then
+point at the `details` array.
 
 > "The validation collects **every** problem and returns one 400 with a
 > `details` array: the field and the message for each one. The admin form paints
 > each message next to its own control, so staff fix the form in one pass instead
 > of playing error whack-a-mole."
 
-**Do:** send `PUT /events/12` with only `{ "status": "suspended" }`.
+**Do:** in `Events`, send `PUT /events/{{newEventId}}  (partial update, two fields)`
+- it sends only `{ "goalAmount": 9000, "capacity": 200 }`, against the event the
+create request made with `goalAmount: 8000` and `capacity: 180`.
 
 > "An update is **partial**: only the fields in the body are validated and
-> changed. Here just the status changed; the capacity and the dates are
-> untouched. The admin update page uses exactly this - it sends only the fields
-> the user edited."
+> changed. Here just the goal and the capacity changed; the dates, the venue, the
+> description and the ticket tiers are untouched. The admin update page uses
+> exactly this - it sends only the fields the user edited."
 
 **If time allows, show the registration endpoints:**
 
-**Do:** send `POST /events/1/registrations` with a new email, then send it again
-unchanged.
+**Do:** in `Registrations`, send
+`POST /events/{{newEventId}}/registrations  (register, and save the id)`, then
+send the same request again unchanged.
 
 > "A registration is created inside the event it belongs to, which is why the URL
-> is `/events/1/registrations` rather than a verb. The first attempt is a 201 with
-> a `Location`. The second is a **409 Conflict**: that email has already
-> registered for this event. Same email, different event would be allowed -
-> that is the pair rule from the schema, and the API checks it first so the user
-> gets a readable message instead of a raw duplicate-key error."
+> is `/events/{{newEventId}}/registrations` rather than a verb. The first attempt
+> is a 201 with a `Location`, and it saves the new id into `{{registrationId}}`.
+> The second attempt is a **409 Conflict**: that email has already registered for
+> this event. Same email, different event would be allowed - that is the pair rule
+> from the schema, and the API checks it first so the user gets a readable message
+> instead of a raw duplicate-key error."
 
 ---
 
@@ -254,7 +297,14 @@ This is the A3 requirement the brief singles out, and the one to demonstrate in
 
 ### 5:00 - 5:30 | The blocked delete
 
-**Do:** in Postman, send `DELETE /events/1` (four registrations).
+**Do:** in `Registrations`, send
+`DELETE /events/{{newEventId}}  (blocked while it has registrations)`.
+
+The event was created earlier in this demo and now has one registration, so the
+url's `{{newEventId}}` resolves to it and nothing has to be typed in. The same
+request also works against a seeded event that has registrations - send
+`DELETE /events/1` (four registrations) if you would rather show a seeded one,
+but that means editing the URL for this step only.
 
 > "**409 Conflict.** The message names the event and the number of
 > registrations, and it tells the user what to do instead: set the status to
@@ -264,8 +314,13 @@ This is the A3 requirement the brief singles out, and the one to demonstrate in
 
 ### 5:30 - 6:00 | The successful delete, and the second line of defence
 
-**Do:** in Postman, send `DELETE /events/9` (a past event with no
-registrations).
+**Do:** in `Registrations`, send
+`DELETE /registrations/{{registrationId}}  (204, unblock the event)`, then send
+`DELETE /events/{{newEventId}}  (204, the event that was created)`.
+
+The first request removes the registration that was blocking the delete; the
+second is the **same endpoint that answered 409 a moment ago**, on the same
+event. Nothing else changed, which is the point.
 
 > "**204 No Content**, which is the RESTful answer to 'it is gone'. A 204 carries
 > no body, so the outcome is repeated in headers the client can read:
@@ -273,9 +328,10 @@ registrations).
 > in `Access-Control-Expose-Headers` - otherwise the browser would hide them from
 > the page.
 
-> The events I seeded with no registrations are deliberate: 9, 10 and 11. Without
-> an event that has none, I could only ever show the blocked delete and never a
-> successful one.
+> Both directions use events I control. The blocked delete hits the event this
+> demo created, and the successful one deletes that same event once its
+> registration is gone, so the seeded data is left exactly as it was found -
+> which is also what lets the whole collection be run top to bottom.
 
 > One more point about the block. Suppose I deleted that check from the code
 > entirely. MySQL would still refuse, because the foreign key is

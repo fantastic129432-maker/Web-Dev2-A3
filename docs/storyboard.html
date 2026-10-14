@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Storyboard &mdash; PROG2002 A3 Charity Events Website</title>
+<style>
+  :root {
+    --ink: #16211f;
+    --muted: #5c6b68;
+    --line: #c9d4d1;
+    --brand: #0f7b6c;
+    --tint: #f2f7f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1.25rem 4rem;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+    background: #eef2f1;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  .lede { color: var(--muted); margin: 0 0 2rem; }
+  .screen {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .screen__head { border-bottom: 2px solid var(--brand); padding-bottom: .6rem; margin-bottom: 1rem; }
+  .screen__head h2 { font-size: 1.1rem; margin: 0 0 .3rem; }
+  .screen__meta { margin: 0; color: var(--muted); font-size: .86rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+  .screen__meta code { background: var(--tint); padding: .1rem .35rem; border-radius: 3px; }
+  .sketch {
+    border: 2px dashed var(--line);
+    border-radius: 6px;
+    padding: .9rem 1rem 1rem;
+    margin-bottom: 1rem;
+    background: var(--tint);
+  }
+  .sketch__label { display: block; font-weight: bold; margin-bottom: .6rem; }
+  .shot { margin: 0; text-align: center; }
+  .shot img {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    max-height: 420px;
+    width: auto;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .shot figcaption { margin-top: .45rem; font-size: .82rem; color: var(--muted); }
+  .shot--missing { color: #a33; font-style: italic; padding: 2rem 0; text-align: center; }
+  table.fields { width: 100%; border-collapse: collapse; margin-bottom: .9rem; }
+  table.fields th {
+    width: 150px;
+    text-align: left;
+    vertical-align: top;
+    padding: .5rem .7rem;
+    background: var(--tint);
+    border: 1px solid var(--line);
+    font-size: .84rem;
+  }
+  table.fields td { vertical-align: top; padding: .5rem .7rem; border: 1px solid var(--line); }
+  table.fields ul { margin: 0; padding-left: 1.15rem; }
+  table.fields li { margin-bottom: .2rem; }
+  table.fields p { margin: 0; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: .9em; }
+  footer.page { color: var(--muted); font-size: .82rem; text-align: center; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Storyboard &mdash; 9 screens</h1>
+  <p class="lede">
+    PROG2002 A3 - Charity Events Website. One screen per page of the two websites.
+    Every line below is taken from the delivered HTML, CSS and JavaScript, not written from memory.
+  </p>
+  
+  <section class="screen">
+    <header class="screen__head">
+      <h2>HOME-01 &mdash; Home page</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Home page</span>
+        <span><strong>SCREEN ID:</strong> HOME-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>index.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-01.png" alt="Home page screenshot" /><figcaption>index.html &mdash; Home page</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Site header: brand, language picker, theme switch, menu (Home / Search Events / Admin site)</li><li>Hero copy block: eyebrow, h1, lead paragraph, two call-to-action buttons</li><li>&quot;Next events at a glance&quot; aside with an unordered list of the next three events</li><li>Statistics band with four stat tiles</li><li>Event grid: one card per current or upcoming event, plus a results count and a sort control</li><li>About section and Get in touch section</li><li>Site footer with the project note and the admin site link</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Hero uses a full-width dark brand panel with a soft radial wash (CSS gradient, no image file)</li><li>Each event card carries a 16:9 SVG illustration chosen from config.js EVENT_IMAGES</li><li>Four stat tiles in a responsive grid; the number is large, the label is small</li><li>Event grid is CSS Grid, auto-fitting columns, one column on narrow screens</li><li>Icons are inline SVG or text glyphs; no icon font is loaded</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;Every ticket you buy becomes help someone can feel.&quot;</li><li>Eyebrow: &quot;Community charity events&quot;</li><li>Buttons: &quot;Browse upcoming events&quot;, &quot;Search by date and location&quot;</li><li>Section headings: &quot;Where your support goes&quot;, &quot;Current and upcoming charity events&quot;, &quot;Who we are&quot;, &quot;Get in touch&quot;</li><li>Aside heading: &quot;Next events at a glance&quot;</li><li>Sort options: Date (soonest first) / Date (latest first) / Event name (A-Z) / Closest to goal</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video element on this page.</li><li>The only moving part is the loading state: the panels show &quot;Loading...&quot; until the API answers.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>The hero and the two lower sections are static HTML; only the aside, the stats and the grid come from the API, so the page still reads sensibly if the API is down.</li><li>The heading level order is h1 then h2 for every section, which is what the accessibility check verifies.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>Public landing page. Static welcome copy at the top, four live panels below it.</p></td></tr><tr><th>Content:</th><td><ul><li>Next-events list  &lt;- GET /api/events/upcoming (limit 3)</li><li>Statistics tiles  &lt;- GET /api/stats (events, organisations, raised, goal)</li><li>Event cards       &lt;- GET /api/events/upcoming</li><li>Each card shows: illustration, state badge, category, name, short description, date, venue, price from, goal progress bar</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Click a card or its &quot;View details&quot; link -&gt; event.html?id=N</li><li>Change the sort control -&gt; the grid re-renders in the browser, no page reload</li><li>Change language -&gt; every labelled string switches, the choice is stored in localStorage</li><li>Change theme -&gt; light / dark / follow system, applied before paint so there is no flash</li><li>Reset the filters link returns the grid to its default order</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>Illustrations: hand-authored SVG committed to clientside/images/ (nine files, one per category)</li><li>No stock photography and no external image host, so nothing can 404 at marking time</li><li>Card layout is a reusable DOM helper in js/dom.js, so every card is identical by construction</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: the site root, the brand link, or any menu item</li><li>Leaves to: search.html, event.html?id=N, admin/index.html, and the two in-page anchors #upcoming-events and #about</li><li>The menu deliberately has no &quot;Register&quot; item: registration is per event, so it starts from an event page</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>SEARCH-01 &mdash; Search events</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Search events</span>
+        <span><strong>SCREEN ID:</strong> SEARCH-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>search.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-02.png" alt="Search events screenshot" /><figcaption>search.html &mdash; Search events</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Breadcrumb: Home / Search events</li><li>Page header: h1 and a one-line lead</li><li>Filter panel with four fieldsets: When, Where, What kind of event, Other options</li><li>Date inputs (from / to) with a format hint under each</li><li>City input backed by a datalist of cities taken from the data</li><li>Category checkboxes, generated from the API</li><li>Two checkboxes: only free events, include past events</li><li>Apply and Reset buttons</li><li>Results region with a count line and the event grid</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Filter panel is a bordered card with a tinted header</li><li>The four fieldsets are numbered in their legends (1. When, 2. Where, 3. What kind, 4. Other)</li><li>Category checkboxes sit in a responsive auto-fit grid</li><li>Results use the same event card as the home page, so a card looks the same everywhere</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;Search charity events&quot;</li><li>Filter heading: &quot;Filter events&quot; with the hint &quot;All criteria are optional.&quot;</li><li>Legends: &quot;1. When&quot;, &quot;2. Where&quot;, &quot;3. What kind of event&quot;, &quot;4. Other options&quot;</li><li>Labels: &quot;From date&quot;, &quot;To date&quot;, &quot;City or town&quot;, &quot;Only free events&quot;, &quot;Include events that have already finished&quot;</li><li>Hint: &quot;Format: yyyy-mm-dd&quot; and &quot;Leave blank for any date. Example: 2026-10-01&quot;</li><li>Results heading: &quot;Matching events&quot;</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The category list and the city suggestions are both fetched, so each shows a short loading line first.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>Every criterion is optional and they combine with AND on the server, not in the browser, so the same URL can be replayed and shared.</li><li>Filters are mirrored into the address bar; opening that URL again reproduces the same result set.</li><li>The filter form is novalidate: dates are checked in script so the message can be specific rather than a browser bubble.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>Filter page. Four optional criteria, all applied as query parameters on one API call.</p></td></tr><tr><th>Content:</th><td><ul><li>Category checkboxes &lt;- GET /api/categories (name plus event count)</li><li>City suggestions    &lt;- GET /api/locations</li><li>Results             &lt;- GET /api/events with from, to, city, category, isFree, includePast, sort</li><li>Count line reads &quot;N events found&quot; and is announced through aria-live</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Submit the form -&gt; one API call, grid replaced, URL query string updated</li><li>Reset -&gt; all criteria cleared, URL cleaned, full list returned</li><li>Check or uncheck a category -&gt; applied on the next submit, not on every click</li><li>Click a result -&gt; event.html?id=N</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>No new artwork: the page reuses the event card renderer and the nine category SVGs</li><li>The numbering in the legends is text, not an image, so it translates with the rest of the page</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: the menu, the home hero button &quot;Search by date and location&quot;, or a shared filtered URL</li><li>Leaves to: event.html?id=N for any result, index.html via the breadcrumb</li><li>Returning to this page with filters still in the URL restores the same view</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>EVENT-01 &mdash; Event details</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Event details</span>
+        <span><strong>SCREEN ID:</strong> EVENT-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>event.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-03.png" alt="Event details screenshot" /><figcaption>event.html &mdash; Event details</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Breadcrumb: Home / Search events / Event details</li><li>Event hero: illustration, state badge, category, name, short description</li><li>Fact list: date and time, venue and city, capacity, organisation</li><li>Goal progress bar with the amount raised and the target</li><li>Full description and the &quot;where the money goes&quot; paragraph</li><li>Optional weather panel for the event date, when the venue has coordinates</li><li>Ticket tier table: tier name, price, availability</li><li>Registrations panel: how many have registered and how many tickets</li><li>Register button, or a disabled notice when the event is past</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Hero media is a 16:10 crop of the category SVG, object-fit cover</li><li>Goal progress is a CSS bar, filled proportionally, with the numbers beside it not inside it</li><li>Fact list is a two-column definition-style layout that stacks on narrow screens</li><li>State badge colour follows the event state: upcoming, ongoing or past</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>Section headings: &quot;About this event&quot;, &quot;Where the money goes&quot;, &quot;Tickets&quot;, &quot;Registrations so far&quot;</li><li>Register button label: &quot;Register for this event&quot;</li><li>Past events show: &quot;This event has already finished.&quot;</li><li>Weather panel states the forecast date and reads &quot;Forecast for &lt;date&gt;&quot;</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The page has one loading line that is replaced once GET /api/events/:id answers.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>The whole body is rendered by js/event.js into #event-root; the HTML file itself only carries the header, breadcrumb and footer, so there is one place where the layout is defined.</li><li>The Register control is a link to registration.html?id=N, not a button that posts here: the registration page owns the form and its validation.</li><li>Past events get a disabled control instead of a link, so the dead end is visible rather than silent.</li><li>The weather panel is optional and failure-tolerant: if the forecast request fails the panel simply is not shown, and the page is unaffected.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>One event in full: the story, the numbers, the ticket tiers, and the way in to registration.</p></td></tr><tr><th>Content:</th><td><ul><li>Event, tickets, progress &lt;- GET /api/events/:id</li><li>Registration counts      &lt;- included in the same response</li><li>Weather                  &lt;- GET api.open-meteo.com with the venue coordinates (external, optional)</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Register -&gt; registration.html?id=N</li><li>A past event shows a disabled button and explains why</li><li>Weather panel appears only when the venue has coordinates and the date is inside the forecast window</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>Artwork is the category SVG, the same file the card used, shown at a larger crop</li><li>The progress bar is drawn with CSS from two numbers, so it cannot drift from the text beside it</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: any event card on the home page or the search results</li><li>Leaves to: registration.html?id=N, back to search.html, or index.html through the breadcrumb</li><li>This is the only route into registration, by design</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>REGISTER-01 &mdash; Event registration</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Event registration</span>
+        <span><strong>SCREEN ID:</strong> REGISTER-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>registration.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-04.png" alt="Event registration screenshot" /><figcaption>registration.html &mdash; Event registration</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Breadcrumb: Home / Search events / Event details / Register for an event</li><li>Event summary: the event being registered for, with its date and venue</li><li>Form: full name, email, optional phone, ticket tier, number of tickets, notes</li><li>Client-side error region above the form, filled with field-level messages</li><li>Submit button and a cancel link back to the event</li><li>Success panel after the row is created, with a link to the event</li><li>Neutral notice when the page is opened without an id in the URL</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Form is a single-column card, 640 px maximum, so the reading line stays short</li><li>Required fields are marked with an asterisk in the label, not with colour alone</li><li>Error messages sit directly under the field they belong to and name the field</li><li>Success panel uses the same panel style as the rest of the site</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;Register for an event&quot;</li><li>Form heading: &quot;Event registration&quot;; lead: &quot;Fill in the form below to reserve your place.&quot;</li><li>Labels: &quot;Your name&quot;, &quot;Email address&quot;, &quot;Phone (optional)&quot;, &quot;Ticket type&quot;, &quot;Number of tickets&quot;, &quot;Anything we should know? (optional)&quot;</li><li>Submit: &quot;Confirm registration&quot;</li><li>Success heading: &quot;Your place is booked&quot;</li><li>Opened with no id: &quot;Choose an event first&quot; / &quot;Registration is per event. Open an event from the home page or the search page and use its Register button.&quot;</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The submit button carries a busy state while the request is in flight.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>Validation runs twice: in the browser for a fast, specific message, and again in the API, because the browser cannot be trusted and the brief asks for validation on both sides.</li><li>The ticket dropdown is filled from the event, so the tier always belongs to the event being registered for.</li><li>The number of tickets is capped at the tier availability, and the API refuses anything above it with a field-level 400.</li><li>Opening the page with no id shows a neutral instruction rather than an error: the visitor has not done anything wrong.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>The write path. A form that validates in the browser and then creates a registration row.</p></td></tr><tr><th>Content:</th><td><ul><li>Event being registered for &lt;- GET /api/events/:id</li><li>Ticket tiers            &lt;- same response</li><li>Submit                  -&gt; POST /api/events/:id/registrations</li><li>On success the response carries the new registration id and the confirmation panel uses it</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Submit with empty required fields -&gt; the form is not sent, messages appear under each field</li><li>Submit a valid form -&gt; one POST, button shows busy, then either the success panel or the API field errors</li><li>Cancel -&gt; back to event.html?id=N without writing anything</li><li>A duplicate email for the same event is refused by the database unique key and surfaced as a clear message</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>No artwork on this page beyond the shared header and footer: it is a task page, so the form is the content</li><li>All messages come from the dictionary, so the whole form translates</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: the Register control on an event page, which is the only way in</li><li>Leaves to: event.html?id=N on success or on cancel</li><li>The menu has no link to this page, because registration without a chosen event has no meaning</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>ADMIN-DASH-01 &mdash; Admin dashboard</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Admin dashboard</span>
+        <span><strong>SCREEN ID:</strong> ADMIN-DASH-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>admin/index.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-05.png" alt="Admin dashboard screenshot" /><figcaption>admin/index.html &mdash; Admin dashboard</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Admin header: brand, &quot;Staff area&quot; badge, link to the public site, language picker, theme button</li><li>Admin menu: Dashboard, Events, Add event, Update event, Registrations</li><li>Page header: h1 &quot;Overview&quot; and a lead line</li><li>Nine statistic tiles in two rows: total, by status, by time, registrations, tickets, value</li><li>Table of the most recent registrations</li><li>&quot;What do you want to do?&quot; panel with three task cards</li><li>Footer with the data source reported by GET /api/health and the year</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Admin header is a solid brand bar; the menu below it is sticky so it survives a long table</li><li>Stat tiles use a left border colour to separate status groups at a glance</li><li>The layout is a 1440 px maximum container, wider than the public site, because tables need room</li><li>No illustrations on this page: it is a working surface, so colour carries meaning instead</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;Overview&quot;</li><li>Lead: &quot;Every event in the system, whatever its publishing status.&quot;</li><li>Tile labels: &quot;Events&quot;, &quot;Active&quot;, &quot;Suspended&quot;, &quot;Cancelled&quot;, &quot;Upcoming&quot;, &quot;Past&quot;, &quot;Registrations&quot;, &quot;Tickets sold&quot;, &quot;Value of tickets sold&quot;</li><li>Panel heading: &quot;What do you want to do?&quot;</li><li>Cards: &quot;Add a new charity event&quot;, &quot;Update an existing event&quot;, &quot;Review the registrations&quot;</li><li>Recent table heading: &quot;Most recent registrations&quot;</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>Two regions are aria-live so a refresh is announced rather than silently swapped.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>This is the page that proves the admin site sees more than the public one: the counts include suspended and cancelled events, which the public API filters out.</li><li>Statistics are computed from the full admin list rather than from a separate summary endpoint, so the numbers cannot disagree with the table below them.</li><li>The footer prints the database user reported by the health endpoint, which makes a misconfigured deployment obvious on sight.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>Staff landing page. Counts across every event, whatever its publishing status.</p></td></tr><tr><th>Content:</th><td><ul><li>Counts and the recent table &lt;- GET /api/admin/events and GET /api/registrations</li><li>Total is 11 events here against 10 on the public site: the difference is the suspended one</li><li>Data source line &lt;- GET /api/health</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Any tile or task card leads to the page that acts on it</li><li>Language picker switches the whole admin interface and is shared with the public site</li><li>Theme button cycles follow-system, light, dark and persists the choice</li><li>The recent table is sorted newest first</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>No artwork: the visual language is typography, spacing and the brand bar</li><li>The three task cards use plain text headings and hints, which keeps them translatable</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry point: the menu, or the &quot;Admin site&quot; item on the public site</li><li>Leaves to: events.html, new.html, update.html, registrations.html, and back to the public site</li><li>Every admin page carries the same menu, built once by admin.js so no page can forget it</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>ADMIN-EVENTS-01 &mdash; Admin - all events</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Admin - all events</span>
+        <span><strong>SCREEN ID:</strong> ADMIN-EVENTS-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>admin/events.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-06.png" alt="Admin - all events screenshot" /><figcaption>admin/events.html &mdash; Admin - all events</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Events marked as the current page</li><li>Page header: &quot;All events&quot; and a lead explaining that suspended events appear here</li><li>Filter row: status select, time select, keyword search, Apply and Clear</li><li>Count line, announced through aria-live</li><li>Table: ID, event, status, dates, venue, registrations, tickets, actions</li><li>Row actions: view, edit, delete</li><li>Delete confirmation dialog and a feedback region for the result</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Status is shown as a coloured pill, so a suspended row is obvious while scanning</li><li>Long cells stack a primary line over a secondary line instead of wrapping awkwardly</li><li>Numeric columns are right-aligned; the table scrolls horizontally rather than squashing on narrow screens</li><li>The actions column holds text links, not icons, so nothing depends on an icon font</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;All events&quot;</li><li>Lead: &quot;Includes suspended and cancelled events, which the public website deliberately hides.&quot;</li><li>Filter labels: &quot;Status&quot;, &quot;Time&quot;, &quot;Search&quot;</li><li>Column headings: &quot;ID&quot;, &quot;Event&quot;, &quot;Status&quot;, &quot;Dates&quot;, &quot;Venue&quot;, &quot;Registrations&quot;, &quot;Tickets&quot;, &quot;Actions&quot;</li><li>Row actions: &quot;View&quot;, &quot;Edit&quot;, &quot;Delete&quot;</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The count line and the feedback region are both live regions.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>This page reads the admin endpoint, not the public one; that is the whole reason a second endpoint exists.</li><li>Filters work the same way as the public search: optional, combined, and reflected in the URL.</li><li>The delete action is the visible half of the data-integrity rule. When an event has registrations the API answers 409 and the page explains why instead of failing silently.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>The management table: every event, any status, with filters and a row action for each.</p></td></tr><tr><th>Content:</th><td><ul><li>Rows &lt;- GET /api/admin/events with status, state and keyword parameters</li><li>Registration and ticket counts come with each row, so the table needs one request</li><li>Delete -&gt; DELETE /api/events/:id, which answers 409 when registrations exist</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Apply -&gt; refilter the table through the API</li><li>View -&gt; opens the event on the public site in a new tab</li><li>Edit -&gt; update.html?id=N</li><li>Delete -&gt; confirmation first, then either the row disappears or the refusal is explained with the registration count</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>No artwork; the table is the content</li><li>The status pill colours are defined once in CSS and reused by the dashboard tiles</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, or the dashboard tile &quot;Events&quot;</li><li>Leaves to: update.html?id=N, the public event page, or the dashboard</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>ADMIN-NEW-01 &mdash; Admin - add event</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Admin - add event</span>
+        <span><strong>SCREEN ID:</strong> ADMIN-NEW-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>admin/new.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-07.png" alt="Admin - add event screenshot" /><figcaption>admin/new.html &mdash; Admin - add event</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Add event marked as current</li><li>Page header: &quot;Add a charity event&quot; and a lead</li><li>Form in sections: basics, money and capacity, ticket tiers</li><li>Selects for organisation, category, venue and image, each filled from the API</li><li>Date and time inputs, with a single-date shortcut that fills both</li><li>Free-event checkbox that disables the price fields</li><li>Repeatable ticket tier rows with an add and a remove control</li><li>Save button, reset link, and an error summary above the form</li><li>Success panel naming the new event id, with a link to open it</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Sections are separated by headings and spacing rather than by boxes, to keep the form calm</li><li>Ticket tier rows are a three-column grid that stacks on narrow screens</li><li>Hints sit under the field they explain, in smaller type</li><li>Required fields carry an asterisk in the label</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;Add a charity event&quot;</li><li>Lead: &quot;Fill in the details below. Fields marked with an asterisk are required, and the form is validated before anything is sent to the API.&quot;</li><li>Section headings: &quot;Event basics&quot;, &quot;Money and capacity&quot;, &quot;Ticket types&quot;</li><li>Ticket hint: &quot;Optional. Ticket types are what visitors actually buy, and they are where the prices on the website come from.&quot;</li><li>Buttons: &quot;Save event&quot;, &quot;Clear the form&quot;</li><li>Success: &quot;Event created with id {id}.&quot;</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The save button shows a busy label while the request is in flight.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>The same form component is used by the add and the update page, so a field can only be defined once.</li><li>Validation is duplicated on purpose: the browser gives an instant message, and the API refuses bad data even if the browser is bypassed.</li><li>The ticket tier list is optional: an event with no tiers is valid, and the website falls back to the goal amount for its price line.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>Create form. Validates in the browser, then posts once and reports the new id.</p></td></tr><tr><th>Content:</th><td><ul><li>Organisation, category and venue lists &lt;- GET /api/admin/reference-data</li><li>Image list comes from config.js so the form and the site cannot disagree about which artwork exists</li><li>Submit -&gt; POST /api/events</li><li>On success the response id is shown and linked</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Pick a single date -&gt; start and end date are filled for you</li><li>Tick &quot;this is a free event&quot; -&gt; price inputs are disabled and cleared</li><li>Add tier -&gt; one more row; remove -&gt; that row disappears</li><li>Save with problems -&gt; nothing is sent, the summary lists each field and the first one is focused</li><li>Save a valid form -&gt; one POST, then the success panel</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>The image dropdown lists the nine committed SVGs by name, so a staff member cannot point at a file that does not exist</li><li>No rich text editor: the description is plain text, which keeps the stored data predictable</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, or the dashboard card &quot;Add a new charity event&quot;</li><li>Leaves to: the public page of the created event, or back to the dashboard</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>ADMIN-UPDATE-01 &mdash; Admin - update event</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Admin - update event</span>
+        <span><strong>SCREEN ID:</strong> ADMIN-UPDATE-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>admin/update.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-08.png" alt="Admin - update event screenshot" /><figcaption>admin/update.html &mdash; Admin - update event</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Update event marked as current</li><li>Page header: &quot;Update a charity event&quot; and a lead</li><li>Event picker: a select of every event, newest first, each labelled with id, name, status and registration count</li><li>Nothing-chosen state with an instruction</li><li>Edit form, the same sections as the add page, pre-filled from the chosen event</li><li>Stored ticket tiers shown as a read-only table</li><li>Registrations panel for the chosen event, with a delete action per row</li><li>Save button and a feedback region</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>The picker sits in its own panel above the form, because everything below depends on it</li><li>The form header repeats the event identity: id, name, organisation, venue, city, status, registration count</li><li>Stored tiers are a plain table, visually quieter than the editable fields, to signal that they are reference only</li><li>The registrations table reuses the shared table component</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;Update a charity event&quot;</li><li>Lead: &quot;Choose an event, change what you need, and save. Only the fields you change are sent.&quot;</li><li>Picker heading: &quot;Choose an event&quot;; hint: &quot;Every event is listed, including suspended and cancelled ones.&quot;</li><li>Nothing chosen: &quot;No event chosen yet&quot; / &quot;Pick an event above to load its details and its registrations.&quot;</li><li>Tier hint: &quot;Ticket types are listed for reference. The update endpoint adds tiers to an event that has none; edit the stored tiers in the database instead.&quot;</li><li>Save: &quot;Save changes&quot;</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>Choosing an event triggers a second request, so the form and the registrations have their own loading states.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>Only changed fields are sent. The form compares the current values with the ones it loaded and builds a minimal payload, which is why the API can accept a partial update.</li><li>The registrations panel is here rather than on a separate page because the brief asks this interface to retrieve and display the registration data for the event being edited.</li><li>Deleting a registration is offered because that is the only way to make an event with registrations deletable again, and it is stated in the confirmation.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>Pick an event, edit it, and see its registrations beside the form.</p></td></tr><tr><th>Content:</th><td><ul><li>Picker list      &lt;- GET /api/admin/events</li><li>Chosen event     &lt;- GET /api/admin/events/:id, which includes its ticket tiers and registrations</li><li>Save             -&gt; PUT /api/events/:id with only the changed fields</li><li>Delete a row     -&gt; DELETE /api/registrations/:id</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Choose an event -&gt; form and registration panel load for it</li><li>Edit and save -&gt; one PUT with the delta, then a confirmation naming the event</li><li>Save without changing anything -&gt; the page says so rather than sending an empty payload</li><li>Delete a registration -&gt; confirmation naming the attendee, then the row is removed and the count updates</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>No new artwork</li><li>The form reuses the add page component, so the two pages cannot drift apart visually or in behaviour</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, the dashboard card, or the Edit link on the events table</li><li>Leaves to: event.html?id=N or admin/events.html</li><li>Arriving with ?id=N preselects that event, so the events table can link straight into it</li></ul></td></tr>
+    </table>
+  </section>
+  <section class="screen">
+    <header class="screen__head">
+      <h2>ADMIN-REG-01 &mdash; Admin - registrations</h2>
+      <p class="screen__meta">
+        <span><strong>TITLE:</strong> Admin - registrations</span>
+        <span><strong>SCREEN ID:</strong> ADMIN-REG-01</span>
+        <span><strong>DATE:</strong> 30/09/2026</span>
+      </p>
+      <p class="screen__meta"><code>admin/registrations.html</code></p>
+    </header>
+
+    <div class="sketch">
+      <span class="sketch__label">&#9312; ELEMENTS:</span>
+      <figure class="shot"><img src="storyboard-shots/screen-09.png" alt="Admin - registrations screenshot" /><figcaption>admin/registrations.html &mdash; Admin - registrations</figcaption></figure>
+    </div>
+
+    <table class="fields">
+      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Registrations marked as current</li><li>Page header: &quot;Registrations&quot; and a lead</li><li>Filter row: event select, keyword search, Apply and Clear</li><li>Count line and a total value line, both live regions</li><li>Table: ID, attendee with email under it, event, ticket type, tickets, value, registered date, actions</li><li>Row action: delete, with a confirmation naming the attendee</li></ul></td></tr><tr><th>GRAPHICS:</th><td><ul><li>Attendee cell stacks the name over the email, which keeps the column narrow and scannable</li><li>Numeric columns are right-aligned; money is shown to two decimals</li><li>The total value sits at the end of the count line rather than as a separate summary card, so the two figures are read together</li></ul></td></tr><tr><th>TEXT:</th><td><ul><li>h1: &quot;Registrations&quot;</li><li>Lead: &quot;Every registration, newest first. Filter by event, or search by name and email.&quot;</li><li>Filter labels: &quot;Event&quot; (default &quot;All events&quot;), &quot;Search&quot;</li><li>Column headings: &quot;ID&quot;, &quot;Attendee&quot;, &quot;Event&quot;, &quot;Ticket type&quot;, &quot;Tickets&quot;, &quot;Value&quot;, &quot;Registered&quot;, &quot;Actions&quot;</li><li>Delete confirmation: &quot;Delete this registration?&quot; and a body naming the attendee</li></ul></td></tr><tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The count and total lines are live regions so a filter change is announced.</li></ul></td></tr><tr><th>NOTES</th><td><ul><li>Newest first is the default because the useful question is almost always &quot;what came in recently&quot;.</li><li>This page is where the 20 seeded registrations are visible in one place, which is also what makes the delete rule on the events page demonstrable.</li><li>Searching covers name and email together, because a staff member may have either one to hand.</li></ul></td></tr>
+    </table>
+
+    <table class="fields">
+      <tr><th>Description:</th><td><p>Every registration in one table, newest first, filterable by event and searchable by attendee.</p></td></tr><tr><th>Content:</th><td><ul><li>Event filter list &lt;- GET /api/admin/events</li><li>Rows              &lt;- GET /api/registrations with eventId and keyword</li><li>Each row carries the attendee, the event, the tier name, the ticket count, the computed value and the date</li><li>Delete            -&gt; DELETE /api/registrations/:id</li></ul></td></tr><tr><th>Interactions:</th><td><ul><li>Apply -&gt; one API call with the chosen event and keyword</li><li>Clear -&gt; back to every registration, newest first</li><li>Delete -&gt; confirmation first, then the row goes and the count and total update</li></ul></td></tr><tr><th>Media Creation:</th><td><ul><li>No artwork</li><li>The money column is formatted by one shared helper, so the value matches the dashboard total</li></ul></td></tr><tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, or the dashboard card &quot;Review the registrations&quot;</li><li>Leaves to: the event on the public site, or back to the dashboard</li></ul></td></tr>
+    </table>
+  </section>
+  <footer class="page">
+    Generated from <code>docs/storyboard.html</code> &middot; the Word version is <code>docs/Storyboard.docx</code>
+  </footer>
+</div>
+</body>
+</html>
