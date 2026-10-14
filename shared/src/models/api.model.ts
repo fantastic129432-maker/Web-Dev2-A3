@@ -44,16 +44,34 @@ export interface ApiEnvelope<T> {
 }
 
 /**
- * One per-field problem. A 400 (validation) sends an array of these; a 409
- * (conflict) sends an object describing the clash. The extra fields below carry
- * the conflict payload the delete rule returns.
+ * The payload a failed write returns.
+ *
+ * Two DIFFERENT shapes travel in `details`, which is why almost every field here
+ * is optional:
+ *
+ *   a 400 (validation)  an ARRAY of { field, message } - one entry per problem,
+ *                       rendered next to the offending form control
+ *   a 409 (conflict)    an OBJECT of facts about the clash, with NO message:
+ *                       { eventId, eventName, registrationCount, suggestion }
+ *
+ * The 409 is the delete rule: the event cannot be removed because registrations
+ * exist, so the API sends the numbers the UI needs to explain itself rather than
+ * a sentence. `message` is therefore optional, and an accessor that insists on it
+ * will silently return nothing for every conflict - which is exactly the bug
+ * ApiError.conflictDetails used to have.
  */
 export interface ApiErrorDetail {
+  /** The form field the problem belongs to (400 only). */
   field?: string;
-  message: string;
+  /** The human-readable problem (400 only). */
+  message?: string;
+  /** The event that could not be deleted (409 only). */
   eventId?: number;
+  /** Its name, so the message can say which event (409 only). */
   eventName?: string;
+  /** How many registrations block the delete (409 only). */
   registrationCount?: number;
+  /** What the API suggests instead, e.g. "suspend-instead" (409 only). */
   suggestion?: string;
 }
 

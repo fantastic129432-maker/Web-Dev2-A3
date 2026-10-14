@@ -100,9 +100,16 @@ export class ApiError extends Error {
    */
   get fieldErrors(): { field: string; message: string }[] {
     if (!Array.isArray(this.details)) return [];
-    return this.details
-      .filter((item): item is ApiErrorDetail => Boolean(item) && typeof item.message === 'string')
-      .map((item) => ({ field: item.field ?? '', message: item.message }));
+
+    // An explicit loop rather than filter+map: `message` is optional on
+    // ApiErrorDetail (a 409 conflict carries facts, not a message), so narrowing
+    // has to happen where the value is read.
+    const problems: { field: string; message: string }[] = [];
+    for (const item of this.details) {
+      if (!item || typeof item.message !== 'string') continue;
+      problems.push({ field: item.field ?? '', message: item.message });
+    }
+    return problems;
   }
 
   /** The per-field problems keyed by field name, for a form to look up. */
@@ -115,14 +122,31 @@ export class ApiError extends Error {
   }
 
   /**
-   * The conflict payload of a blocked delete, when the API sent one.
-   * The admin list uses it to say WHICH event was kept and why.
+   * The facts behind a blocked delete, when the API sent them.
+   *
+   * The admin list uses this to say WHICH event was kept and why, so getting it
+   * wrong is not cosmetic: it turns "Coastal Stars Gala Dinner cannot be deleted
+   * because 3 registrations exist" into a bare error.
+   *
+   * The check is deliberately about the FACTS, not about a `message`. This API's
+   * 409 sends `{ eventId, eventName, registrationCount, suggestion }` with no
+   * message at all - an earlier version of this accessor required one and so
+   * returned null for every conflict it was written to explain. It now accepts
+   * any object carrying at least one recognisable conflict fact, and still
+   * returns null for an object payload that means something else.
    */
   get conflictDetails(): ApiErrorDetail | null {
     if (Array.isArray(this.details) || this.details === null) return null;
-    const record = this.details;
-    if (typeof record['message'] !== 'string') return null;
-    return record as unknown as ApiErrorDetail;
+    if (typeof this.details !== 'object') return null;
+
+    const record = this.details as Record<string, unknown>;
+    const carriesConflictFacts =
+      typeof record['eventName'] === 'string' ||
+      typeof record['registrationCount'] === 'number' ||
+      typeof record['eventId'] === 'number' ||
+      typeof record['suggestion'] === 'string';
+
+    return carriesConflictFacts ? (record as unknown as ApiErrorDetail) : null;
   }
 
   /* ------------------------------------------------------------- display */

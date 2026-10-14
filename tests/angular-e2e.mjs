@@ -469,6 +469,45 @@ async function main() {
     );
     await adminRegistrations.page.close();
 
+    /* =================================== the delete rule, driven through the UI */
+    // Event 2 has registrations, so DELETE is refused with 409 and a FACTS object
+    // { eventId, eventName, registrationCount, suggestion } - deliberately with no
+    // `message`. This asserts those facts reach the screen, which is the whole job
+    // of ApiError.conflictDetails: when that accessor returned null the staff
+    // member saw a bare error with no event name and no numbers.
+    const blockedDelete = await visit(`${ADMIN}/events`, { waitFor: eventName });
+    const expectedCount = eventDetail.registrations?.length ?? 0;
+
+    const deleteStarted = await blockedDelete.page.evaluate((name) => {
+      const row = [...document.querySelectorAll('tr')].find((tr) =>
+        (tr.textContent ?? '').includes(name)
+      );
+      if (!row) return false;
+      const control = [...row.querySelectorAll('button, a')].find((node) =>
+        /delete/i.test(node.textContent ?? '')
+      );
+      if (!control) return false;
+      control.click();
+      return true;
+    }, eventName);
+
+    // The list asks for confirmation first, so confirm it.
+    await sleep(700);
+    const deleteConfirmed = await clickByText(blockedDelete.page, 'Delete event');
+    const bannerShown = await waitForText(blockedDelete.page, 'Deletion blocked', 12_000);
+    const blockedText = await blockedDelete.page.evaluate(() => document.body.innerText);
+
+    record(
+      'a blocked delete explains itself with the event name and the registration count',
+      deleteStarted &&
+        bannerShown &&
+        blockedText.includes(eventName) &&
+        blockedText.includes(String(expectedCount)),
+      `delete started: ${deleteStarted}, confirmed: ${deleteConfirmed}, banner: ${bannerShown}` +
+        (bannerShown ? '' : `; page says: ${excerpt(blockedText)}`)
+    );
+    await blockedDelete.page.close();
+
     /* ============================================ admin interactions (clicks) */
     // Why click and not just render? A subscription created OUTSIDE a constructor
     // (in a Save or Delete handler) cannot call `takeUntilDestroyed()` with no
