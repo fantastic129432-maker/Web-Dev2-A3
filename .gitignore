@@ -33,6 +33,13 @@ logs/
 # Build and submission artefacts
 *.zip
 dist/
+# The API is TypeScript; `npm run build:api` compiles api/*.ts into api/dist,
+# which is what actually runs locally and on the SCU cPanel. The rule above
+# already covers it; this line documents the intent.
+api/dist/
+# Angular CLI build cache and the pnpm/npm download caches.
+.angular/
+.cache/
 _check-api/
 _check-clientside/
 usernameA2-api/

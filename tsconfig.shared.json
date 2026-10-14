@@ -1,0 +1,19 @@
+/* Type-check the shared library on its own.
+ *
+ * shared/src is compiled into BOTH Angular applications, but only the files each
+ * application happens to import are checked by its build. A service that neither
+ * app imports yet (the weather service, for example, before the event page
+ * exists) would otherwise carry a type error that nobody sees until much later.
+ *
+ * Run:  npm run check:shared
+ */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": []
+  },
+  "include": [
+    "shared/src/**/*.ts"
+  ]
+}

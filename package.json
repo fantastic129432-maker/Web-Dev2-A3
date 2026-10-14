@@ -1,17 +1,30 @@
 {
   "name": "prog2002-a3-charity-events",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "PROG2002 Web Development II - Assessment 3: complete dynamic website (MySQL + NodeJS/Express REST API + client-side website + admin-side website)",
-  "author": "<your name> (<your SCU username>)",
+  "description": "PROG2002 Web Development II - Assessment 3: dynamic charity events website. Node.js/Express/MySQL REST API with two Angular v22 frontends (client-side website + admin-side website), written in HTML, TypeScript and CSS, plus the Open-Meteo weather API.",
+  "author": "LiuXu (xliu67)",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
+    "ng": "ng",
     "start": "node tools/start-all.mjs",
+    "start:api": "npm run build:api && node api/dist/server.js",
+    "start:client": "ng serve clientside",
+    "start:admin": "ng serve adminside",
+    "build": "npm run build:api && npm run build:client && npm run build:admin",
+    "build:api": "npm --prefix api run build",
+    "build:client": "ng build clientside",
+    "build:admin": "ng build adminside",
+    "build:local": "ng build clientside --configuration development && ng build adminside --configuration development",
+    "watch:client": "ng build clientside --watch --configuration development",
+    "watch:admin": "ng build adminside --watch --configuration development",
     "test": "node tests/run-tests.js",
     "test:mysql": "node -e \"process.env.TEST_DATA_SOURCE='mysql';require('./tests/run-tests.js')\"",
+    "test:ng": "ng test clientside && ng test adminside",
+    "test:e2e": "node tests/angular-e2e.mjs",
     "db:load": "node tools/load-database.mjs",
     "db:dump": "node tools/export-database-dump.mjs",
     "db:dump:check": "node tools/export-database-dump.mjs --check",
@@ -26,13 +39,28 @@
     "check:secrets": "node tools/check-no-secrets.mjs",
     "check:contrast": "node tools/check-contrast.mjs",
     "check:translations": "node tools/check-translations.mjs",
-    "check:theme": "node tools/sync-theme-snippet.mjs --check",
-    "check:frameworks": "node tools/check-no-frameworks.mjs",
-    "start:api": "node api/server.js",
-    "start:client": "node clientside/serve-clientside.js",
+    "check:angular": "node tools/check-angular-architecture.mjs",
+    "check:shared": "tsc -p tsconfig.shared.json",
+    "generate:i18n": "node tools/generate-i18n-data.mjs",
     "generate:local-data": "node tools/generate-local-data.js"
   },
+  "dependencies": {
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
   "devDependencies": {
-    "jsdom": "^24.1.0"
+    "@angular/build": "^22.2.2",
+    "@angular/cli": "^22.2.2",
+    "@angular/compiler-cli": "^22.2.0",
+    "jsdom": "^30.0.0",
+    "puppeteer-core": "^24.0.0",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.0"
   }
 }

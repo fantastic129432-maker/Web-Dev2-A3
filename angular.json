@@ -1,0 +1,178 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "npm",
+    "analytics": false
+  },
+  "newProjectRoot": "projects",
+  "projects": {
+    "clientside": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "clientside",
+      "sourceRoot": "clientside/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "clientside/src/main.ts",
+            "index": "clientside/src/index.html",
+            "tsConfig": "clientside/tsconfig.app.json",
+            "polyfills": [],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "clientside/public"
+              },
+              {
+                "glob": "**/*",
+                "input": "assets",
+                "output": "assets"
+              }
+            ],
+            "styles": [
+              "clientside/src/styles.css"
+            ],
+            "outputPath": {
+              "base": "dist/clientside",
+              "browser": ""
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "clientside/src/environments/environment.ts",
+                  "with": "clientside/src/environments/environment.production.ts"
+                }
+              ]
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4200
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "clientside:build:production"
+            },
+            "development": {
+              "buildTarget": "clientside:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
+        }
+      }
+    },
+    "adminside": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "adminside",
+      "sourceRoot": "adminside/src",
+      "prefix": "admin",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "adminside/src/main.ts",
+            "index": "adminside/src/index.html",
+            "tsConfig": "adminside/tsconfig.app.json",
+            "polyfills": [],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "adminside/public"
+              },
+              {
+                "glob": "**/*",
+                "input": "assets",
+                "output": "assets"
+              }
+            ],
+            "styles": [
+              "adminside/src/styles.css"
+            ],
+            "outputPath": {
+              "base": "dist/adminside",
+              "browser": ""
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
+                }
+              ],
+              "outputHashing": "all",
+              "baseHref": "/admin/",
+              "fileReplacements": [
+                {
+                  "replace": "adminside/src/environments/environment.ts",
+                  "with": "adminside/src/environments/environment.production.ts"
+                }
+              ]
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4300
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "adminside:build:production"
+            },
+            "development": {
+              "buildTarget": "adminside:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
+        }
+      }
+    }
+  }
+}

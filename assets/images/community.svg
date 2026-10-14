@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480" role="img" aria-label="Volunteers and community members at a charity event">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d9f0ea"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17a08c"/>
+      <stop offset="1" stop-color="#0b5f53"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="480" fill="url(#sky)"/>
+  <circle cx="590" cy="96" r="54" fill="#ffe6b8"/>
+  <path d="M0 300c120-40 210 10 330-18s260-46 390-6v204H0z" fill="url(#hill)"/>
+  <path d="M0 372c150-30 260 18 380-6s230-34 340-4v118H0z" fill="#08453c" opacity="0.55"/>
+
+  <!-- bunting -->
+  <g>
+    <path d="M0 60c120 40 240 40 360 6s240-34 360 6" fill="none" stroke="#0f7b6c" stroke-width="4"/>
+    <g fill="#f0a04b">
+      <polygon points="70,72 106,74 88,110"/>
+      <polygon points="200,92 236,92 218,128"/>
+      <polygon points="330,90 366,86 348,124"/>
+      <polygon points="470,76 506,72 488,110"/>
+      <polygon points="610,82 646,84 628,120"/>
+    </g>
+  </g>
+
+  <!-- people -->
+  <g>
+    <g fill="#123a52">
+      <circle cx="150" cy="286" r="26"/>
+      <path d="M118 314h64l14 96h-92z"/>
+    </g>
+    <g fill="#0f7b6c">
+      <circle cx="290" cy="266" r="28"/>
+      <path d="M256 296h68l16 112h-100z"/>
+    </g>
+    <g fill="#2c4a53">
+      <circle cx="430" cy="286" r="26"/>
+      <path d="M398 314h64l14 96h-92z"/>
+    </g>
+    <g fill="#f0a04b">
+      <circle cx="556" cy="272" r="25"/>
+      <path d="M526 300h60l13 108h-86z"/>
+    </g>
+  </g>
+
+  <!-- heart being passed along -->
+  <g fill="#ffffff" opacity="0.95">
+    <path d="M338 200c12-24 40-24 52 0 12-24 40-24 52 0 9 18-9 40-52 68-43-28-61-50-52-68z" transform="translate(-40 0) scale(0.62) translate(180 120)"/>
+  </g>
+  <g fill="#e2453c" opacity="0.9">
+    <path d="M300 196c8-16 26-16 34 0 8-16 26-16 34 0 6 12-6 26-34 44-28-18-40-32-34-44z" transform="translate(110 -10)"/>
+  </g>
+
+  <!-- donation buckets -->
+  <g fill="#ffffff" opacity="0.9">
+    <rect x="96" y="404" width="52" height="44" rx="6"/>
+    <rect x="352" y="404" width="52" height="44" rx="6"/>
+  </g>
+  <g fill="#0f7b6c">
+    <rect x="96" y="398" width="52" height="12" rx="6"/>
+    <rect x="352" y="398" width="52" height="12" rx="6"/>
+  </g>
+</svg>
