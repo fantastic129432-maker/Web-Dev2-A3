@@ -25,13 +25,13 @@ import env = require('../config/env');
 import { HttpError } from '../utils/errors';
 
 /** The HTTP methods this API implements. */
-export const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
+const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
 
 /** Headers a browser is allowed to send with a cross-origin request. */
-export const ALLOWED_HEADERS = ['Content-Type', 'Accept'];
+const ALLOWED_HEADERS = ['Content-Type', 'Accept'];
 
 /** Response headers the client websites are allowed to read. */
-export const EXPOSED_HEADERS = [
+const EXPOSED_HEADERS = [
   'X-RateLimit-Limit',
   'X-RateLimit-Remaining',
   'X-RateLimit-Reset',

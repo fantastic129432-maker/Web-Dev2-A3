@@ -50,7 +50,6 @@ export const APP_CONFIG = {
   storageKeys: {
     language: 'charity-events:language',
     theme: 'charity-events:theme',
-    lastEvent: 'charity-events:last-viewed-event-id',
   },
 } as const;
 

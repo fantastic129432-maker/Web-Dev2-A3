@@ -20,7 +20,7 @@
 import type { ApiErrorBody, ApiErrorDetail } from '../models/api.model';
 
 /** HTTP status codes this application reacts to by name. */
-export const HTTP_STATUS = {
+const HTTP_STATUS = {
   badRequest: 400,
   notFound: 404,
   conflict: 409,

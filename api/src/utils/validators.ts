@@ -28,7 +28,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^\d{2}:\d{2}(:\d{2})?$/;
 
 /** Read a query parameter that may legitimately appear more than once. */
-export function asArray(value: unknown): unknown[] {
+function asArray(value: unknown): unknown[] {
   if (value === undefined || value === null) return [];
   return Array.isArray(value) ? value : [value];
 }
@@ -72,7 +72,7 @@ export function isValidDate(value: unknown): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
-export function isValidTime(value: unknown): boolean {
+function isValidTime(value: unknown): boolean {
   if (typeof value !== 'string' || !TIME_PATTERN.test(value)) return false;
   const [hours, minutes, seconds = '00'] = value.split(':');
   return Number(hours) < 24 && Number(minutes) < 60 && Number(seconds) < 60;

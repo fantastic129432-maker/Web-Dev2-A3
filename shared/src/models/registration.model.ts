@@ -43,11 +43,3 @@ export interface RegistrationInput {
   notes?: string | null;
 }
 
-/**
- * How the registration list is ordered, as the brief requires ("sorted by the
- * latest date when the tickets were purchased").
- *
- *   'newest' - most recent purchase first, the default on the event page
- *   'oldest' - the reverse, useful on the admin detail page
- */
-export type RegistrationOrder = 'newest' | 'oldest';

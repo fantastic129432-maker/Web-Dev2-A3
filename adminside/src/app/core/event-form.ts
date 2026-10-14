@@ -38,7 +38,7 @@ import { EVENT_IMAGES, PUBLISH_STATUSES } from '@charity/shared/config/app-confi
 import type { EventDetail, EventInput, TicketType, TicketTypeInput } from '@charity/shared/models/event.model';
 
 /** The default publishing status, and the one the database column declares. */
-export const DEFAULT_STATUS = PUBLISH_STATUSES[0];
+const DEFAULT_STATUS = PUBLISH_STATUSES[0];
 
 /**
  * Is this value "not filled in"?
@@ -48,7 +48,7 @@ export const DEFAULT_STATUS = PUBLISH_STATUSES[0];
  * helper keeps that decision in one place instead of scattering
  * `v === null || v === undefined || v === ''` through every comparison.
  */
-export function isBlank(value: unknown): boolean {
+function isBlank(value: unknown): boolean {
   return value === null || value === undefined || value === '';
 }
 
@@ -101,7 +101,7 @@ export type TicketTierGroup = FormGroup<{
  * rest of the row has to be coherent. Validating the ROW is what lets the price
  * rule know the row is in use, which a per-control validator could not.
  */
-export const ticketTierValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+const ticketTierValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
   const row = control.value as TicketTierValue;
   const name = text(row.ticketName).trim();
   const description = text(row.description).trim();
@@ -150,7 +150,7 @@ export function createTicketTier(initial?: TicketType | null): TicketTierGroup {
    ========================================================================== */
 
 /** Whole numbers only (capacity and ticket quantities are INT columns). */
-export const integerValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+const integerValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
   if (isBlank(control.value)) return null;
   const number = Number(control.value);
   return Number.isFinite(number) && Number.isInteger(number) ? null : { integer: true };
@@ -167,7 +167,7 @@ export const integerValidator: ValidatorFn = (control: AbstractControl): Validat
  * which keeps the message where the person is looking without a validator that
  * reaches into its siblings.
  */
-export const eventWindowValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+const eventWindowValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
   const value = control.value as {
     eventDate: string;
     dateStart: string;
@@ -301,7 +301,7 @@ export function resetEventForm(form: EventFormGroup, initial?: EventDetail | nul
    ========================================================================== */
 
 /** The tier rows that are actually filled in, in the API's shape. */
-export function ticketTierInputs(tiers: FormArray<TicketTierGroup>): TicketTypeInput[] {
+function ticketTierInputs(tiers: FormArray<TicketTierGroup>): TicketTypeInput[] {
   const payload: TicketTypeInput[] = [];
 
   for (const group of tiers.controls) {
@@ -395,7 +395,7 @@ function normalise(value: unknown): string | number | null {
 }
 
 /** True when the two values mean the same thing to the database. */
-export function isSameValue(left: unknown, right: unknown): boolean {
+function isSameValue(left: unknown, right: unknown): boolean {
   const a = normalise(left);
   const b = normalise(right);
 

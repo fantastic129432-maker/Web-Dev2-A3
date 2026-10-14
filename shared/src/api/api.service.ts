@@ -77,7 +77,7 @@ interface ApiResult<T> {
  *   * an array is appended repeatedly: ?category=1&category=2, which is one of
  *     the two forms the API accepts.
  */
-export function buildHttpParams(query: Record<string, QueryValue> = {}): HttpParams {
+function buildHttpParams(query: Record<string, QueryValue> = {}): HttpParams {
   let params = new HttpParams();
 
   for (const [key, value] of Object.entries(query)) {
@@ -101,7 +101,7 @@ export function buildHttpParams(query: Record<string, QueryValue> = {}): HttpPar
  * Fill in the paging fields the UI relies on. A list endpoint always sends them,
  * but a defensive default means a control can render even if one is missing.
  */
-export function toPagedMeta(meta: ApiMeta, fallbackCount: number): PagedMeta {
+function toPagedMeta(meta: ApiMeta, fallbackCount: number): PagedMeta {
   return {
     ...meta,
     total: meta.total ?? fallbackCount,

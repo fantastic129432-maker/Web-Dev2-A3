@@ -33,7 +33,6 @@ import { SiteHeaderComponent } from './layout/site-header';
   selector: 'app-root',
   imports: [RouterOutlet, SiteHeaderComponent, SiteFooterComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css',
 })
 export class App {
   private readonly router = inject(Router);
