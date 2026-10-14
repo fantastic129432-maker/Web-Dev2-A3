@@ -40,6 +40,19 @@ const DIST_CLIENT = join(ROOT, 'dist', 'clientside');
 const DIST_ADMIN = join(ROOT, 'dist', 'adminside');
 const NG_CLI = join(ROOT, 'node_modules', '@angular', 'cli', 'bin', 'ng.js');
 
+/**
+ * npm's own CLI entry point, run through the SAME Node executable as this script.
+ *
+ * Why not just spawn 'npm'? Since the security release in Node 18.20/20.12,
+ * spawning a .cmd or .bat file with `shell: false` throws EINVAL on Windows, and
+ * `npm` on Windows is npm.cmd. The failure mode is nasty: the spawn returns
+ * status null with an ENOENT error and no output at all, so a build step looks
+ * like it failed for no reason. Running node with npm's cli.js avoids the shell
+ * entirely and works on every platform.
+ */
+const NPM_CLI = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+const HAS_NPM_CLI = existsSync(NPM_CLI);
+
 const args = process.argv.slice(2);
 const noBrowser = args.includes('--no-browser');
 const devMode = args.includes('--dev');
@@ -87,12 +100,22 @@ function start(label, command, commandArgs, cwd = ROOT) {
   return child;
 }
 
-/** Run a build step, inheriting the terminal, and stop if it fails. */
-function build(label, command, commandArgs) {
+/** Run an npm command, inheriting the terminal, and stop if it fails. */
+function build(label, npmArgs) {
   console.log(`Building ${label}...`);
-  const result = spawnSync(command, commandArgs, { cwd: ROOT, stdio: 'inherit', shell: false });
+
+  const result = HAS_NPM_CLI
+    ? spawnSync(process.execPath, [NPM_CLI, ...npmArgs], { cwd: ROOT, stdio: 'inherit', shell: false })
+    : spawnSync('npm.cmd', npmArgs, { cwd: ROOT, stdio: 'inherit', shell: true });
+
+  // A spawn that never started reports a null status and hides the reason in
+  // `error`, so it is reported explicitly rather than as a generic failure.
+  if (result.error) {
+    console.error(`\nCould not run npm: ${result.error.message}`);
+    process.exit(1);
+  }
   if (result.status !== 0) {
-    console.error(`\n${label} failed to build. Fix the errors above and run again.`);
+    console.error(`\n${label} failed to build (exit code ${result.status}). Fix the errors above and run again.`);
     process.exit(1);
   }
   console.log('');
@@ -125,12 +148,12 @@ if (dataSource === 'mysql') {
 /* ------------------------------------------------------------- 2. building -- */
 
 if (!existsSync(join(API_DIR, 'node_modules'))) {
-  build('API dependencies', 'npm', ['install']);
+  build('API dependencies', ['install', '--no-audit', '--no-fund']);
 }
 
 // The API is always compiled: it is fast, and running a stale api/dist would be
 // a confusing failure to debug.
-build('the API (TypeScript -> dist)', 'npm', ['run', 'build:api']);
+build('the API (TypeScript -> dist)', ['run', 'build:api']);
 
 const needsAppBuildBase =
   forceRebuild || !existsSync(join(DIST_CLIENT, 'index.html')) || !existsSync(join(DIST_ADMIN, 'index.html'));
@@ -181,8 +204,8 @@ if (!devMode && needsAppBuild) {
   // The development configuration is used on purpose: it points the applications
   // at http://localhost:3000/api (see clientside/src/environments/environment.ts),
   // which is the API this script starts.
-  build('the client website', 'npm', ['run', 'build:client', '--', '--configuration', 'development']);
-  build('the admin website', 'npm', ['run', 'build:admin', '--', '--configuration', 'development']);
+  build('the client website', ['run', 'build:client', '--', '--configuration', 'development']);
+  build('the admin website', ['run', 'build:admin', '--', '--configuration', 'development']);
 }
 
 /* -------------------------------------------------------------- 3. serving -- */
