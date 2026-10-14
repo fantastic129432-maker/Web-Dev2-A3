@@ -345,6 +345,13 @@ if (SKIP_SITE) {
   const clientIndex = `${basePath}/index.html`;
   const adminIndex = `${basePath}/admin/`;
 
+  // Declared here, before anything uses them. Both were previously declared much
+  // further down (next to section 8), which put a later `const` in the temporal
+  // dead zone of the bundle check below and made this tool crash with
+  // "Cannot access 'clientPageUrl' before initialization" on every run.
+  const clientPageUrl = `${SITE_ORIGIN}${clientIndex}`;
+  const adminPageUrl = `${SITE_ORIGIN}${adminIndex}`;
+
   const clientPage = await site(clientIndex);
   record(
     `GET ${clientIndex || '/'} 返回 200（公开网站已部署）`,
@@ -404,13 +411,23 @@ if (SKIP_SITE) {
       console.log('  （公开网站首页里找不到 main*.js，跳过 bundle 内的 API 地址比对）\n');
     } else {
       const bundleUrl = new URL(bundleRef, clientPageUrl).href;
-      const bundle = await fetchText(bundleUrl);
+
+      // Retry: a dropped connection here used to be reported as a wrong API
+      // address, because a failed fetch and a bundle without the address look the
+      // same to `includes`.
+      let bundle = await fetchText(bundleUrl);
+      for (let attempt = 2; attempt <= 3 && bundle.status === 0; attempt += 1) {
+        await sleep(1500 * attempt);
+        bundle = await fetchText(bundleUrl);
+      }
 
       record(
         `线上 bundle 内的 API 地址是 ${expectedUrl || '(读不到本地配置)'}`,
-        isLocalOrigin || bundle.text.includes(expectedUrl || expectedOrigin),
-        bundle.status !== 200
-          ? `取不到 bundle: ${bundleUrl} (${bundle.status})`
+        // A status of 0 means the network never gave an answer, which is not
+        // evidence about the file's contents.
+        bundle.status === 0 || isLocalOrigin || bundle.text.includes(expectedUrl || expectedOrigin),
+        bundle.status === 0
+          ? `三次都没取到 bundle（网络原因，不等于文件缺失），跳过比对: ${bundleUrl}`
           : isLocalOrigin
             ? `本地 environment.production.ts 是 ${expectedUrl}（本地开发值），跳过比对`
             : bundle.text.includes(expectedUrl)
@@ -515,8 +532,6 @@ if (SKIP_SITE) {
     return [...found.values()];
   }
 
-  const clientPageUrl = `${SITE_ORIGIN}${clientIndex}`;
-  const adminPageUrl = `${SITE_ORIGIN}${adminIndex}`;
   const resources = [
     ...(clientPage.status === 200 ? referencedFiles(clientPage.text, clientPageUrl) : []),
     ...(adminPage.status === 200 ? referencedFiles(adminPage.text, adminPageUrl) : []),
@@ -525,20 +540,36 @@ if (SKIP_SITE) {
   const resourceStatus = await sweep(resources);
   const checked = [...resourceStatus.keys()].filter((url) => resourceStatus.get(url) !== null);
   const notChecked = [...resourceStatus.entries()].filter(([, code]) => code === null).map(([url]) => url);
+
+  /*
+   * A status of 0 is NOT a missing file: it means the request never produced an
+   * HTTP answer (this host drops connections under rapid requests - observed
+   * repeatedly during the deployment). Reporting that as "missing" made the check
+   * cry wolf on files that a direct request fetched fine, so the two are kept
+   * apart: only a real HTTP status other than 200 counts as missing.
+   */
   const missing = [...resourceStatus.entries()]
-    .filter(([, code]) => code !== null && code !== 200)
+    .filter(([, code]) => code !== null && code !== 0 && code !== 200)
     .map(([url, code]) => ({ url, status: code }));
+  const unreachable = [...resourceStatus.entries()]
+    .filter(([, code]) => code === 0)
+    .map(([url]) => url);
 
   for (const item of missing) console.log(`  MISS  ${String(item.status).padEnd(4)} ${item.url}`);
+  if (unreachable.length) {
+    console.log(`  （${unreachable.length} 个资源因连接被中断而没能确认，不算缺失: ${unreachable.slice(0, 4).join(', ')}${unreachable.length > 4 ? ' ...' : ''}）`);
+  }
   if (notChecked.length) {
     console.log(`  （时间预算用尽，还有 ${notChecked.length} 个资源没有查完: ${notChecked.slice(0, 5).join(', ')}${notChecked.length > 5 ? ' ...' : ''}）`);
   }
 
+  const confirmed = checked.length - unreachable.length;
   record(
-    `线上页面引用的 ${checked.length} 个资源都能访问`,
+    `线上页面引用的 ${confirmed} 个资源都能访问`,
     missing.length === 0,
     missing.length === 0
-      ? `已检查 ${checked.length} 个（JS / CSS / favicon 等，来自两个 index.html 自身的引用）`
+      ? `已确认 ${confirmed} 个（JS / CSS / favicon 等，来自两个 index.html 自身的引用）` +
+        (unreachable.length ? `；另有 ${unreachable.length} 个因网络中断未能确认` : '')
       : `缺失 ${missing.length} 个: ${missing.map((m) => m.url).join(', ')}`
   );
 

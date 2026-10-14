@@ -438,6 +438,48 @@ curl -s -D - -o /dev/null -X OPTIONS \
 > 本地开发地址可以并存：`CORS_ORIGIN=https://24832481.it.scu.edu.au,http://localhost:4200,http://localhost:4300`。
 > 改完 `.env` **必须重启**（见 3.5）。
 
+### 3.8 实际使用的部署形态：扁平布局，不动启动文件
+
+上面 3.1–3.7 描述的是"把整个 `api/` 目录传上去、启动文件改成 `api/dist/server.js`"
+的形态。**本仓库 2026-10-14 这次实际部署用的是另一种、更省事的形态**，记录在这里，
+免得下次照着上面的步骤做却对不上服务器上的现状。
+
+**为什么换形态：** 这台主机的 cPanel **没有安装 `Nodejs` UAPI 模块**
+（调用 `/execute/Nodejs/list_apps` 返回
+`Can't locate Cpanel/API/Nodejs.pm`），所以"改启动文件"这件事无法用脚本完成，
+只能在面板里手工点。为了不动面板、也不让用户手工改配置，改成**扁平布局**：
+
+启动文件保持原来的 **`server.js`** 不变，把编译产物直接铺在应用根目录：
+
+```
+/home/xliu67/charity-events-api/     ← 应用根目录（Passenger 的 Application root）
+├── server.js            ← 由 api/dist/server.js 覆盖（编译后的 TS，8801 字节）
+├── src/**               ← 由 api/dist/src/** 覆盖（26 个编译后的 .js）
+├── package.json          ← 保持原样（cPanel 创建的）
+├── node_modules          ← 软链到 nodevenv，保持原样
+├── public/ server.diagnostic.js   ← 原有的，未动
+└── tmp/restart.txt       ← 重启信号
+```
+
+要点：
+
+* 编译产物里 `require("./src/...")` 都是相对路径，所以铺平之后**能直接跑**，
+  不需要 `dist/` 这一层。
+* **不上传 `.map`**（source map）：Node 运行时不读它，而且这台主机上传很慢
+  （约 20–40 秒/文件），跳过 `.map` 让上传文件数从 36 降到 27。
+* `.env` **不存在**，也不需要：`env.ts` 会从 `src/config/` 往上找到含
+  `package.json` 的目录（即应用根目录）再读 `.env`，读不到就用进程环境/默认值。
+  实测线上 `/api/health` 返回 `driver=mysql`、`connected=true`、
+  `database=xliu67_XuLiu_Ass3`、`user=xliu67_app`、`tableCount=22`、
+  `registrationTable=true`、`environment=production`。
+* 重启仍然靠 `touch tmp/restart.txt`（见 3.5）。
+
+> **两种形态都成立，不要混用。** 如果以后在面板里把 Application startup file
+> 改成了 `api/dist/server.js`，就必须同时按 3.2 上传整个 `api/` 目录结构；
+> 反过来，若保持 `server.js`，就要像这次一样把 `dist/` 的内容**铺平**上传。
+> 混着做（比如启动文件指向 `api/dist/server.js` 但文件铺在根目录）会得到
+> Passenger 的 500。
+
 ---
 
 ## 4. 部署两个网站
@@ -535,6 +577,15 @@ Options -Indexes -MultiViews
   # /admin 下的深链接交给 admin/.htaccess 去回退到 admin/index.html，
   # 否则 /admin/events 刷新时会被扔回公开网站的首页
   RewriteCond %{REQUEST_URI} !^/admin(/|$)
+
+  # /charity-events-api 是 Passenger 承载的 Node 应用，绝对不能重写
+  RewriteCond %{REQUEST_URI} !^/charity-events-api(/|$)
+
+  # 看起来像"文件"的路径（带扩展名）不存在时应该 404，而不是回退到
+  # index.html：否则少一个 chunk-*.js 会返回 200 + HTML，浏览器报的是
+  # 莫名其妙的 MIME 错误，而不是一个清楚的 404。
+  # 应用路由（/search、/events/2、/register/2）没有扩展名，不受影响。
+  RewriteCond %{REQUEST_URI} !\.[A-Za-z0-9]+$
 
   # 其余请求（/search、/events/2、/register/2 …）交给 Angular 路由
   RewriteRule ^ index.html [L]
