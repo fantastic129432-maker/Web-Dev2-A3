@@ -619,6 +619,11 @@ Options -Indexes -MultiViews
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
+  # 带扩展名的路径不存在时应 404，而不是回退到 index.html。否则退役的
+  # /admin/events.html、/admin/update.html 仍然返回 200 + Angular 应用，
+  # 看起来像旧页面还在；少一个 chunk 时也会变成 MIME 错误而不是 404。
+  RewriteCond %{REQUEST_URI} !\.[A-Za-z0-9]+$
+
   # /admin/events、/admin/events/new、/admin/events/2/edit … 都交回 index.html
   RewriteRule ^ index.html [L]
 </IfModule>
@@ -640,6 +645,19 @@ Options -Indexes -MultiViews
   请求交给 `admin/index.html`；只放根目录那份，管理后台刷新会跳回公开网站首页。
 - **`.htaccess` 是隐藏文件。** File Manager → **Settings** → 勾选
   "Show Hidden Files (dotfiles)" 才看得到、建得出来。
+
+- **用脚本上传 `.htaccess` 时的两个坑（2026-10-14 实际踩到，导致线上配置看着
+  改了、其实没改）：**
+  1. **远端文件名取的是本地文件名。** cPanel 的 `Fileman::upload_files` 用
+     multipart 里附带的文件名，所以本地文件必须**就叫 `.htaccess`**。如果本地叫
+     `admin.htaccess`，上传的结果是服务器上多出一个 `admin.htaccess`，真正的
+     `.htaccess` **一个字都没变**——而且命令会报成功。稳妥做法是把文件放进一个
+     目录（例如 `htdir/.htaccess`）再上传那个路径。
+  2. **覆盖上传必须带 `overwrite=1`。** 否则 cPanel 直接拒绝并返回
+     `"reason":"The file “…” you uploaded already exists."`；这个响应是
+     HTTP 200，只看状态码会误判成成功。
+  3. 另外这台主机上传时经常掉连接（`fetch failed` / `Connect Timeout`），
+     脚本必须重试；实测同一文件第 3 次才成功。
 - **它不会被构建或打包带走。** Angular 的构建输出里没有 `.htaccess`
   （`clientside/public/` 里只有 `favicon.ico`），所以它必须在服务器上手动建，
   并且**重新部署时要记得它还在**（覆盖上传不会删掉它）。
