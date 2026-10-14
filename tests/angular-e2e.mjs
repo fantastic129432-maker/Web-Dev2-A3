@@ -458,6 +458,21 @@ async function main() {
     }
     const menuLinks = await list.page.evaluate(() => document.querySelectorAll('nav a, header a').length);
     record('the admin menu is present on the list page', menuLinks > 0, `${menuLinks} navigation links`);
+
+    // Every row should lead to the event on the PUBLIC site, so staff can check
+    // what a visitor sees. The href is absolute in development (a different port)
+    // and site-absolute in production, so only its tail is asserted.
+    const publicLinks = await list.page.evaluate(() =>
+      [...document.querySelectorAll('a')]
+        .map((node) => node.getAttribute('href') ?? '')
+        .filter((href) => /\/events\/\d+$/.test(href))
+    );
+    record(
+      'each row links to the event on the public site',
+      publicLinks.length > 0,
+      publicLinks.slice(0, 3).join(', ') || 'no link ending in /events/<id> found'
+    );
+
     record('no uncaught JavaScript error on the event list', list.errors.length === 0, list.errors.join('; '));
     await list.page.close();
 

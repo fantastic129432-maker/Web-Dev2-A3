@@ -31,6 +31,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiError } from '@charity/shared/api/api-error';
 import { ApiService } from '@charity/shared/api/api.service';
 import { PUBLISH_STATUSES } from '@charity/shared/config/app-config';
+import { OTHER_SITE_URL } from '@charity/shared/di/tokens';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import { TranslationService } from '@charity/shared/i18n/translation.service';
 import type { Event as CharityEvent } from '@charity/shared/models/event.model';
@@ -56,6 +57,17 @@ export class EventList {
 
   /** The publish statuses, plus "all" - the filter offers every value the API does. */
   protected readonly statuses = PUBLISH_STATUSES;
+
+  /**
+   * The public site's root with a guaranteed trailing slash, so a row can link
+   * straight to the event a staff member is editing. Normalised once here rather
+   * than concatenated in the template, where a missing slash would silently turn
+   * the link into a relative path inside /admin/.
+   *
+   * It is the OTHER site, so this is a plain href and not a routerLink: the router
+   * only knows this application's routes.
+   */
+  protected readonly publicSiteBase = `${inject(OTHER_SITE_URL).replace(/\/+$/, '')}/`;
 
   /** The filter bar. A reactive form because the values are read as a group on Apply. */
   protected readonly filters = new FormGroup({

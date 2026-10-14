@@ -144,6 +144,17 @@
                 </a>
 
                 <!--
+                  The public page for this event, so a staff member can check what a
+                  visitor actually sees. A plain href, because it is the OTHER
+                  application (the router only knows this one's routes), and the
+                  same tab on purpose: Back returns to this list with its filters
+                  intact, since the filters live in the URL.
+                -->
+                <a class="button button--small button--outline" [href]="publicSiteBase + 'events/' + event.eventId">
+                  {{ 'events.view' | t }}
+                </a>
+
+                <!--
                   Every row offers Delete, even a row the API will refuse. Hiding
                   the button would make the data-integrity rule invisible; the 409
                   names the event and its registrations and the button then reads
