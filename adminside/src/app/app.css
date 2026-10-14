@@ -1,0 +1,20 @@
+/*
+ * The shell's own layout.
+ *
+ * The admin stylesheet (src/styles.css) already gives `body.admin-body` a flex
+ * column with `min-height: 100vh`, which is how the archived pages pushed the
+ * footer to the bottom of a short page. Angular renders inside <body>, so the
+ * heights have to be passed down one level: the host grows to fill the body, and
+ * the content area grows to fill whatever is left between the header and the
+ * footer. Without these two rules a short page (the not-found page, for example)
+ * would leave the footer floating in the middle of the window.
+ */
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+.admin-main {
+  flex: 1 0 auto;
+}

@@ -1,0 +1,16 @@
+<!--
+  The application shell. The header carries the menu and the two settings controls,
+  so they are present on every page; the router fills the container between them.
+  The markup deliberately mirrors the archived admin pages:
+  <header class="admin-header">, <nav class="admin-nav">, <main class="admin-main">
+  with an .admin-container inside it, and <footer class="admin-footer">.
+-->
+<admin-header />
+
+<main id="main" class="admin-main">
+  <div class="admin-container">
+    <router-outlet />
+  </div>
+</main>
+
+<admin-footer />

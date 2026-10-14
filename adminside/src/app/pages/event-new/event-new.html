@@ -1,0 +1,37 @@
+<div class="page-header admin-page-header">
+  <h1>{{ 'form.newHeading' | t }}</h1>
+  <p class="section__lead">{{ 'form.newLead' | t }}</p>
+</div>
+
+@if (banner(); as message) {
+  <admin-feedback-banner [message]="message" />
+}
+
+@if (loading()) {
+  <div class="state state--loading" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>{{ 'admin.loading' | t }}</p>
+  </div>
+} @else if (ready()) {
+  @if (reference(); as data) {
+    <!--
+      The same form component the edit page uses, in create mode. It emits a
+      validated EventInput and this page decides that it becomes a POST.
+    -->
+    <admin-event-form
+      mode="create"
+      [reference]="data"
+      [saving]="saving()"
+      [serverErrors]="serverErrors()"
+      (submitted)="create($event)"
+    />
+  }
+} @else {
+  <!-- The dropdowns cannot be filled, so the form is not offered at all. -->
+  <div class="banner banner--warning" role="status">
+    <p class="banner__message">{{ 'form.referenceEmpty' | t }}</p>
+    <div class="banner__actions">
+      <a class="button button--small button--outline" routerLink="/events">{{ 'nav.events' | t }}</a>
+    </div>
+  </div>
+}

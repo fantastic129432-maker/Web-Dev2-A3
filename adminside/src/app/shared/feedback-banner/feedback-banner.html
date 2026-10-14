@@ -1,0 +1,29 @@
+<div
+  [class]="'banner banner--' + message().tone"
+  [attr.role]="role()"
+  [attr.aria-live]="live()"
+  tabindex="-1"
+>
+  @if (message().title) {
+    <h2 class="banner__title">{{ message().title }}</h2>
+  }
+
+  <p class="banner__message">{{ message().message }}</p>
+
+  <!--
+    The extra lines. A 400 lists one entry per field the API rejected; a 409
+    lists the event and the number of registrations that block the delete, plus
+    what to do instead. Both are far more useful than the summary sentence alone.
+  -->
+  @if (message().details.length > 0) {
+    <ul class="banner__details">
+      @for (detail of message().details; track $index) {
+        <li>{{ detail }}</li>
+      }
+    </ul>
+  }
+
+  <div class="banner__actions">
+    <ng-content />
+  </div>
+</div>

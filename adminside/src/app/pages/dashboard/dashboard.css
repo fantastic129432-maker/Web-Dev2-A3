@@ -1,0 +1,19 @@
+/*
+ * The dashboard's own layout needs one rule; the tiles (.admin-stats,
+ * .admin-stat), the panels, the tables and the quick-link cards are all in the
+ * admin stylesheet (src/styles.css).
+ */
+:host {
+  display: block;
+}
+
+/* The health panel sits between the tiles and the quick links, and a table inside
+   a panel should not have a second border drawn around it by .table-wrap. */
+.panel .table-wrap {
+  border: 0;
+}
+
+.panel .data-table tbody th {
+  width: 45%;
+  white-space: normal;
+}

@@ -1,0 +1,555 @@
+/* ==========================================================================
+   The design-system layer of the ADMIN-SIDE website.
+   --------------------------------------------------------------------------
+   WHY THIS FILE EXISTS AT ALL
+   The archived admin site loaded TWO stylesheets in this order:
+
+       <link rel="stylesheet" href="../css/styles.css">   <- shared design system
+       <link rel="stylesheet" href="css/admin.css">       <- admin-only rules
+
+   adminside/src/styles.css is the second of those, copied verbatim, and it is
+   written entirely in terms of the custom properties and the components the
+   first one declares (--surface-0, --space-4, .panel, .field, .button,
+   .data-table, .state, ...). The Angular admin application has exactly one entry
+   in angular.json's `styles` array, so without a first layer every token in
+   adminside/src/styles.css would resolve to nothing and the pages would render
+   as unstyled HTML.
+
+   The public stylesheet lives in the OTHER application's source tree
+   (clientside/src/styles.css). Importing it across application boundaries was
+   rejected deliberately:
+
+     * it would make `npm run build:admin` depend on a file owned by the client
+       application - a rename or a restructure there would break this build, and
+       the two applications are being migrated independently;
+     * most of it is public-site presentation (hero, event cards, search layout,
+       site footer) that an admin screen never renders, so ~40 kB would be
+       shipped to staff for nothing.
+
+   So the layer is copied here: the tokens, the reset, the layout helpers and
+   the handful of components the admin templates actually use. The text of the
+   copied rules - including the comments explaining WHY each non-obvious one is
+   written the way it is - is kept as it was, because those reasons still hold.
+
+   Maintenance rule: a change to a design token belongs in BOTH
+   clientside/src/styles.css and here. tools/check-angular-architecture.mjs
+   enforces the Angular architecture, not this duplication, so the comment above
+   is the contract.
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Design tokens
+   ========================================================================== */
+:root {
+  /* Brand: a calm teal for trust, warm amber for the "give" accent. */
+  --brand-900: #08453c;
+  --brand-700: #0f7b6c;
+  --brand-500: #17a08c;
+  --brand-100: #e3f3f0;
+  --accent-600: #d97a1a;
+  --accent-500: #f0a04b;
+  --accent-100: #fdf1e3;
+
+  /* Foreground for text placed on a bright accent fill (the filled buttons,
+     the category chip, the upcoming badge). Defined per theme on purpose: a
+     token that flips cannot be paired with another token that also flips. */
+  --on-brand: #ffffff;
+
+  /* Fill for the amber chip and the secondary button. */
+  --chip-bg: #a85a0c;
+
+  --ink-900: #10242b;
+  --ink-700: #2c4a53;
+  --ink-500: #5b7480;
+  --ink-300: #9db1b8;
+
+  --surface-0: #ffffff;
+  --surface-50: #f6faf9;
+  --surface-100: #eef5f3;
+  --line: #d7e3e0;
+
+  --danger: #b3261e;
+  --danger-bg: #fdecea;
+  --success: #1b6e3c;
+  --success-bg: #e8f6ee;
+  --warning: #8a6100;
+  --warning-bg: #fdf3dc;
+
+  --radius-sm: 6px;
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(16, 36, 43, 0.08), 0 1px 3px rgba(16, 36, 43, 0.06);
+  --shadow: 0 6px 18px rgba(16, 36, 43, 0.1);
+  --shadow-lg: 0 18px 40px rgba(16, 36, 43, 0.16);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --font-body: Arial, "Helvetica Neue", Helvetica, sans-serif;
+
+  --container: 1180px;
+}
+
+/* ==========================================================================
+   1b. Dark theme
+   --------------------------------------------------------------------------
+   The whole palette is expressed as custom properties, so the dark theme is one
+   block of overrides rather than a second set of component rules. The attribute
+   is written by ThemeService (and, before the first paint, by the inline script
+   in index.html, which is why there is no flash of white).
+   ========================================================================== */
+[data-theme='dark'] {
+  /* Brand colours are lifted so they stay legible on a dark surface. */
+  --brand-900: #7fd8c8;
+  --brand-700: #35b9a1;
+  --brand-500: #1c9482;
+  --brand-100: #123b36;
+  --accent-600: #e08a2e;
+  --accent-500: #f0a04b;
+  --accent-100: #3a2a16;
+
+  /* On a bright teal or amber fill, deep ink reads; white does not. */
+  --on-brand: #06201d;
+  --chip-bg: #f0a04b;
+
+  --ink-900: #eef4f3;
+  --ink-700: #c5d3d2;
+  --ink-500: #93a8a7;
+  --ink-300: #6b7f7e;
+
+  --surface-0: #16211f;
+  --surface-50: #101917;
+  --surface-100: #1c2725;
+  --line: #2c3a38;
+
+  --danger: #f2857c;
+  --danger-bg: #351c19;
+  --success: #74d39a;
+  --success-bg: #16301f;
+  --warning: #e6c06a;
+  --warning-bg: #322915;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* Panels and state blocks are painted with --surface-0, which is dark in the
+   dark theme; they were also relying on a white default in the light one. */
+[data-theme='dark'] .panel,
+[data-theme='dark'] .state {
+  background: var(--surface-0);
+}
+
+/* Form controls were explicitly white. */
+[data-theme='dark'] input[type='text'],
+[data-theme='dark'] input[type='search'],
+[data-theme='dark'] input[type='date'],
+[data-theme='dark'] input[type='time'],
+[data-theme='dark'] input[type='number'],
+[data-theme='dark'] input[type='email'],
+[data-theme='dark'] textarea,
+[data-theme='dark'] .button--outline {
+  background: var(--surface-100);
+  color: var(--ink-900);
+  border-color: var(--line);
+}
+
+/* A date field renders a light calendar icon; invert it so it stays visible. */
+[data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.75);
+}
+
+/* A past-event badge used a light grey that glares against a dark card. --ink-900
+   is light in this theme, which is what keeps the pair readable. */
+[data-theme='dark'] .badge--past {
+  background: var(--surface-100);
+  color: var(--ink-900);
+}
+
+/* ==========================================================================
+   2. Base / reset
+   ========================================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink-900);
+  background: var(--surface-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-body);
+  line-height: 1.25;
+  color: var(--brand-900);
+  margin: 0 0 var(--space-3);
+}
+
+h1 { font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.9rem); }
+h2 { font-size: clamp(1.5rem, 1.2rem + 1vw, 2.1rem); }
+h3 { font-size: 1.2rem; }
+
+p { margin: 0 0 var(--space-4); }
+a { color: var(--brand-700); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; display: block; }
+ul { margin: 0 0 var(--space-4); padding-left: 1.15rem; }
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   3. Layout helpers
+   ========================================================================== */
+.section__lead {
+  color: var(--ink-500);
+  font-size: 1.05rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   4. Buttons and badges
+   ========================================================================== */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0.7rem 1.35rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--brand-700);
+  /* --on-brand rather than #fff: the dark theme inverts --brand-700 to a light
+     teal, so white text would measure 2.4:1 there. Pairing one flipping token
+     with another flipping token does not help - both have to move together,
+     which is exactly what --on-brand does. */
+  color: var(--on-brand);
+  font-weight: bold;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.button:hover {
+  background: var(--brand-900);
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.button:active { transform: translateY(0); }
+
+.button--secondary {
+  background: var(--chip-bg);
+  color: var(--on-brand);
+}
+.button--secondary:hover { background: var(--ink-700); color: var(--surface-0); }
+
+.button--ghost {
+  background: transparent;
+  color: var(--brand-700);
+  border-color: var(--brand-500);
+}
+.button--ghost:hover {
+  background: var(--brand-100);
+  color: var(--brand-900);
+}
+
+.button--outline {
+  background: #fff;
+  color: var(--ink-700);
+  border-color: var(--line);
+}
+.button--outline:hover {
+  background: var(--surface-100);
+  color: var(--ink-900);
+}
+
+.button--small {
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+}
+
+.button--block { width: 100%; }
+
+.button[disabled],
+.button[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--surface-100);
+  color: var(--ink-700);
+}
+
+/* --brand-100 flips to a dark teal and --brand-900 to a light one, so the pair
+   stayed low contrast in the dark theme. A solid fill with --on-brand works in
+   both. */
+.badge--upcoming { background: var(--brand-700); color: var(--on-brand); }
+.badge--ongoing  { background: var(--success-bg); color: var(--success); }
+/* --ink-900, not --ink-500. This is 12px bold text, which WCAG measures as
+   normal text and therefore holds to 4.5:1; the muted ink measured 4.27:1 on
+   this background, and the admin site uses this badge for a suspended event. */
+.badge--past     { background: #eceff1; color: var(--ink-900); }
+
+/* ==========================================================================
+   5. Forms
+   ========================================================================== */
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--space-5);
+}
+fieldset:last-of-type { margin-bottom: var(--space-4); }
+
+legend,
+.field > label,
+.field-label {
+  display: block;
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: var(--ink-900);
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.field { margin-bottom: var(--space-4); }
+.field__hint { color: var(--ink-500); font-size: 0.8rem; margin: var(--space-1) 0 0; }
+
+input[type='text'],
+input[type='search'],
+input[type='date'],
+input[type='time'],
+input[type='number'],
+input[type='email'],
+select,
+textarea {
+  width: 100%;
+  /* Form controls have a browser-defined intrinsic minimum width (a date input
+     is roughly 130px). Without min-width:0 a grid or flex parent refuses to
+     shrink below it and the control overflows its container, which is what
+     happened to the side-by-side date fields in the admin form rows. */
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  /* Token rather than #fff so the controls follow the dark theme. */
+  background: var(--surface-0);
+}
+input:focus,
+select:focus,
+textarea:focus { border-color: var(--brand-500); }
+
+/* A control the API or the client-side validators rejected. The colour is the
+   only thing that changes: the message beside it says what is wrong. */
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.checkbox input { width: auto; margin: 0; }
+
+.field-message { display: block; margin-top: var(--space-2); font-size: 0.85rem; min-height: 1.1rem; }
+.field-message--error { color: var(--danger); }
+.field-message--info { color: var(--ink-500); }
+.field-message--success { color: var(--success); }
+
+/*
+ * Two side-by-side fields (the goal/capacity pair and the start/end time pair).
+ *
+ * auto-fit + minmax(160px, 1fr) rather than 1fr 1fr: a bare 1fr refuses to
+ * shrink below the content's intrinsic minimum width, and a date input is about
+ * 130px wide, so two date fields pushed past their container on a narrow
+ * window; auto-fit collapses the pair to one column automatically, so no media
+ * query is needed.
+ */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+/* ==========================================================================
+   6. Panel
+   ========================================================================== */
+.panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+.panel h2, .panel h3 { margin-top: 0; font-size: 1.1rem; }
+.panel--accent { border-top: 4px solid var(--accent-500); }
+.panel--brand { border-top: 4px solid var(--brand-700); }
+
+/* ==========================================================================
+   7. Loading / empty / error states
+   ========================================================================== */
+.state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-7) var(--space-5);
+  background: var(--surface-0);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+.state h3 { margin-bottom: var(--space-2); }
+.state p { color: var(--ink-500); margin: 0; }
+.state--error { border-color: #f0c3bf; background: var(--danger-bg); }
+.state--error h3 { color: var(--danger); }
+.state--error p { color: #7c2d28; }
+.state__details { text-align: left; max-width: 520px; margin: var(--space-3) auto 0; color: #7c2d28; }
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto var(--space-3);
+  border: 3px solid var(--surface-100);
+  border-top-color: var(--brand-700);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
+  .button { transition: none; }
+}
+
+/* ==========================================================================
+   8. Tables
+   ========================================================================== */
+/* The horizontal scroll container. A table with eight columns cannot shrink
+   below its content, so on a phone it scrolls sideways inside this box rather
+   than pushing the whole page wide. */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 640px;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.data-table thead th {
+  background: var(--surface-100);
+  color: var(--ink-900);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.data-table tbody tr:last-child th,
+.data-table tbody tr:last-child td { border-bottom: 1px solid var(--line); }
+
+.data-table tbody tr:hover { background: var(--surface-50); }
+
+/* The row header names the record, so it carries the emphasis the first column
+   would otherwise need. */
+.data-table tbody th {
+  font-weight: bold;
+  color: var(--ink-900);
+}
+
+/* Numbers line up on the right, which is what makes a column of money
+   readable. font-variant-numeric keeps the digits the same width. */
+.data-table .is-numeric {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table tfoot th,
+.data-table tfoot td {
+  background: var(--surface-100);
+  border-bottom: none;
+  font-weight: bold;
+  color: var(--ink-900);
+}
+
+/* ==========================================================================
+   9. Responsive rules that the admin layout depends on
+   ========================================================================== */
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  .form-row { grid-template-columns: 1fr; }
+  /* A3: the table keeps its column layout and scrolls inside .table-wrap
+     instead of collapsing, because a stacked table is unreadable. */
+  .data-table { min-width: 560px; font-size: 0.86rem; }
+  .data-table th, .data-table td { padding: var(--space-2) var(--space-3); }
+}

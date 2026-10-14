@@ -1,0 +1,86 @@
+<!--
+  The admin header and menu. Every class here comes from the admin stylesheet
+  (src/styles.css), which is the archived admin/css/admin.css, so the header looks
+  the way it did in the vanilla frontend:
+
+    .admin-header / __inner      the dark band with the brand and the controls
+    .admin-brand / __mark / __text   the badge and the two lines of title
+    .admin-link                  the link back to the public website
+    .admin-lang-select           the language picker
+    .admin-theme-toggle          the light/dark/system button
+    .admin-nav / __list / __link the sticky menu
+-->
+<header class="admin-header">
+  <div class="admin-header__inner">
+    <a class="admin-brand" routerLink="/">
+      <span class="admin-brand__mark" aria-hidden="true">&#9829;</span>
+      <span class="admin-brand__text">
+        <strong>{{ 'admin.title' | t }}</strong>
+        <small>{{ 'admin.badge' | t }}</small>
+      </span>
+    </a>
+
+    <div class="admin-header__actions">
+      <!--
+        The link back to the public website. An absolute href, not a routerLink:
+        it leaves this application entirely (see environments/*.ts).
+      -->
+      <a class="admin-link" [href]="otherSiteUrl" target="_blank" rel="noopener">
+        {{ 'admin.backToSite' | t }}
+      </a>
+
+      <!--
+        The language picker. The options use each language's own name
+        (中文, Tiếng Việt, 日本語) rather than its name in the current interface
+        language, because the one person who cannot read the current language is
+        exactly the person looking for this control.
+      -->
+      <select
+        class="admin-lang-select"
+        [attr.aria-label]="'settings.language' | t"
+        [value]="language()"
+        (change)="selectLanguage($event)"
+      >
+        @for (option of languages; track option.code) {
+          <option [value]="option.code">{{ option.nativeLabel }}</option>
+        }
+      </select>
+
+      <button
+        class="admin-theme-toggle"
+        type="button"
+        aria-live="polite"
+        [title]="'settings.themeLabel' | t"
+        [attr.aria-label]="('settings.theme' | t) + ': ' + (themeLabelKey() | t)"
+        (click)="cycleTheme()"
+      >
+        {{ themeLabelKey() | t }}
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav" [attr.aria-label]="'admin.title' | t">
+  <ul class="admin-nav__list">
+    @for (item of navItems; track item.path) {
+      <li>
+        <!--
+          routerLink, never an href: the application is served from /admin/ in
+          production, so an absolute HTML path would leave the application.
+          Each item is matched EXACTLY, so no entry claims a page it does not
+          name ("/events" does not light up on /events/new).
+        -->
+        <a
+          class="admin-nav__link"
+          [routerLink]="item.path"
+          routerLinkActive="admin-nav__link--active"
+          #active="routerLinkActive"
+          [routerLinkActiveOptions]="{ exact: true }"
+          [attr.aria-current]="active.isActive ? 'page' : null"
+        >
+          {{ item.labelKey | t }}
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

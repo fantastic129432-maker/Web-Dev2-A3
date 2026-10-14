@@ -1,0 +1,15 @@
+/*
+ * The dialog's own box, backdrop and buttons are styled in src/styles.css
+ * (.confirm-backdrop, .confirm-panel, .confirm-panel__actions). The host needs
+ * two rules of its own:
+ *
+ *   display: block    a custom element is inline by default.
+ *   position: static  the backdrop inside is `position: fixed`, so it must not
+ *                     be positioned relative to this host - a positioned
+ *                     ancestor would trap the dialog inside the page content
+ *                     instead of covering the window.
+ */
+:host {
+  display: block;
+  position: static;
+}

@@ -1,0 +1,13 @@
+/*
+ * The edit page reuses the admin stylesheet's panel, banner, table and form
+ * rules. It only needs its host to be a block, plus one spacing rule: the
+ * registrations panel follows the form, and both are panels, so the panel above it
+ * already supplies the gap.
+ */
+:host {
+  display: block;
+}
+
+.admin-edit {
+  margin-bottom: var(--space-4);
+}

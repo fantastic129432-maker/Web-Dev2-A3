@@ -1,0 +1,7 @@
+/*
+ * The not-found page is a `.state` block from the admin stylesheet; the host only
+ * has to be a block so the block fills the content area.
+ */
+:host {
+  display: block;
+}

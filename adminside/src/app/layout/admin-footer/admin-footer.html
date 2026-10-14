@@ -1,0 +1,24 @@
+<footer class="admin-footer">
+  <div class="admin-container admin-footer__inner">
+    <p>{{ 'admin.footerNote' | t }}</p>
+
+    <!--
+      The data source, straight from GET /api/health. Showing it is what makes a
+      demonstration legible: "local" is the in-memory mirror of the seed file,
+      "mysql" is a real database. A failure says so instead of leaving the slot
+      empty and looking broken.
+    -->
+    <p>
+      @if (dataSource(); as source) {
+        {{ 'admin.dataSource' | t }}: {{ source }}
+      } @else if (unreachable()) {
+        {{ 'error.offline' | t }}
+      }
+    </p>
+
+    <!-- "Unity Heart Foundation" is the organisation's own name - data, not
+         interface text - so it is carried over from the archived footer
+         untranslated, exactly as the public website shows it from the API. -->
+    <p>&copy; {{ year }} Unity Heart Foundation</p>
+  </div>
+</footer>

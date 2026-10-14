@@ -1,0 +1,29 @@
+<div class="confirm-backdrop" (click)="onBackdrop($event)">
+  <div class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 class="confirm-panel__title" id="confirm-title">{{ titleKey() | t }}</h2>
+    <p class="confirm-panel__body">{{ bodyKey() | t: bodyValues() }}</p>
+
+    <div class="confirm-panel__actions">
+      <!--
+        Cancel comes first in the DOM and receives the focus, so the safe choice
+        is both the one a keyboard lands on and the one Tab reaches first.
+      -->
+      <button
+        #cancelButton
+        class="button button--outline"
+        type="button"
+        (click)="cancelled.emit()"
+      >
+        {{ cancelLabelKey() | t }}
+      </button>
+      <button
+        class="button button--danger"
+        type="button"
+        [disabled]="busy()"
+        (click)="confirmed.emit()"
+      >
+        {{ confirmLabelKey() | t }}
+      </button>
+    </div>
+  </div>
+</div>

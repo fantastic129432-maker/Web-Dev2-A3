@@ -1,0 +1,8 @@
+/*
+ * The registrations page reuses the admin stylesheet's filter bar, table, state
+ * block and banner. Only the host needs a rule, so the page behaves as a block
+ * inside the application shell's container.
+ */
+:host {
+  display: block;
+}

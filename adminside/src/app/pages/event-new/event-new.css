@@ -1,0 +1,9 @@
+/*
+ * The create page has no layout of its own: the heading block
+ * (.page-header.admin-page-header), the banner and the form all come from the
+ * admin stylesheet. The host still needs to be a block, because a custom element
+ * is inline by default and the page is a flex child of .admin-main.
+ */
+:host {
+  display: block;
+}

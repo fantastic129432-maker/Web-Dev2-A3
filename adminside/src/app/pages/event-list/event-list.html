@@ -1,0 +1,192 @@
+<div class="page-header admin-page-header">
+  <h1>{{ 'events.heading' | t }}</h1>
+  <p class="section__lead">{{ 'events.lead' | t }}</p>
+</div>
+
+<!-- Success, or the 409 that explains why an event with registrations cannot be
+     removed. Sits above the filters so it is the first thing read after a delete. -->
+@if (banner(); as message) {
+  <admin-feedback-banner [message]="message">
+    @if (blocked().size > 0) {
+      <a class="button button--small button--outline" routerLink="/registrations">
+        {{ 'nav.registrations' | t }}
+      </a>
+    }
+  </admin-feedback-banner>
+}
+
+<form class="admin-filters" [formGroup]="filters" (submit)="apply($event)">
+  <div class="field">
+    <label for="filter-status">{{ 'events.filterStatus' | t }}</label>
+    <select id="filter-status" formControlName="publishStatus">
+      <option value="all">{{ 'status.all' | t }}</option>
+      @for (status of statuses; track status) {
+        <option [value]="status">{{ ('status.' + status) | t }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="filter-state">{{ 'events.filterState' | t }}</label>
+    <select id="filter-state" formControlName="state">
+      <option value="all">{{ 'status.allDates' | t }}</option>
+      <option value="upcoming">{{ 'status.upcomingOrOngoing' | t }}</option>
+      <option value="past">{{ 'dash.past' | t }}</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="filter-keyword">{{ 'events.filterKeyword' | t }}</label>
+    <input
+      id="filter-keyword"
+      type="search"
+      formControlName="keyword"
+      autocomplete="off"
+      [placeholder]="'events.filterKeywordPlaceholder' | t"
+    />
+  </div>
+
+  <div class="admin-filters__actions">
+    <button class="button" type="submit">{{ 'events.applyFilters' | t }}</button>
+    <button class="button button--outline" type="button" (click)="clear()">
+      {{ 'events.clearFilters' | t }}
+    </button>
+  </div>
+</form>
+
+<p class="admin-count" role="status">{{ 'events.count' | t: { count: events().length, total: total() } }}</p>
+
+@if (loading()) {
+  <div class="state state--loading" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>{{ 'admin.loading' | t }}</p>
+  </div>
+} @else if (events().length === 0) {
+  <div class="state state--empty">
+    <h3>{{ 'events.empty' | t }}</h3>
+  </div>
+} @else {
+  <div class="table-wrap">
+    <table class="data-table data-table--admin">
+      <caption class="sr-only">{{ 'events.heading' | t }}</caption>
+      <thead>
+        <tr>
+          <th scope="col" class="is-numeric">{{ 'events.colId' | t }}</th>
+          <th scope="col">{{ 'events.colName' | t }}</th>
+          <th scope="col">{{ 'events.colStatus' | t }}</th>
+          <th scope="col">{{ 'events.colWhen' | t }}</th>
+          <th scope="col">{{ 'events.colVenue' | t }}</th>
+          <th scope="col" class="is-numeric">{{ 'events.colRegistrations' | t }}</th>
+          <th scope="col" class="is-numeric">{{ 'events.colTickets' | t }}</th>
+          <th scope="col" class="is-numeric">{{ 'events.colRaised' | t }}</th>
+          <th scope="col" class="is-numeric">{{ 'events.colActions' | t }}</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (event of events(); track event.eventId) {
+          <tr>
+            <td class="is-numeric">{{ event.eventId }}</td>
+
+            <!-- The event name is the row header, which is what labels the row
+                 for a screen reader; category and organisation are its detail. -->
+            <th scope="row">
+              <span class="cell-stack">
+                <span class="cell-stack__primary">{{ event.eventName }}</span>
+                <span class="cell-stack__secondary">
+                  {{ event.categoryName }}@if (event.organizationName) { · {{ event.organizationName }} }
+                </span>
+              </span>
+            </th>
+
+            <!-- Publishing status AND the derived time state side by side: an
+                 "active" event can still be past, and both facts matter here. -->
+            <td>
+              <span class="cell-badges">
+                <span [class]="statusClass(event.status)">{{ 'status.' + event.status | t }}</span>
+                <span [class]="stateClass(event.eventState)">{{ stateKey(event.eventState) | t }}</span>
+              </span>
+            </td>
+
+            <td>{{ formatDateRange(event) }}</td>
+
+            <td>
+              <span class="cell-stack">
+                <span class="cell-stack__primary">{{ event.venueName }}</span>
+                <span class="cell-stack__secondary">{{ event.city }} {{ event.state }}</span>
+              </span>
+            </td>
+
+            <td class="is-numeric">
+              <span class="cell-stack">
+                <span class="cell-stack__primary">{{ event.registrationCount }}</span>
+                <span class="cell-stack__secondary">
+                  {{ 'field.capacity' | t }}: {{ capacityLabel(event) }}
+                </span>
+              </span>
+            </td>
+
+            <td class="is-numeric">{{ event.ticketsSold }}</td>
+
+            <td class="is-numeric">
+              <span class="cell-stack">
+                <span class="cell-stack__primary">{{ formatCurrency(event.raisedAmount) }}</span>
+                <span class="cell-stack__secondary">
+                  {{ 'events.goal' | t }}: {{ formatCurrency(event.goalAmount) }}
+                </span>
+              </span>
+            </td>
+
+            <td>
+              <div class="row-actions">
+                <a class="button button--small button--outline" [routerLink]="['/events', event.eventId, 'edit']">
+                  {{ 'events.edit' | t }}
+                </a>
+
+                <!--
+                  Every row offers Delete, even a row the API will refuse. Hiding
+                  the button would make the data-integrity rule invisible; the 409
+                  names the event and its registrations and the button then reads
+                  "Deletion blocked", which is more useful than a missing control.
+                -->
+                @if (blockedReason(event.eventId); as reason) {
+                  <button class="button button--small button--danger" type="button" disabled [title]="reason">
+                    {{ 'delete.blockedTitle' | t }}
+                  </button>
+                } @else {
+                  <button class="button button--small button--danger" type="button" (click)="askDelete(event)">
+                    {{ 'events.delete' | t }}
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+
+      <!-- A totals row for the two columns where a sum means something. -->
+      <tfoot>
+        <tr>
+          <th scope="row" colspan="5">{{ 'events.heading' | t }}</th>
+          <td class="is-numeric">{{ totalRegistrations() }}</td>
+          <td class="is-numeric">{{ totalTickets() }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+}
+
+<!-- The confirmation step. Rendered only while a delete is pending, so there is
+     no hidden dialog in the DOM and no state to reset when it is dismissed. -->
+@if (pendingDelete(); as target) {
+  <admin-confirm-dialog
+    titleKey="delete.title"
+    bodyKey="delete.body"
+    [bodyValues]="{ name: target.eventName }"
+    confirmLabelKey="delete.confirm"
+    [busy]="deleting()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  />
+}

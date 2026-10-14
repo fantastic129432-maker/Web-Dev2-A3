@@ -1,0 +1,135 @@
+<div class="page-header admin-page-header">
+  <h1>{{ 'registrations.heading' | t }}</h1>
+  <p class="section__lead">{{ 'registrations.lead' | t }}</p>
+</div>
+
+@if (banner(); as message) {
+  <admin-feedback-banner [message]="message" />
+}
+
+<form class="admin-filters" [formGroup]="filters" (submit)="apply($event)">
+  <div class="field">
+    <label for="filter-event">{{ 'registrations.filterEvent' | t }}</label>
+    <select id="filter-event" formControlName="eventId">
+      <option value="">{{ 'registrations.filterAll' | t }}</option>
+      @for (event of events(); track event.eventId) {
+        <option [value]="event.eventId">{{ eventLabel(event) }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="filter-keyword">{{ 'registrations.filterKeyword' | t }}</label>
+    <input
+      id="filter-keyword"
+      type="search"
+      formControlName="keyword"
+      autocomplete="off"
+      [placeholder]="'registrations.filterKeywordPlaceholder' | t"
+    />
+  </div>
+
+  <div class="admin-filters__actions">
+    <button class="button" type="submit">{{ 'registrations.applyFilters' | t }}</button>
+    <button class="button button--outline" type="button" (click)="clear()">
+      {{ 'registrations.clearFilters' | t }}
+    </button>
+  </div>
+</form>
+
+<p class="admin-count" role="status">
+  {{ 'registrations.count' | t: { count: registrations().length, total: total() } }}
+</p>
+
+@if (loading()) {
+  <div class="state state--loading" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>{{ 'admin.loading' | t }}</p>
+  </div>
+} @else if (registrations().length === 0) {
+  <div class="state state--empty">
+    <h3>{{ 'registrations.empty' | t }}</h3>
+  </div>
+} @else {
+  <div class="table-wrap">
+    <table class="data-table data-table--admin">
+      <caption class="sr-only">{{ 'registrations.heading' | t }}</caption>
+      <thead>
+        <tr>
+          <th scope="col" class="is-numeric">{{ 'registrations.colId' | t }}</th>
+          <th scope="col">{{ 'registrations.colAttendee' | t }}</th>
+          <th scope="col">{{ 'registrations.colEvent' | t }}</th>
+          <th scope="col" class="is-numeric">{{ 'registrations.colTickets' | t }}</th>
+          <th scope="col" class="is-numeric">{{ 'registrations.colValue' | t }}</th>
+          <th scope="col">{{ 'registrations.colWhen' | t }}</th>
+          <th scope="col" class="is-numeric">{{ 'registrations.colActions' | t }}</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (registration of registrations(); track registration.registrationId) {
+          <tr>
+            <td class="is-numeric">{{ registration.registrationId }}</td>
+
+            <th scope="row">
+              <span class="cell-stack">
+                <span class="cell-stack__primary">{{ registration.attendeeName }}</span>
+                <span class="cell-stack__secondary">
+                  {{ registration.attendeeEmail }}
+                  @if (registration.attendeePhone) {
+                    &middot; {{ registration.attendeePhone }}
+                  }
+                </span>
+              </span>
+            </th>
+
+            <td>
+              <span class="cell-stack">
+                <span class="cell-stack__primary">{{ registration.eventName || registration.eventId }}</span>
+                <span class="cell-stack__secondary">{{ registration.ticketName || '-' }}</span>
+              </span>
+            </td>
+
+            <td class="is-numeric">{{ registration.ticketsPurchased }}</td>
+            <td class="is-numeric">{{ formatCurrency(registration.totalAmount) }}</td>
+            <!-- The purchase time, formatted rather than shown as the raw
+                 "YYYY-MM-DD HH:MM:SS" the API stores. -->
+            <td>{{ formatDateTime(registration.registeredAt) }}</td>
+
+            <td>
+              <div class="row-actions">
+                <a class="button button--small button--outline" [routerLink]="['/events', registration.eventId, 'edit']">
+                  {{ 'events.edit' | t }}
+                </a>
+                <button class="button button--small button--danger" type="button" (click)="askDelete(registration)">
+                  {{ 'registrations.delete' | t }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+
+      <tfoot>
+        <tr>
+          <th scope="row" colspan="3">{{ 'registrations.totalTickets' | t }}</th>
+          <td class="is-numeric">{{ totalTickets() }}</td>
+          <td class="is-numeric">{{ formatCurrency(totalValue()) }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+}
+
+@if (pendingDelete(); as target) {
+  <admin-confirm-dialog
+    titleKey="registrations.deleteTitle"
+    bodyKey="registrations.deleteBody"
+    [bodyValues]="{ name: target.attendeeName }"
+    confirmLabelKey="registrations.delete"
+    [busy]="deleting()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  />
+}

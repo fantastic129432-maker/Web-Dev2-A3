@@ -1,0 +1,8 @@
+/*
+ * `admin-footer` is a custom element, so it is inline until told otherwise; the
+ * sticky-bottom layout of the page depends on it being a block. Everything about
+ * how the footer LOOKS (.admin-footer, .admin-footer__inner) is in src/styles.css.
+ */
+:host {
+  display: block;
+}

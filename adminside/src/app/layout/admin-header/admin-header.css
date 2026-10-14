@@ -1,0 +1,9 @@
+/*
+ * A custom element is `display: inline` until told otherwise, and the header and
+ * the sticky menu are the two blocks that must not be. The colours, spacing and
+ * the sticky positioning all come from src/styles.css (.admin-header, .admin-nav);
+ * nothing about this component's appearance is redeclared here.
+ */
+:host {
+  display: block;
+}

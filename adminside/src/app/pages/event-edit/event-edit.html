@@ -1,0 +1,135 @@
+<div class="page-header admin-page-header">
+  <h1>{{ 'form.editHeading' | t }}</h1>
+  <p class="section__lead">{{ 'form.editLead' | t }}</p>
+</div>
+
+@if (banner(); as message) {
+  <admin-feedback-banner [message]="message">
+    <a class="button button--small button--outline" routerLink="/events">{{ 'nav.events' | t }}</a>
+    <a class="button button--small button--ghost" routerLink="/registrations">
+      {{ 'nav.registrations' | t }}
+    </a>
+  </admin-feedback-banner>
+}
+
+@if (loading()) {
+  <div class="state state--loading" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>{{ 'admin.loading' | t }}</p>
+  </div>
+} @else {
+  @if (event(); as detail) {
+    @if (reference(); as data) {
+      <!-- What is being edited, so the form never leaves any doubt about it. -->
+      <section class="panel admin-edit" aria-label="{{ 'form.editHeading' | t }}">
+        <div class="admin-edit__header">
+          <h2>#{{ detail.eventId }} &middot; {{ detail.eventName }}</h2>
+          <p>
+            {{ detail.organizationName }} &middot; {{ detail.venueName }} &middot; {{ detail.city }}
+            &middot; {{ 'status.' + detail.status | t }}
+            @if (detail.registrationCount > 0) {
+              &middot; {{ 'event.summaryRegistered' | t: { count: detail.registrationCount } }}
+            }
+          </p>
+        </div>
+      </section>
+
+      <!-- The same form the create page uses, pre-filled from the event and in
+           edit mode: it emits the full payload and this page sends the difference. -->
+      <admin-event-form
+        mode="edit"
+        [reference]="data"
+        [event]="detail"
+        [saving]="saving()"
+        [serverErrors]="serverErrors()"
+        (submitted)="save($event)"
+      />
+
+      <!--
+        The registrations recorded against THIS event. The brief requires the
+        update interface to retrieve and display them, and they earn their place:
+        their number is exactly why the Delete button on the list page refuses, so
+        this panel is also where a staff member can act on that.
+      -->
+      <section class="panel admin-form__heading-spaced" aria-labelledby="update-registrations-heading">
+        <h2 id="update-registrations-heading">{{ 'update.registrationsHeading' | t }}</h2>
+
+        @if (registrations().length === 0) {
+          <p>{{ 'update.registrationsEmpty' | t }}</p>
+        } @else {
+          <p class="banner banner--warning banner--inline">{{ blockedMessage() }}</p>
+
+          <div class="table-wrap">
+            <table class="data-table data-table--admin">
+              <caption class="sr-only">
+                {{ 'event.registrationsHeading' | t: { name: detail.eventName } }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'registrations.colId' | t }}</th>
+                  <th scope="col">{{ 'registrations.colAttendee' | t }}</th>
+                  <th scope="col">{{ 'registrations.colTier' | t }}</th>
+                  <th scope="col" class="is-numeric">{{ 'registrations.colTickets' | t }}</th>
+                  <th scope="col" class="is-numeric">{{ 'registrations.colValue' | t }}</th>
+                  <th scope="col">{{ 'registrations.colWhen' | t }}</th>
+                  <th scope="col" class="is-numeric">{{ 'registrations.colActions' | t }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (registration of registrations(); track registration.registrationId) {
+                  <tr>
+                    <td class="is-numeric">{{ registration.registrationId }}</td>
+                    <th scope="row">
+                      <span class="cell-stack">
+                        <span class="cell-stack__primary">{{ registration.attendeeName }}</span>
+                        <span class="cell-stack__secondary">
+                          {{ registration.attendeeEmail }}
+                          @if (registration.attendeePhone) {
+                            &middot; {{ registration.attendeePhone }}
+                          }
+                        </span>
+                      </span>
+                    </th>
+                    <td>{{ registration.ticketName || '-' }}</td>
+                    <td class="is-numeric">{{ registration.ticketsPurchased }}</td>
+                    <td class="is-numeric">{{ formatCurrency(registration.totalAmount) }}</td>
+                    <td>{{ formatDateTime(registration.registeredAt) }}</td>
+                    <td>
+                      <div class="row-actions">
+                        <button
+                          class="button button--small button--danger"
+                          type="button"
+                          (click)="askDeleteRegistration(registration)"
+                        >
+                          {{ 'registrations.delete' | t }}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+  } @else {
+    <!-- The id in the URL named an event that does not exist (a 404 from the API). -->
+    <div class="state state--empty">
+      <h3>{{ 'error.notFound' | t }}</h3>
+      <p><a class="button button--outline" routerLink="/events">{{ 'nav.events' | t }}</a></p>
+    </div>
+  }
+}
+
+@if (pendingDelete(); as target) {
+  <admin-confirm-dialog
+    titleKey="registrations.deleteTitle"
+    bodyKey="registrations.deleteBody"
+    [bodyValues]="{ name: target.attendeeName }"
+    confirmLabelKey="registrations.delete"
+    [busy]="deleting()"
+    (confirmed)="confirmDeleteRegistration()"
+    (cancelled)="cancelDeleteRegistration()"
+  />
+}

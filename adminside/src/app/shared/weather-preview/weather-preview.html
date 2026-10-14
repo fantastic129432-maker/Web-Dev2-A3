@@ -1,0 +1,55 @@
+<section class="panel weather-preview" aria-labelledby="weather-preview-heading">
+  <h3 id="weather-preview-heading">{{ 'weather.heading' | t }}</h3>
+
+  @if (loading()) {
+    <p class="weather-preview__note">{{ 'weather.loading' | t }}</p>
+  } @else {
+    @if (forecast(); as value) {
+      <div class="weather-preview__card" [class.weather-preview__card--wet]="wet()">
+        <span class="weather-preview__glyph" aria-hidden="true">{{ glyph() }}</span>
+
+        <div class="weather-preview__body">
+          <p class="weather-preview__summary">{{ codeKey() | t }}</p>
+          <p class="weather-preview__lead">{{ lead() }}</p>
+
+          <!-- The figures a person planning an outdoor event actually needs:
+               the temperature range, how likely rain is, and the wind. Any of
+               them can be missing from Open-Meteo's answer, so each is guarded. -->
+          <dl class="weather-preview__figures">
+            @if (value.temperatureMax !== null || value.temperatureMin !== null) {
+              <div>
+                <dt>{{ 'weather.high' | t }} / {{ 'weather.low' | t }}</dt>
+                <dd>
+                  {{ value.temperatureMax === null ? '-' : value.temperatureMax + '°' }} /
+                  {{ value.temperatureMin === null ? '-' : value.temperatureMin + '°' }}
+                </dd>
+              </div>
+            }
+            @if (value.rainChance !== null) {
+              <div>
+                <dt>{{ 'weather.rainChance' | t }}</dt>
+                <dd>{{ value.rainChance }}%</dd>
+              </div>
+            }
+            @if (value.windMax !== null) {
+              <div>
+                <dt>{{ 'weather.wind' | t }}</dt>
+                <dd>{{ value.windMax }} km/h</dd>
+              </div>
+            }
+          </dl>
+
+          @if (wet()) {
+            <p class="weather-preview__wet-note">{{ 'weather.outdoorHint' | t }}</p>
+          }
+        </div>
+      </div>
+    } @else {
+      <!-- A bonus feature that is unavailable is NOT an error: the note says so
+           and the form above carries on working. -->
+      <p class="weather-preview__note">{{ 'weather.unavailable' | t }}</p>
+    }
+  }
+
+  <p class="field__hint weather-preview__attribution">{{ 'weather.attribution' | t }}</p>
+</section>

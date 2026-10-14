@@ -1,0 +1,371 @@
+<!--
+  The one event form, used by "Add a charity event" and "Update a charity event".
+
+  Every class comes from the admin stylesheet (src/styles.css):
+    .admin-form          the form block and its section headings
+    .field / .form-row   one labelled control / two controls side by side
+    .field-message       the slot under every control, empty until it has to speak
+    .ticket-rows / .ticket-row   the repeating ticket-tier block
+    .admin-form__actions the submit row
+
+  novalidate: the browser's own bubbles are switched off deliberately. The form
+  has its own messages in the staff member's language, placed next to the field
+  they are about, and a native bubble cannot be translated or positioned.
+-->
+<form class="admin-form" [formGroup]="form" (submit)="onSubmit($event)" novalidate>
+  <!-- Shown once a submit has been refused, so the whole form's state is
+       explained in one sentence as well as field by field. -->
+  @if (showAllErrors() && form.invalid) {
+    <p class="banner banner--warning" role="alert">{{ 'form.requiredNotice' | t }}</p>
+  }
+
+  <!-- ===================================================== event basics === -->
+  <h2 class="admin-form__heading">{{ 'form.sectionBasics' | t }}</h2>
+
+  <div class="field">
+    <label for="eventName">{{ 'field.eventName' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+    <input
+      id="eventName"
+      type="text"
+      formControlName="eventName"
+      autocomplete="off"
+      maxlength="180"
+      aria-required="true"
+      aria-describedby="eventName-message"
+      [attr.aria-invalid]="messageFor('eventName') ? 'true' : null"
+    />
+    <p class="field-message field-message--error" id="eventName-message" role="status">{{ messageFor('eventName') }}</p>
+  </div>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="organizationId">{{ 'field.organizationId' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+      <select
+        id="organizationId"
+        formControlName="organizationId"
+        aria-required="true"
+        aria-describedby="organizationId-message"
+        [attr.aria-invalid]="messageFor('organizationId') ? 'true' : null"
+      >
+        <!-- ngValue, not value: it keeps the chosen id a NUMBER, so the payload
+             and the weather lookup compare ids rather than strings. -->
+        <option [ngValue]="null">{{ 'form.choosePlaceholder' | t }}</option>
+        @for (organization of organizations(); track organization.organizationId) {
+          <option [ngValue]="organization.organizationId">{{ organization.name }} ({{ organization.city }})</option>
+        }
+      </select>
+      <p class="field-message field-message--error" id="organizationId-message" role="status">{{ messageFor('organizationId') }}</p>
+    </div>
+
+    <div class="field">
+      <label for="categoryId">{{ 'field.categoryId' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+      <select
+        id="categoryId"
+        formControlName="categoryId"
+        aria-required="true"
+        aria-describedby="categoryId-message"
+        [attr.aria-invalid]="messageFor('categoryId') ? 'true' : null"
+      >
+        <option [ngValue]="null">{{ 'form.choosePlaceholder' | t }}</option>
+        @for (category of categories(); track category.categoryId) {
+          <option [ngValue]="category.categoryId">{{ category.categoryName }}</option>
+        }
+      </select>
+      <p class="field-message field-message--error" id="categoryId-message" role="status">{{ messageFor('categoryId') }}</p>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="locationId">{{ 'field.locationId' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+    <select
+      id="locationId"
+      formControlName="locationId"
+      aria-required="true"
+      aria-describedby="locationId-message"
+      [attr.aria-invalid]="messageFor('locationId') ? 'true' : null"
+    >
+      <option [ngValue]="null">{{ 'form.choosePlaceholder' | t }}</option>
+      @for (venue of venues(); track venue.locationId) {
+        <option [ngValue]="venue.locationId">{{ venue.venueName }} - {{ venue.city }}, {{ venue.state }}</option>
+      }
+    </select>
+    <p class="field__hint">{{ 'field.locationHint' | t }}</p>
+    <p class="field-message field-message--error" id="locationId-message" role="status">{{ messageFor('locationId') }}</p>
+  </div>
+
+  <div class="field">
+    <label for="shortDescription">{{ 'field.shortDescription' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+    <input
+      id="shortDescription"
+      type="text"
+      formControlName="shortDescription"
+      autocomplete="off"
+      maxlength="300"
+      aria-required="true"
+      aria-describedby="shortDescription-hint shortDescription-message"
+      [attr.aria-invalid]="messageFor('shortDescription') ? 'true' : null"
+    />
+    <p class="field__hint" id="shortDescription-hint">{{ 'field.shortDescriptionHint' | t }}</p>
+    <p class="field-message field-message--error" id="shortDescription-message" role="status">{{ messageFor('shortDescription') }}</p>
+  </div>
+
+  <div class="field">
+    <label for="description">{{ 'field.description' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+    <textarea
+      id="description"
+      rows="6"
+      formControlName="description"
+      aria-required="true"
+      aria-describedby="description-hint description-message"
+      [attr.aria-invalid]="messageFor('description') ? 'true' : null"
+    ></textarea>
+    <p class="field__hint" id="description-hint">{{ 'field.descriptionHint' | t }}</p>
+    <p class="field-message field-message--error" id="description-message" role="status">{{ messageFor('description') }}</p>
+  </div>
+
+  <div class="field">
+    <label for="purpose">{{ 'field.purpose' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+    <input
+      id="purpose"
+      type="text"
+      formControlName="purpose"
+      autocomplete="off"
+      maxlength="300"
+      aria-required="true"
+      aria-describedby="purpose-message"
+      [attr.aria-invalid]="messageFor('purpose') ? 'true' : null"
+    />
+    <p class="field-message field-message--error" id="purpose-message" role="status">{{ messageFor('purpose') }}</p>
+  </div>
+
+  <!-- ================================================================= when === -->
+  <h2 class="admin-form__heading">{{ 'form.sectionWhen' | t }}</h2>
+
+  <div class="field">
+    <label for="eventDate">{{ 'field.eventDate' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+    <input
+      id="eventDate"
+      type="date"
+      formControlName="eventDate"
+      aria-required="true"
+      aria-describedby="eventDate-hint eventDate-message"
+      [attr.aria-invalid]="messageFor('eventDate') ? 'true' : null"
+    />
+    <p class="field__hint" id="eventDate-hint">{{ 'field.eventDateHint' | t }}</p>
+    <p class="field-message field-message--error" id="eventDate-message" role="status">{{ messageFor('eventDate') }}</p>
+  </div>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="dateStart">{{ 'field.dateStart' | t }}</label>
+      <input id="dateStart" type="date" formControlName="dateStart" />
+    </div>
+
+    <div class="field">
+      <label for="dateEnd">{{ 'field.dateEnd' | t }}</label>
+      <input
+        id="dateEnd"
+        type="date"
+        formControlName="dateEnd"
+        aria-describedby="dateEnd-message"
+        [attr.aria-invalid]="windowMessage('dateOrder') ? 'true' : null"
+      />
+      <!-- The cross-field rule is validated on the GROUP (see core/event-form.ts)
+           and its message is placed here, beside the box that has to change. -->
+      <p class="field-message field-message--error" id="dateEnd-message" role="status">{{ windowMessage('dateOrder') }}</p>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="startTime">{{ 'field.startTime' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+      <input
+        id="startTime"
+        type="time"
+        formControlName="startTime"
+        aria-required="true"
+        aria-describedby="startTime-message"
+        [attr.aria-invalid]="messageFor('startTime') || windowMessage('timeOrder') ? 'true' : null"
+      />
+      <p class="field-message field-message--error" id="startTime-message" role="status">{{ messageFor('startTime') }}</p>
+    </div>
+
+    <div class="field">
+      <label for="endTime">{{ 'field.endTime' | t }} <span class="field__required" aria-hidden="true">*</span></label>
+      <input
+        id="endTime"
+        type="time"
+        formControlName="endTime"
+        aria-required="true"
+        aria-describedby="endTime-message"
+        [attr.aria-invalid]="messageFor('endTime') || windowMessage('timeOrder') ? 'true' : null"
+      />
+      <p class="field-message field-message--error" id="endTime-message" role="status">
+        {{ messageFor('endTime') }} {{ windowMessage('timeOrder') }}
+      </p>
+    </div>
+  </div>
+
+  <!--
+    The optional external API: a live Open-Meteo forecast for the venue and date
+    chosen above, shown before the event has been saved. It degrades to a quiet
+    "not available" note and never blocks the form.
+  -->
+  <admin-weather-preview [target]="weatherTarget()" />
+
+  <!-- ==================================================== money and status === -->
+  <h2 class="admin-form__heading">{{ 'form.sectionMoney' | t }}</h2>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="goalAmount">{{ 'field.goalAmount' | t }}</label>
+      <input
+        id="goalAmount"
+        type="number"
+        formControlName="goalAmount"
+        min="0"
+        step="0.01"
+        aria-describedby="goalAmount-message"
+        [attr.aria-invalid]="messageFor('goalAmount') ? 'true' : null"
+      />
+      <p class="field-message field-message--error" id="goalAmount-message" role="status">{{ messageFor('goalAmount') }}</p>
+    </div>
+
+    <div class="field">
+      <label for="capacity">{{ 'field.capacity' | t }}</label>
+      <input
+        id="capacity"
+        type="number"
+        formControlName="capacity"
+        min="1"
+        step="1"
+        aria-describedby="capacity-hint capacity-message"
+        [attr.aria-invalid]="messageFor('capacity') ? 'true' : null"
+      />
+      <p class="field__hint" id="capacity-hint">{{ 'field.capacityHint' | t }}</p>
+      <p class="field-message field-message--error" id="capacity-message" role="status">{{ messageFor('capacity') }}</p>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="field">
+      <label for="status">{{ 'field.status' | t }}</label>
+      <select id="status" formControlName="status" aria-describedby="status-hint">
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ ('status.' + status) | t }}</option>
+        }
+      </select>
+      <p class="field__hint" id="status-hint">{{ 'field.statusHint' | t }}</p>
+    </div>
+
+    <div class="field">
+      <label for="imageUrl">{{ 'field.imageUrl' | t }}</label>
+      <div class="image-picker">
+        <select id="imageUrl" formControlName="imageUrl">
+          @for (image of images; track image) {
+            <option [value]="image">{{ image }}</option>
+          }
+        </select>
+        <!-- A preview, because a filename says very little about what an event
+             will look like on the public pages. Decorative: the select names it. -->
+        <img class="image-picker__preview" [src]="imagePreview()" alt="" aria-hidden="true" />
+      </div>
+    </div>
+  </div>
+
+  <div class="field field--inline">
+    <input id="isFree" type="checkbox" formControlName="isFree" />
+    <label for="isFree">{{ 'field.isFree' | t }}</label>
+  </div>
+
+  <!-- ================================================================ tickets === -->
+  <h2 class="admin-form__heading">{{ 'form.sectionTickets' | t }}</h2>
+  <p class="field__hint">{{ 'form.sectionTicketsHint' | t }}</p>
+
+  @if (tiersEditable()) {
+    <div class="ticket-rows" formArrayName="ticketTypes">
+      @for (tier of tiers.controls; track tier; let index = $index) {
+        <div class="ticket-row" [formGroupName]="index">
+          <input
+            type="text"
+            formControlName="ticketName"
+            maxlength="100"
+            [placeholder]="'field.ticketName' | t"
+            [attr.aria-label]="('field.ticketName' | t) + ' ' + (index + 1)"
+          />
+          <input
+            type="number"
+            formControlName="price"
+            min="0"
+            step="0.01"
+            [placeholder]="'field.ticketPrice' | t"
+            [attr.aria-label]="('field.ticketPrice' | t) + ' ' + (index + 1)"
+          />
+          <input
+            type="number"
+            formControlName="quantityAvailable"
+            min="0"
+            step="1"
+            [placeholder]="'field.ticketQuantity' | t"
+            [attr.aria-label]="('field.ticketQuantity' | t) + ' ' + (index + 1)"
+          />
+          <input
+            type="text"
+            formControlName="description"
+            [placeholder]="'field.ticketDescription' | t"
+            [attr.aria-label]="('field.ticketDescription' | t) + ' ' + (index + 1)"
+          />
+          <button class="button button--small button--ghost" type="button" (click)="removeTier(index)">
+            {{ 'field.removeTier' | t }}
+          </button>
+          <p class="field-message field-message--error" role="status">{{ tierMessage(index) }}</p>
+        </div>
+      }
+    </div>
+
+    <button class="button button--small button--outline" type="button" (click)="addTier()">
+      {{ 'field.addTier' | t }}
+    </button>
+  } @else {
+    <!--
+      The stored tiers of an event that already has some. They are shown, not
+      edited: PUT /api/events/:id adds tiers to an event that has none and ignores
+      them otherwise, so editable boxes here would promise something Save cannot
+      do. The hint below says exactly that.
+    -->
+    <div class="table-wrap">
+      <table class="data-table data-table--admin">
+        <caption class="sr-only">{{ 'event.ticketTypesHeading' | t: { name: event()?.eventName ?? '' } }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{{ 'field.ticketName' | t }}</th>
+            <th scope="col" class="is-numeric">{{ 'field.ticketPrice' | t }}</th>
+            <th scope="col" class="is-numeric">{{ 'field.ticketQuantity' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (tier of existingTiers(); track tier.ticketTypeId) {
+            <tr>
+              <th scope="row">{{ tier.ticketName }}</th>
+              <td class="is-numeric">{{ priceLabel(tier.price) }}</td>
+              <td class="is-numeric">
+                {{ tier.quantityAvailable === null ? ('ticket.unlimited' | t) : tier.quantityAvailable }}
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="3">{{ 'form.noTicketTypes' | t }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="field__hint">{{ 'form.ticketTypesExistingHint' | t }}</p>
+  }
+
+  <!-- ================================================================ submit === -->
+  <div class="admin-form__actions">
+    <button class="button" type="submit" [disabled]="saving()">{{ submitLabelKey() | t }}</button>
+    <button class="button button--outline" type="button" (click)="onReset()">{{ 'form.reset' | t }}</button>
+  </div>
+</form>

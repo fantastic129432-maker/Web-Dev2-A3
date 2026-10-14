@@ -1,0 +1,113 @@
+<div class="page-header admin-page-header">
+  <h1>{{ 'dash.heading' | t }}</h1>
+  <p class="section__lead">{{ 'dash.lead' | t }}</p>
+</div>
+
+@if (banner(); as message) {
+  <admin-feedback-banner [message]="message" />
+}
+
+@if (loading()) {
+  <div class="state state--loading" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>{{ 'admin.loading' | t }}</p>
+  </div>
+} @else {
+  <!-- ==================================================== statistic tiles === -->
+  @if (stats()) {
+    <div class="admin-stats">
+      @for (tile of tiles(); track tile.labelKey) {
+        <div [class]="'admin-stat admin-stat--' + tile.tone">
+          <span class="admin-stat__value">{{ tile.value }}</span>
+          <span class="admin-stat__label">{{ tile.labelKey | t }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============================================ API and database health === -->
+  <section class="panel" aria-labelledby="health-heading">
+    <!-- The word "API" is in the English heading on purpose: it is the one label
+         a marker or a staff member looks for when asking "is the backend up?". -->
+    <h2 id="health-heading">{{ 'health.heading' | t }}</h2>
+
+    @if (healthUnreachable()) {
+      <p class="banner banner--error">{{ 'error.offline' | t }}</p>
+    } @else if (health()) {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">{{ 'health.heading' | t }}</caption>
+          <tbody>
+            @for (row of healthRows(); track row.labelKey) {
+              <tr>
+                <th scope="row">{{ row.labelKey | t }}</th>
+                <td>{{ row.value }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="state state--loading">{{ 'admin.loading' | t }}</p>
+    }
+  </section>
+
+  <!-- ========================================================== quick links === -->
+  <section class="panel admin-quick" aria-labelledby="quick-heading">
+    <h2 id="quick-heading">{{ 'dash.quickHeading' | t }}</h2>
+    <div class="admin-quick__links">
+      <a class="admin-quick__card" routerLink="/events/new">
+        <strong>{{ 'dash.quickNew' | t }}</strong>
+        <span>{{ 'dash.quickNewHint' | t }}</span>
+      </a>
+      <a class="admin-quick__card" routerLink="/events">
+        <strong>{{ 'dash.quickUpdate' | t }}</strong>
+        <span>{{ 'dash.quickUpdateHint' | t }}</span>
+      </a>
+      <a class="admin-quick__card" routerLink="/registrations">
+        <strong>{{ 'dash.quickRegistrations' | t }}</strong>
+        <span>{{ 'dash.quickRegistrationsHint' | t }}</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ================================================= recent registrations === -->
+  <section class="panel" aria-labelledby="recent-heading">
+    <h2 id="recent-heading">{{ 'dash.recent' | t }}</h2>
+
+    @if (recent().length === 0) {
+      <p>{{ 'dash.recentEmpty' | t }}</p>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table data-table--admin">
+          <caption class="sr-only">{{ 'dash.recent' | t }}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{{ 'registrations.colAttendee' | t }}</th>
+              <th scope="col">{{ 'registrations.colEvent' | t }}</th>
+              <th scope="col" class="is-numeric">{{ 'registrations.colTickets' | t }}</th>
+              <th scope="col" class="is-numeric">{{ 'registrations.colValue' | t }}</th>
+              <th scope="col">{{ 'registrations.colWhen' | t }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (registration of recent(); track registration.registrationId) {
+              <tr>
+                <th scope="row">
+                  <span class="cell-stack">
+                    <span class="cell-stack__primary">{{ registration.attendeeName }}</span>
+                    <span class="cell-stack__secondary">{{ registration.attendeeEmail }}</span>
+                  </span>
+                </th>
+                <td>{{ registration.eventName || registration.eventId }}</td>
+                <td class="is-numeric">{{ registration.ticketsPurchased }}</td>
+                <td class="is-numeric">{{ formatCurrency(registration.totalAmount) }}</td>
+                <td>{{ when(registration) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}

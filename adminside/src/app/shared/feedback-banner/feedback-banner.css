@@ -1,0 +1,14 @@
+/*
+ * The banner's appearance (.banner, .banner--success, .banner__details, ...) is
+ * in src/styles.css. Only the host needs a rule: a custom element is inline by
+ * default, and a banner must occupy its own line above the content it describes.
+ */
+:host {
+  display: block;
+}
+
+/* The action row is only wanted when something was projected into it; an empty
+   row would still add its top margin and push the panel below it down. */
+.banner__actions:empty {
+  margin-top: 0;
+}

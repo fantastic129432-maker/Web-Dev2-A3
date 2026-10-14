@@ -1,0 +1,61 @@
+/*
+ * Two things this component needs that the admin stylesheet does not already
+ * provide. Everything else about the form's appearance (.admin-form, .field,
+ * .form-row, .field-message, .ticket-row, .admin-form__actions) is in
+ * src/styles.css.
+ */
+:host {
+  display: block;
+}
+
+/* The required marker. It is aria-hidden in the markup because the asterisk is
+   explained by the page's lead text ("Fields marked with an asterisk are
+   required") and by each field's own message - announcing "star" would add
+   nothing. --danger rather than --accent: an unstyled marker is easy to miss. */
+.field__required {
+  color: var(--danger);
+}
+
+/*
+ * The artwork picker: the dropdown and a preview of what it selects.
+ *
+ * The archived form offered the same filenames with no preview at all, which
+ * makes "fun-run.svg" a guess. The thumbnail is decorative (alt="") because the
+ * select already names the image for a screen reader.
+ */
+.image-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.image-picker select {
+  flex: 1 1 12rem;
+}
+
+.image-picker__preview {
+  width: 96px;
+  height: 64px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-50);
+}
+
+/*
+ * The ticket-tier row has FOUR inputs (name, price, quantity, description) and
+ * the remove button, while the admin stylesheet's .ticket-row is a four-column
+ * grid (name, price, quantity, button) - the description column is new here. The
+ * emulated encapsulation gives this rule a higher specificity than the global
+ * one, so it wins without !important.
+ */
+.ticket-row {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) auto;
+}
+
+@media (max-width: 900px) {
+  .ticket-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <title>Charity Events administration</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <!--
+    Applied BEFORE Angular bootstraps, so a dark-mode visitor never sees a white
+    flash while the bundle loads. This mirrors shared/src/theme/theme.service.ts
+    (EARLY_THEME_SNIPPET) and reads the same localStorage key; if you change the
+    key or the attribute name, change it in both places.
+  -->
+  <script>
+    (function () {
+      try {
+        var p = localStorage.getItem('charity-events:theme') || 'system';
+        var d = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme-preference', p);
+        document.documentElement.style.colorScheme = d ? 'dark' : 'light';
+      } catch (e) { /* private browsing: fall back to the light default */ }
+    })();
+  </script>
+</head>
+<body>
+  <!-- The whole page is rendered by the Angular application; see src/app/. -->
+  <app-root>
+    <p style="font-family: system-ui, sans-serif; padding: 2rem;">Loading the administration site...</p>
+  </app-root>
+</body>
+</html>

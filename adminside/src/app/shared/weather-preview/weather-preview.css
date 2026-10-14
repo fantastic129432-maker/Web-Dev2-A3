@@ -1,0 +1,98 @@
+/*
+ * The forecast card. The public website's weather panel lives in the CLIENT
+ * stylesheet, which this application does not load, so the handful of rules it
+ * needs are declared here instead of being duplicated wholesale. Everything is
+ * built from the design tokens, so the card follows the light/dark theme without
+ * a single [data-theme] rule of its own.
+ */
+:host {
+  display: block;
+  margin-top: var(--space-5);
+}
+
+/* The panel is a preview rather than a form section, so it is tinted to read as
+   "information about what you have chosen" and not as another field to fill in. */
+.weather-preview {
+  background: var(--surface-50);
+  border-left: 4px solid var(--brand-500);
+}
+
+.weather-preview__card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+}
+
+/* A wet forecast changes the accent, so the day's outlook reads at a glance
+   without reading a word. --accent-600 rather than --danger: rain is a fact to
+   plan around, not a failure. */
+.weather-preview__card--wet {
+  border-left: 4px solid var(--accent-600);
+}
+
+.weather-preview__glyph {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+
+.weather-preview__body {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.weather-preview__summary {
+  margin: 0;
+  font-weight: bold;
+  color: var(--ink-900);
+}
+
+.weather-preview__lead {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-500);
+  font-size: 0.86rem;
+}
+
+.weather-preview__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-3) 0 0;
+}
+
+.weather-preview__figures dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.weather-preview__figures dd {
+  margin: 0;
+  font-weight: bold;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-preview__wet-note {
+  margin: var(--space-3) 0 0;
+  font-size: 0.86rem;
+  color: var(--accent-600);
+}
+
+/* The "loading" and "not available" states share one quiet style: neither is a
+   problem the person has to solve. */
+.weather-preview__note {
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.weather-preview__attribution {
+  margin-top: var(--space-3);
+}
