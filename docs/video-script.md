@@ -694,7 +694,7 @@ button on that row.
 > repositories are shown to behave the same.
 
 > The Angular applications are covered separately by `npm run test:e2e`, which
-> drives a headless browser through both sites against the compiled API - 38
+> drives a headless browser through both sites against the compiled API - 39
 > checks - and by `npm run check:angular`, 16 checks that fail if the required
 > architecture changes: no NgModule anywhere, zoneless, every component with an
 > HTML template and a doc comment, both applications importing the shared

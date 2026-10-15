@@ -50,19 +50,24 @@
             <div class="field">
               <label for="filter-from">{{ 'search.fromDate' | t }}</label>
               <!--
-                The placeholder inside a native date field is drawn by the browser
-                in the language of the operating system and cannot be changed from
-                HTML, CSS or JavaScript. On a Chinese-language Windows it reads
-                年/月/日, so the accepted format is stated here instead.
+                No "Format: yyyy-mm-dd" line above this control, and no placeholder
+                attribute either: a native date input paints its own placeholder in
+                the BROWSER's locale, and neither `lang` on the input, on an
+                ancestor, nor on <html> changes it. Measured against this build in
+                the Edge used for testing: with the browser launched as zh-CN the
+                empty field paints "yyyy/mm/日" while <html lang="en-AU"> and
+                lang="en-AU" are both set; launched as en-US the same markup paints
+                "mm/dd/yyyy". A hard-coded format line would therefore contradict
+                the control for most of the world. `search.dateHint` below still
+                gives a valid example (2026-10-01), and the value the form submits
+                is always yyyy-mm-dd - see the class comment in search.ts, decision 5.
               -->
-              <p class="field__format" id="filter-from-format">{{ 'search.dateFormat' | t }}</p>
               <input
                 type="date"
                 id="filter-from"
                 name="from"
-                lang="en-AU"
                 #from
-                aria-describedby="filter-from-format filter-from-message"
+                aria-describedby="filter-from-message"
                 [attr.aria-invalid]="invalidField() === 'from' ? 'true' : null"
                 [value]="form().from"
                 (input)="setTextField('from', from.value)"
@@ -74,14 +79,12 @@
 
             <div class="field">
               <label for="filter-to">{{ 'search.toDate' | t }}</label>
-              <p class="field__format" id="filter-to-format">{{ 'search.dateFormat' | t }}</p>
               <input
                 type="date"
                 id="filter-to"
                 name="to"
-                lang="en-AU"
                 #to
-                aria-describedby="filter-to-format filter-to-message"
+                aria-describedby="filter-to-message"
                 [attr.aria-invalid]="invalidField() === 'to' ? 'true' : null"
                 [value]="form().to"
                 (input)="setTextField('to', to.value)"
@@ -290,9 +293,7 @@
 
       <div class="results-head">
         <p class="results-count">
-          @if (results().status === 'idle') {
-            {{ 'search.idleHint' | t }}
-          } @else if (results().status === 'done') {
+          @if (results().status === 'done' && hasActiveFilters()) {
             {{ 'search.resultsHintDone' | t }}
           }
         </p>
@@ -328,8 +329,15 @@
               <p>{{ results().message }}</p>
             </div>
           }
-          @case ('done') {
+          @default {
             @if (results().events.length === 0) {
+              <!--
+                A real "no matches" state, distinct from "nothing searched yet":
+                the visitor asked for something and the API returned no rows, so
+                the panel says so and suggests how to widen the search. The dashed
+                box is kept for this case because it is the one case where the
+                panel genuinely has no cards to show.
+              -->
               <div class="state state--empty">
                 <h3>{{ 'search.noResultsTitle' | t }}</h3>
                 <p>{{ 'search.noResultsHint' | t }}</p>
@@ -339,12 +347,6 @@
                 <app-event-card [event]="event" />
               }
             }
-          }
-          @default {
-            <div class="state state--empty">
-              <h3>{{ 'search.idleTitle' | t }}</h3>
-              <p>{{ 'search.idleHint' | t }}</p>
-            </div>
           }
         }
       </div>

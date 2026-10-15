@@ -327,15 +327,23 @@ async function main() {
     await home.page.close();
 
     // ---- search
-    // The search page deliberately shows nothing until the visitor searches (the
-    // legacy page did the same), so this performs a REAL search instead of
-    // expecting results to be pre-loaded.
+    // The page searches on ARRIVAL: it runs the default upcoming search itself, so a
+    // visitor sees events immediately rather than an empty panel asking them to press
+    // a button. The click below is therefore a real search that CHANGES the result
+    // set - it is no longer what first produces one - which is why the check that
+    // matters here is the one on arrival.
     const search = await visit(`${CLIENT}/search`);
     const filterInputs = await search.page.evaluate(() => document.querySelectorAll('input').length);
     record(
       'search page renders the filter form built from the API',
       filterInputs > 0 && search.text.includes('Coffs Harbour'),
       `${filterInputs} inputs; venues from /api/locations present`
+    );
+
+    record(
+      'the search page shows results on arrival, before anything is clicked',
+      search.text.includes(firstEvent),
+      search.text.includes(firstEvent) ? firstEvent : excerpt(search.text)
     );
 
     const submitted = await clickByText(search.page, 'Search events');

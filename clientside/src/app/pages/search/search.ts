@@ -26,6 +26,32 @@ type SortChoice =
   | 'progress-desc';
 
 /**
+ * Which request a search is: the small one the page opens with, or a full one.
+ *
+ * Named so `runSearch()` reads at its call sites - `runSearch('arrival')` in the
+ * constructor, the bare `runSearch()` everywhere the visitor drives the search -
+ * without either of them having to know what the two row counts are.
+ */
+type SearchScope = 'arrival' | 'full';
+
+/**
+ * How many events the arrival request asks for.
+ *
+ * Nine is a ceiling rather than a target, and it is deliberately just above one
+ * screenful: it fills the results grid's two columns several rows deep without
+ * turning the first paint into a long download, and it leaves room for the whole
+ * set to be clearly "more than one page" when a wider state is selected. In the
+ * development data there are six upcoming events, so the arrival request returns
+ * six rows - measured `app-event-card` count 6, reported total 6 - which fills
+ * the column on arrival, and that is the outcome this constant exists for. See
+ * decision 4 in the class comment.
+ */
+const ARRIVAL_LIMIT = 9;
+
+/** How many events a visitor-driven search asks for. See decision 3. */
+const FULL_LIMIT = 60;
+
+/**
  * The complete filter form as one value.
  *
  * A single object rather than eight signals, because every filter is submitted
@@ -54,8 +80,14 @@ interface FilterForm {
 
 /** What the results panel is currently doing. */
 interface ResultsState {
-  /** 'idle' before the first search, then one of the three outcomes. */
-  status: 'idle' | 'loading' | 'done' | 'error';
+  /**
+   * 'loading' while a request is in flight, then one of the two outcomes.
+   *
+   * There is no 'idle': the page searches as soon as it opens, so the results
+   * panel is never in a "nothing asked for yet" state that would leave the right
+   * column empty.
+   */
+  status: 'loading' | 'done' | 'error';
   /** Readonly: these rows came from the API and are never modified in place. */
   events: readonly Event[];
   total: number;
@@ -133,6 +165,33 @@ interface LocationOption {
  *    to reach the rest. The count shown above the grid is the total the API
  *    reports, not just the number of rows received.
  *
+ * 4. The page searches on arrival, with a deliberately small first request.
+ *    Opening /search issues a real GET /api/events for the default "upcoming"
+ *    state with `limit: 9`, so the results column is full the moment the page
+ *    renders instead of showing a dashed box that asks the visitor to press a
+ *    button before anything appears. Nine rows fill two grid columns without
+ *    turning the first paint into a long download; pressing Search events then
+ *    runs the same query with the full `limit: 60` documented above. The API's
+ *    reported total drives the count either way, so the number shown is the
+ *    number that matched and not the number of rows requested.
+ *
+ * 5. A native date input paints its own placeholder, and no attribute can change
+ *    it.
+ *    The two date fields are `<input type="date">`, whose internal
+ *    `yyyy/mm/日`-style placeholder is drawn by the browser in the BROWSER's own
+ *    locale and not the document's. Measured with puppeteer against the running
+ *    build in the Edge used for testing: launched with `--lang=zh-CN` the empty
+ *    field paints `yyyy/mm/日` even when the input carries `lang="en-AU"` and
+ *    `<html lang="en-AU">`; launched with `--lang=en-US` the very same markup
+ *    paints `mm/dd/yyyy`. Removing the `lang` attribute, or moving it to the
+ *    fieldset or to `<html>`, changed nothing. So the page cannot make the
+ *    control display `yyyy-mm-dd`, and the hard-coded "Format: yyyy-mm-dd" line
+ *    that used to sit above each field was removed rather than left to contradict
+ *    the control - the `search.dateHint` line beneath still shows a valid
+ *    example, which is true in every locale. The submitted value format IS
+ *    guaranteed by the spec (`yyyy-mm-dd`, checked by `validate()` below), and
+ *    that is the part the page is responsible for.
+ *
  * The category and venue lists are loaded with `forkJoin` so both requests are in
  * flight at the same time; each half also has its own `catchError`, so a failed
  * category lookup still leaves a usable city and date search rather than an empty
@@ -165,9 +224,15 @@ export class SearchPage {
   /** True when the category list itself could not be loaded. */
   protected readonly categoriesFailed = signal(false);
 
-  /** The results panel's state. */
+  /**
+   * The results panel's state.
+   *
+   * Starts as 'loading' because the constructor immediately runs a search: the
+   * first thing the visitor sees is the spinner and then real events, never an
+   * empty panel.
+   */
   protected readonly results = signal<ResultsState>({
-    status: 'idle',
+    status: 'loading',
     events: [],
     total: 0,
     message: null,
@@ -283,7 +348,16 @@ export class SearchPage {
     this.title.set();
 
     this.loadFilterOptions();
-    this.applyFiltersFromUrl();
+
+    /*
+     * Exactly one request leaves this constructor. `applyFiltersFromUrl()` builds
+     * the form from the query string and runs a full search when the URL carried
+     * filters, which is what makes a shared link like /search?city=Lismore work.
+     * A clean /search carries none, so in that case the small arrival search runs
+     * instead and the results column is full before the visitor touches anything.
+     */
+    const deepLink = this.applyFiltersFromUrl();
+    if (!deepLink) this.runSearch('arrival');
   }
 
   /* ==================================================================
@@ -399,12 +473,18 @@ export class SearchPage {
   /**
    * Validate, then search.
    *
-   * Called from the form's submit handler, from a chip being removed, and from a
-   * category being ticked - a category toggle re-runs the search because the
-   * visitor has narrowed the result set, and leaving the previous list on screen
-   * would make the checkbox look broken.
+   * Called from the form's submit handler, from a chip being removed, from a
+   * category being ticked and from the sort dropdown - a category toggle re-runs
+   * the search because the visitor has narrowed the result set, and leaving the
+   * previous list on screen would make the checkbox look broken.
+   *
+   * @param scope - `'arrival'` for the first, deliberately small request that
+   *   fills the page when it opens; `'full'` for every search the visitor drives,
+   *   which asks for the whole result set. May be omitted, in which case the full
+   *   request is made - so the existing call sites keep the behaviour they had
+   *   before the arrival search existed.
    */
-  protected runSearch(): void {
+  protected runSearch(scope: SearchScope = 'full'): void {
     const problem = this.validate();
     if (problem !== null) {
       const message = this.i18n.t(problem.key);
@@ -422,7 +502,7 @@ export class SearchPage {
     this.validationMessage.set(null);
     this.invalidField.set(null);
 
-    const query = this.buildQuery();
+    const query = this.buildQuery(scope === 'arrival' ? ARRIVAL_LIMIT : FULL_LIMIT);
     this.syncUrl(query);
 
     this.results.set({ status: 'loading', events: [], total: 0, message: null });
@@ -493,10 +573,14 @@ export class SearchPage {
    * Turn the form into the API's query parameters.
    *
    * Every empty value is left out rather than sent as an empty string, so the API
-   * applies its own default for an unset filter. `limit: 60` as explained in the
-   * class comment.
+   * applies its own default for an unset filter.
+   *
+   * @param limit - How many rows to ask for: `ARRIVAL_LIMIT` for the first request
+   *   or `FULL_LIMIT` for a search the visitor drove, as explained in decisions 3
+   *   and 4 of the class comment.
+   * @returns The query `GET /api/events` receives.
    */
-  private buildQuery(): EventQuery {
+  private buildQuery(limit: number): EventQuery {
     const current = this.form();
     const { sort, direction } = this.sortParams();
     const { location, city } = this.locationParams(current.location);
@@ -512,7 +596,7 @@ export class SearchPage {
       state: current.state,
       sort,
       direction,
-      limit: 60,
+      limit,
     };
   }
 
@@ -577,11 +661,17 @@ export class SearchPage {
   /**
    * Restore the form from the query string, then search if anything was set.
    *
-   * Arriving at /search with no query string leaves the form empty and the
-   * results panel in its "nothing searched yet" state, which is what the legacy
-   * page did - pressing Search with no filters is what lists everything.
+   * Arriving at /search with no query string leaves the form at its defaults;
+   * the constructor's arrival search is what fills the results column, so this
+   * method only has to do nothing in that case. When the URL DID carry filters
+   * they are restored and the search runs, which is what makes a link like
+   * /search?city=Lismore&isFree=true reproduce the result - exactly the filter
+   * set the visitor was looking at when they copied the link.
+   *
+   * @returns Whether the query string carried any filter, so the constructor can
+   *   decide between this search and the small arrival one without issuing both.
    */
-  private applyFiltersFromUrl(): void {
+  private applyFiltersFromUrl(): boolean {
     const params = this.route.snapshot.queryParamMap;
     let hasFilter = false;
 
@@ -654,6 +744,7 @@ export class SearchPage {
     this.update(restored);
 
     if (hasFilter) this.runSearch();
+    return hasFilter;
   }
 
   /* ==================================================================
@@ -667,17 +758,23 @@ export class SearchPage {
    * (which is what the legacy version needed): with the form held in a signal,
    * clearing it is a single write, and every control follows because they all read
    * the same signal.
+   *
+   * The clear does not leave the results panel empty. It re-runs the default
+   * search, so "Clear filters" returns the visitor to the same upcoming-events
+   * list the page opened with - an empty right-hand column would read as a
+   * failure, which is the state this page no longer has.
    */
   protected clearFilters(): void {
     this.form.set(emptyForm());
     this.sort.set('date-asc');
     this.validationMessage.set(null);
     this.invalidField.set(null);
-    this.results.set({ status: 'idle', events: [], total: 0, message: null });
 
     // The URL is emptied too, so a reload after clearing does not resurrect the
     // filters that were just removed.
     void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+
+    this.runSearch();
   }
 
   /* ==================================================================

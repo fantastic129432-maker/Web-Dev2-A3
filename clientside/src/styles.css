@@ -753,16 +753,45 @@ textarea {
 .site-footer__inner {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  /* Three columns, evenly sized and evenly spaced. The gap matches the grid's
+     own gutter (--space-6) rather than being larger than it. */
   gap: var(--space-6);
   max-width: var(--container);
   margin: 0 auto;
   padding: 0 var(--space-5);
+  /* Every column's first line sits on one baseline even when a column starts
+     with a heading of a different size: `start` pins the boxes to the top of the
+     row instead of stretching them, which is what made the second and third
+     columns' headings drift in the legacy grid. */
+  align-items: start;
 }
 
-.site-footer h3 { color: #fff; font-size: 1rem; }
-.site-footer p { color: #b9d8d2; font-size: 0.92rem; }
-.site-footer ul { list-style: none; padding: 0; }
-.site-footer li { margin-bottom: var(--space-2); }
+/* Column rhythm.
+ *
+ * The footer's three columns are three different shapes - a brand note with a
+ * contact list, a two-item menu, and a paragraph with a link - so their internal
+ * spacing had drifted: headings carried their default bottom margin while the
+ * paragraphs carried a different one, the list items added a third, and a column
+ * holding two headings read as two unrelated blocks. The rules below give the
+ * three columns one rhythm: a heading owns the space above it (except the first
+ * one), every block of body text carries the same line height and the same
+ * bottom margin, and list items are spaced by the same token.
+ *
+ * No colour is declared here beyond the two that already existed, so the dark
+ * theme (which overrides these same selectors) keeps working. */
+.site-footer h3 {
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0 0 var(--space-2);
+}
+.site-footer h3 + h3 { margin-top: var(--space-5); }
+.site-footer p { color: #b9d8d2; font-size: 0.92rem; line-height: 1.6; margin: 0 0 var(--space-3); }
+.site-footer ul { list-style: none; padding: 0; margin: 0; }
+.site-footer li { margin-bottom: var(--space-2); line-height: 1.6; }
+/* A column can end with a list (brand note plus contact details), and that last
+   list must not leave a stray gap before the bottom bar. */
+.site-footer__column > :last-child { margin-bottom: 0; }
 .site-footer a { color: #d9ece8; }
 .site-footer a:hover { color: #fff; }
 
@@ -1086,21 +1115,42 @@ textarea {
   padding: var(--space-7) 0;
 }
 
+/*
+ * The filter card: sticky to the viewport, and exactly as tall as its contents.
+ *
+ * WHY THERE IS NO max-height AND NO overflow HERE ANY MORE
+ * The card used to be capped at `calc(100dvh - 96px - var(--space-5))` with
+ * `overflow-y: auto`, so it scrolled inside a page that already scrolls: the
+ * wheel caught in the inner container once the pointer was over the card,
+ * reaching the end of the page meant reaching the end of two scroll regions, and
+ * the inner scrollbar was drawn on the card's own right border, cutting through
+ * it. The cap also failed at its own job - the content is about 1500px tall, so
+ * on a 1366x768 window the card was capped to 648px and the whole form had to be
+ * scrolled inside a 330px-wide strip. Letting the card grow removes the second
+ * scroll container entirely: measured `scrollHeight === clientHeight` on the
+ * card, and the page's own scrollbar is the only one in the column.
+ *
+ * WHY THE STICKY OFFSET IS 96px
+ * The site header is sticky too (`position: sticky; top: 0`, 65px tall at these
+ * widths). 96px leaves the card's top edge 31px below the header's bottom edge
+ * once the card is stuck, so the tinted "1. When" panel never touches the header
+ * and the card's rounded top corner is never clipped by it - the review asked for
+ * 16-24px of clearance and this measures 31px, at scrollY 700 and at scrollY 800,
+ * on a 1440x1000 and a 1366x768 window alike. It is a fixed value rather than a
+ * calc() on the header height because the header is one row at every width where
+ * this layout is two columns (above 1000px), so its height does not change across
+ * those widths; the stacked layout below 1000px turns the sticky off entirely.
+ *
+ * The card that results from this is about 1450px tall and therefore taller than
+ * a 1366x768 window. A sticky element taller than its scrollport stops moving
+ * once its top edge reaches the offset, so on a short window the lower part of
+ * the form is reached by scrolling the page - which is the behaviour that was
+ * asked for, and is the point: one scroll container for the page, and the card's
+ * own content never scrolls inside it.
+ */
 .filter-panel {
   position: sticky;
   top: 96px;
-  /* A sticky panel that is taller than the window pins its own bottom below the
-     fold. The Search button lives at that bottom, so on a laptop it could not
-     be scrolled into reach at all: from scrollY 500 to 2200 its viewport
-     position never changed, and the only way to run a second search was to
-     scroll to the very bottom of the page. Capping the panel to the window and
-     letting it scroll internally keeps it sticky and keeps every control
-     reachable. dvh is used where it is supported so mobile browser chrome
-     cannot reintroduce the problem. */
-  max-height: calc(100vh - 96px - var(--space-5));
-  max-height: calc(100dvh - 96px - var(--space-5));
-  overflow-y: auto;
-  overscroll-behavior: contain;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -1134,23 +1184,17 @@ legend,
 .field__hint { color: var(--ink-500); font-size: 0.8rem; margin: var(--space-1) 0 0; }
 
 /*
- * The format line shown above a native date field.
+ * There is deliberately no `.field__format` rule here any more.
  *
- * A native <input type="date"> paints its own placeholder in the language of
- * the operating system, and that text cannot be changed from HTML, CSS or
- * JavaScript (verified: lang on the input, on an ancestor and dir="ltr" all
- * have no effect in Chromium). On a Chinese Windows it reads 年/月/日. Rather
- * than replace the native control - which would lose the built-in picker and
- * validation - the accepted format is stated here in English, which is the
- * usual solution and works in every browser.
+ * It styled the hard-coded "Format: yyyy-mm-dd" line that used to sit above each
+ * native date input, and that line has been removed from the search page because
+ * it promised something the control cannot deliver: a native <input type="date">
+ * paints its own placeholder in the BROWSER's locale, and no `lang` attribute
+ * changes it (measured - see decision 5 in clientside/src/app/pages/search/
+ * search.ts). The one example line that remains under those fields,
+ * `search.dateHint`, is a valid example rather than a claim about the control's
+ * presentation, so it needs no styling of its own.
  */
-.field__format {
-  margin: 0 0 var(--space-2);
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  color: var(--brand-700);
-  font-weight: bold;
-}
 
 input[type='text'],
 input[type='search'],
@@ -1210,20 +1254,18 @@ textarea:focus { border-color: var(--brand-500); }
 
 .filter-actions { display: grid; gap: var(--space-2); }
 
-/* The panel scrolls internally on short windows, so pin the action row to the
-   bottom of it. Without this the Search button sits below the panel's own fold
-   and the visitor has to work out that the panel scrolls. The opaque background
-   stops the fields showing through as they pass behind it, and the hard shadow
-   paints the same colour over the panel's bottom padding so nothing peeks out
-   under the buttons. The panel's own overflow clips that shadow, so it cannot
-   spill outside the border. */
+/*
+     * The action row sits at the end of the card, in normal flow.
+     *
+     * It was briefly pinned to the viewport bottom so the buttons stayed reachable
+     * while the tall card scrolled past - but the card is taller than most windows, so
+     * the row floated over the form it belongs to and covered the City field on first
+     * paint, which reads as a broken form. With the card no longer scrolling
+     * internally there is nothing left to pin it against: the buttons end the card.
+     */
 .filter-panel .filter-actions {
-  position: sticky;
-  bottom: 0;
-  background: var(--surface-0);
   padding-top: var(--space-3);
   padding-bottom: var(--space-1);
-  box-shadow: 0 var(--space-5) 0 var(--surface-0);
 }
 
 .chip-list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
@@ -1674,22 +1716,24 @@ textarea:focus { border-color: var(--brand-500); }
   cursor: progress;
 }
 
-/* The link from the public footer to the separate admin website. Styled as a
-   quiet outline button so it is discoverable without competing with the
-   visitor-facing calls to action. */
+/* The link from the public footer to the separate admin website.
+ *
+ * WHY IT IS NOW A PLAIN TEXT LINK
+ * It used to be an outline pill button here while the very same destination was
+ * a plain text link in the header menu, so one destination was drawn at two
+ * different weights and the louder of the two sat in the quietest part of the
+ * page. The header is the pattern that was kept, because "Admin site" is a
+ * navigation link and not a call to action: giving it button chrome competes
+ * with the genuinely visitor-facing actions (Search events, Register). No colour
+ * or border is declared here any more, so the link is drawn by exactly the same
+ * `.site-footer a` rule as the contact links beside it - one weight for every
+ * link in the footer, and the dark theme keeps working because that rule is
+ * already theme-aware. The inline-block and the top margin are what put it on
+ * its own line after the project note. */
 .site-footer__admin-link {
   display: inline-block;
   margin-top: var(--space-3);
-  padding: 0.35rem 0.85rem;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  text-decoration: none;
-}
-.site-footer__admin-link:hover,
-.site-footer__admin-link:focus-visible {
-  background: var(--surface-100);
-  color: var(--ink-900);
+  font-size: 0.92rem;
 }
 
 /* --------------------------------------------------------------------------
@@ -1742,9 +1786,10 @@ textarea:focus { border-color: var(--brand-500); }
    ========================================================================== */
 @media (max-width: 1000px) {
   .search-layout { grid-template-columns: 1fr; }
-  /* Stacked layout: the panel is no longer sticky, so it must not cap its own
-     height or scroll internally - the whole page scrolls instead. */
-  .filter-panel { position: static; max-height: none; overflow: visible; }
+  /* Stacked layout: one column, so the card has no reason to follow the
+     viewport and every scrollbar belongs to the page. The sticky card is also
+     what would make a tall filter form awkward to scroll past on a phone. */
+  .filter-panel { position: static; }
   .detail-grid { grid-template-columns: 1fr; gap: var(--space-6); }
   .side-column { position: static; }
   .hero__inner { grid-template-columns: 1fr; }
