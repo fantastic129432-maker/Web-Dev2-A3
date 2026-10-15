@@ -1,5 +1,8 @@
 <!--
-  Site header, identical on every page.
+  The HEADER segment, identical on every page: the brand, the mobile menu button and
+  the settings controls. The NAV segment is rendered inside it, by app-site-nav, so
+  the menu belongs to the header landmark - that is what the shell's "Header
+  (contains Nav)" comment in app.html refers to.
 
   The heart-in-a-circle mark is inline SVG rather than a file: it is four lines of
   path data, it inherits the brand colour from CSS, and it cannot 404. The legacy
@@ -24,9 +27,12 @@
     </a>
 
     <!--
-      The mobile menu button. Hidden above 760px by the stylesheet; below that it
-      reveals `.site-nav` by adding `.site-nav--open`. aria-expanded is kept in
-      step with the signal so assistive technology knows the state.
+      The mobile menu button. It stays in the header rather than moving into the nav
+      component because this is the position the layout gives it - between the brand
+      and the controls. Hidden above 760px by the stylesheet; below that it reveals
+      `.site-nav` by making the nav component put `.site-nav--open` on it.
+      aria-expanded is kept in step with the signal so assistive technology knows the
+      state, and aria-controls still names the id the nav element carries.
     -->
     <button
       class="site-nav__toggle"
@@ -42,47 +48,16 @@
     <div class="site-header__nav">
       <app-settings-bar />
 
-      @if (showNav()) {
-        <nav
-          class="site-nav"
-          id="primary-navigation"
-          [class.site-nav--open]="menuOpen()"
-          [attr.aria-label]="'nav.toggle' | t"
-        >
-          <ul class="site-nav__list">
-            <li>
-              <a
-                class="site-nav__link"
-                routerLink="/"
-                routerLinkActive="site-nav__link--active"
-                [routerLinkActiveOptions]="{ exact: true }"
-                ariaCurrentWhenActive="page"
-                (click)="closeMenu()"
-              >{{ 'nav.home' | t }}</a>
-            </li>
-            <li>
-              <a
-                class="site-nav__link"
-                routerLink="/search"
-                routerLinkActive="site-nav__link--active"
-                ariaCurrentWhenActive="page"
-                (click)="closeMenu()"
-              >{{ 'nav.search' | t }}</a>
-            </li>
-            <li>
-              <!--
-                A plain <a href>, not routerLink: the admin site is a separate
-                Angular application on its own origin, so the click must be a real
-                document navigation. rel="noopener" stops the new tab from reaching
-                back into this page through window.opener.
-              -->
-              <a class="site-nav__link" [href]="otherSiteUrl" rel="noopener">
-                {{ 'nav.admin' | t }}
-              </a>
-            </li>
-          </ul>
-        </nav>
-      }
+      <!--
+        NAV segment (2 of the 4 in app.html). `showNav` decides whether the menu is
+        rendered at all; `menuOpen` is the class the mobile stylesheet keys off;
+        `linkActivated` closes the menu after a navigation.
+      -->
+      <app-site-nav
+        [showNav]="showNav()"
+        [menuOpen]="menuOpen()"
+        (linkActivated)="closeMenu()"
+      />
     </div>
   </div>
 </header>

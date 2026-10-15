@@ -1,8 +1,7 @@
 /**
- * src/middleware/security.ts
- * ---------------------------------------------------------------------------
- * The security measures the brief asks us to think about, implemented without
- * pulling in extra dependencies:
+ * @file The security measures the brief asks us to think about.
+ *
+ * They are implemented without pulling in extra dependencies:
  *
  *   1. Security response headers (clickjacking, MIME sniffing, referrer leak).
  *   2. A restrictive CORS policy driven by CORS_ORIGIN in .env.
@@ -42,14 +41,31 @@ const EXPOSED_HEADERS = [
 ];
 
 /**
- * The rate limiter is a RequestHandler that can also be stopped: the interval
- * that prunes expired windows has to be clearable in a test or on shutdown.
+ * The rate limiter is a RequestHandler that can also be stopped.
+ *
+ * `stop()` exists because the limiter owns an interval: without it the pruning
+ * timer would keep a test runner or a shutting-down process alive, and there
+ * would be no way to silence it between cases.
  */
 export interface RateLimiter extends RequestHandler {
+  /** Cancel the pruning interval so the process can exit. */
   stop(): void;
 }
 
-/** Sensible defaults for a JSON API. */
+/**
+ * Set the security headers that suit a JSON API.
+ *
+ * `X-Content-Type-Options: nosniff` stops a browser from reinterpreting a JSON
+ * body as HTML, `X-Frame-Options: DENY` blocks clickjacking through an embedded
+ * frame, and the referrer policy stops URLs (which carry ids) leaking to third
+ * parties. The resource policy is `cross-origin` rather than `same-origin`
+ * because the two Angular sites are served from a different port to the API in
+ * development.
+ *
+ * @param req - The incoming request; unused, but part of the middleware contract.
+ * @param res - The response whose headers are stamped.
+ * @param next - Passes control to the next middleware in the chain.
+ */
 export function securityHeaders(
   req: Request,
   res: Response,
@@ -63,7 +79,19 @@ export function securityHeaders(
   next();
 }
 
-/** Build the CORS middleware from the configured origin list. */
+/**
+ * Build the CORS middleware from the configured origin list.
+ *
+ * `CORS_ORIGIN` is a comma separated list, and `*` means any caller, which is
+ * the development default. When an explicit list is configured the matching
+ * origin is echoed back instead, together with `Vary: Origin`: without that
+ * header a shared cache could hand one site's response to another. The exposed
+ * header list is what lets the Angular client read the `Location` of a freshly
+ * created resource, and the ten-minute preflight cache keeps the update and
+ * delete forms from paying for an extra round trip on every click.
+ *
+ * @returns The CORS middleware, which answers a preflight with 204 and a bare body.
+ */
 export function createCors(): RequestHandler {
   const allowed = env.CORS_ORIGIN.split(',')
     .map((origin) => origin.trim())
@@ -71,6 +99,7 @@ export function createCors(): RequestHandler {
 
   const allowAny = allowed.includes('*');
 
+  /** Stamp the CORS headers, and end a preflight request without a body. */
   return function cors(req: Request, res: Response, next: NextFunction): void {
     const requestOrigin = req.headers.origin;
 
@@ -100,8 +129,18 @@ export function createCors(): RequestHandler {
 }
 
 /**
- * Fixed-window rate limiter keyed by client IP.
- * Chosen over a dependency so the marker can read and understand the logic.
+ * Build the fixed-window rate limiter keyed by client IP.
+ *
+ * A window is chosen over a dependency so the marker can read and understand
+ * the logic; the counter resets on a timer rather than on a rolling basis, which
+ * is the trade-off a small API can afford. The limiter keys on `req.ip`, which
+ * is why server.ts trusts exactly one proxy hop and no more - trusting every hop
+ * would let a caller forge `X-Forwarded-For` and never be limited. Over the
+ * limit the failure is raised as an `HttpError`, so it leaves through the same
+ * error middleware as every other failure. A `RATE_LIMIT_MAX` of zero or less
+ * disables the limiter entirely, which the test suite and local demos rely on.
+ *
+ * @returns The limiter itself, carrying a `stop()` that cancels its pruning timer.
  */
 export function createRateLimiter(): RateLimiter {
   /** One fixed window per client IP. */
@@ -109,7 +148,11 @@ export function createRateLimiter(): RateLimiter {
   const windowMs = env.RATE_LIMIT_WINDOW_MS;
   const max = env.RATE_LIMIT_MAX;
 
-  // Keep the map from growing forever: drop windows that have expired.
+  /**
+   * Drop expired windows on a timer so the map cannot grow forever.
+   *
+   * `unref()` lets the process exit even while this interval is pending.
+   */
   const cleanup = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of hits) {
@@ -117,6 +160,7 @@ export function createRateLimiter(): RateLimiter {
     }
   }, windowMs).unref();
 
+  /** Count the request against its window and report the remaining allowance. */
   const rateLimiter = function rateLimiter(
     req: Request,
     res: Response,

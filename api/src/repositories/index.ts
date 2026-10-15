@@ -1,7 +1,5 @@
 /**
- * src/repositories/index.ts
- * ---------------------------------------------------------------------------
- * Chooses the data source once, at start-up, based on DATA_SOURCE in .env.
+ * @file Chooses the data source once, at start-up, based on DATA_SOURCE in .env.
  *
  *   DATA_SOURCE=mysql  (default, submitted configuration) -> MySQL database
  *   DATA_SOURCE=local                                     -> offline mirror
@@ -79,6 +77,14 @@ const registrations = (useMysql
   : localRegistrations) as unknown as RegistrationQueries &
   RegistrationWriteRepository;
 
+/**
+ * Attach the write half to the read object.
+ *
+ * Each method is bound to the object of its own module, so the merged repository
+ * never depends on `this` being the right thing at call time - which is what
+ * lets identical service code call `repository.insertEvent(...)` whichever data
+ * source produced it.
+ */
 repository.insertEvent = writes.insertEvent.bind(writes);
 repository.updateEvent = writes.updateEvent.bind(writes);
 repository.deleteEvent = writes.deleteEvent.bind(writes);
@@ -89,8 +95,12 @@ repository.insertRegistration = registrations.insertRegistration.bind(registrati
 repository.updateRegistration = registrations.updateRegistration.bind(registrations);
 repository.deleteRegistration = registrations.deleteRegistration.bind(registrations);
 
-/** Registration reads. MySQL keeps them with the other reads; local mode has
- *  one module for both halves, so it is already on the object. */
+/**
+ * Registration reads.
+ *
+ * MySQL keeps them with the other reads; local mode has one module for both
+ * halves, so it is already on the object.
+ */
 if (!repository.registrationQueries) {
   repository.registrationQueries = {
     findByEventId: registrations.findByEventId.bind(registrations),
@@ -102,12 +112,16 @@ if (!repository.registrationQueries) {
 }
 
 /**
- * Put the offline data source back to its seeded state.               A3
+ * Put the offline data source back to its seeded state.
  *
  * Only meaningful with DATA_SOURCE=local, where the "database" is an array in
  * memory. The automated test suite calls it between cases so a test that
  * creates or deletes an event cannot change the result of the next one. Calling
  * it against MySQL would drop rows from the real database, so it refuses.
+ *
+ * @returns `true` once the offline store has been re-seeded; the value is only
+ *   ever `true`, because the MySQL case throws instead.
+ * @throws Error when the selected data source is MySQL, where a reset would destroy real rows.
  */
 repository.resetLocalData = function resetLocalData(): boolean {
   if (useMysql) {
@@ -123,7 +137,9 @@ repository.resetLocalData = function resetLocalData(): boolean {
 /** The write half, exported on its own for the unit tests. */
 repository.writes = writes;
 
-/*
+/**
+ * The merged repository, and the only thing this module exports.
+ *
  * `driver` used to be re-assigned here as a named export of its own
  * (`module.exports.driver = repository.driver`). It is already a member of the
  * object below, so the single export still exposes `repository.driver`.

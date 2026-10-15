@@ -8,6 +8,8 @@ import { TranslationService } from '@charity/shared/i18n/translation.service';
  * Set the browser tab title from a route's `data.titleKey`, in the active
  * language.
  *
+ * @file The shared public-site page-title helper.
+ *
  * WHY NOT THE ROUTE'S OWN `title:` STRING
  *   The router evaluates `title:` once, without the TranslationService, so a site
  *   that offers four languages would keep an English tab title after the visitor
@@ -44,14 +46,23 @@ import { TranslationService } from '@charity/shared/i18n/translation.service';
  */
 export interface DocumentTitle {
   /**
-   * @param key    overrides `data.titleKey` when the page needs a richer key
-   *               (the event detail page names the event itself)
-   * @param values placeholders substituted into the translated title
+   * Set the document title.
+   *
+   * @param key - Overrides `data.titleKey` when the page needs a richer key, as
+   *   the event detail page does when it names the event itself. May be omitted,
+   *   in which case the route's own `data.titleKey` is used.
+   * @param values - Placeholders substituted into the translated title. May be
+   *   omitted when the title has none.
    */
   set(key?: string, values?: Record<string, string | number>): void;
 }
 
-/** Create a title setter bound to the calling component's injector. */
+/**
+ * Create a title setter bound to the calling component's injector.
+ *
+ * @returns The setter the calling page calls from its constructor and again
+ *   whenever the page's own title changes.
+ */
 export function useDocumentTitle(): DocumentTitle {
   const injector = inject(Injector);
 

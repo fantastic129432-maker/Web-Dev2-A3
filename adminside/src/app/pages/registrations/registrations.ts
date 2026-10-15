@@ -1,7 +1,23 @@
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+
+import { ApiService } from '@charity/shared/api/api.service';
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import { TranslationService } from '@charity/shared/i18n/translation.service';
+import type { Event } from '@charity/shared/models/event.model';
+import type { Registration } from '@charity/shared/models/registration.model';
+import { formatCurrency, formatDateTime } from '@charity/shared/util/format';
+
+import { banner, errorBanner, type Banner } from '../../core/feedback';
+import { usePageTitle } from '../../core/page-title';
+import { ConfirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
+import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
+
 /**
- * adminside/src/app/pages/registrations/registrations.ts
- * ---------------------------------------------------------------------------
- * Every registration recorded in the system, newest purchase first.
+ * The page listing every registration recorded in the system, newest purchase
+ * first.
  *
  * ENDPOINTS
  *   GET    /api/registrations      the list. It accepts ?eventId and ?keyword, so
@@ -20,23 +36,6 @@
  *   This is where the rule becomes workable, and the Edit link on every row goes
  *   straight to the event the registration belongs to.
  */
-import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-
-import { ApiService } from '@charity/shared/api/api.service';
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import { TranslationService } from '@charity/shared/i18n/translation.service';
-import type { Event } from '@charity/shared/models/event.model';
-import type { Registration } from '@charity/shared/models/registration.model';
-import { formatCurrency, formatDateTime } from '@charity/shared/util/format';
-
-import { banner, errorBanner, type Banner } from '../../core/feedback';
-import { usePageTitle } from '../../core/page-title';
-import { ConfirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
-import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
-
 @Component({
   selector: 'admin-registrations',
   imports: [RouterLink, ReactiveFormsModule, TranslatePipe, FeedbackBanner, ConfirmDialog],
@@ -56,6 +55,7 @@ export class Registrations {
     keyword: new FormControl('', { nonNullable: true }),
   });
 
+  /** The registrations matched by the filters, as the API returned them. */
   protected readonly registrations = signal<readonly Registration[]>([]);
 
   /**
@@ -64,11 +64,19 @@ export class Registrations {
    */
   protected readonly events = signal<readonly Event[]>([]);
 
+  /** True while a list request is in flight. */
   protected readonly loading = signal(true);
+
+  /** The page-level message, or null when nothing has been reported. */
   protected readonly banner = signal<Banner | null>(null);
+
+  /** How many registrations the API matched, which can exceed the rows returned. */
   protected readonly total = signal(0);
 
+  /** The registration awaiting confirmation, or null when no dialog is open. */
   protected readonly pendingDelete = signal<Registration | null>(null);
+
+  /** True while the DELETE is in flight, so the dialog's button cannot repeat it. */
   protected readonly deleting = signal(false);
 
   /** Exposed to the template: the same two formatters every other page uses. */
@@ -160,10 +168,12 @@ export class Registrations {
 
   /* -------------------------------------------------------------- delete ---- */
 
+  /** Open the confirmation dialog for one registration. */
   protected askDelete(registration: Registration): void {
     this.pendingDelete.set(registration);
   }
 
+  /** Close the confirmation dialog without deleting anything. */
   protected cancelDelete(): void {
     this.pendingDelete.set(null);
   }

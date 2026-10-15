@@ -1,7 +1,5 @@
 /**
- * src/routes/apiRoutes.ts
- * ---------------------------------------------------------------------------
- * The public RESTful surface of the API.
+ * @file The public RESTful surface of the API.
  *
  * URL design principles applied:
  *   * nouns, not verbs            -> /api/events, not /api/getEvents
@@ -32,11 +30,13 @@ import env = require('../config/env');
 const router = express.Router();
 
 /**
- * GET /api/health
- * Confirms that the API is running and, when DATA_SOURCE=mysql, that the
- * database answers. Handy first check for the marker or the demo video.
- * A3 report: `registrationTable` proves the new table was created by
- * database/01_schema.sql.
+ * Report whether the API is running, and whether the database answers.
+ *
+ * This is the first check for the marker or the demo video, so it is public and
+ * cheap. The status is 200 while the API itself is up and 503 only when the data
+ * source reports `connected: false`, which is what lets a marker tell a dead
+ * process apart from a missing database. A3 reports `registrationTable` as well,
+ * which proves the new table was created by database/01_schema.sql.
  */
 router.get('/health', async (req, res) => {
   const database = await repository.health();
@@ -58,9 +58,12 @@ router.get('/health', async (req, res) => {
 });
 
 /**
- * GET /api
- * A machine readable directory of the API. This doubles as living
- * documentation during the demonstration.
+ * Describe every endpoint of the API in a machine readable form.
+ *
+ * The directory is written out here rather than generated from the router table,
+ * so it doubles as living documentation during the demonstration and keeps the
+ * query parameters of each route in one place; an endpoint that is added below
+ * but not listed here is therefore visible at a glance.
  */
 router.get('/', (req, res) => {
   res.json({
@@ -186,21 +189,30 @@ router.get('/', (req, res) => {
   });
 });
 
-// Reference data (declared before /events/:id on purpose - a different
-// resource path, but keeping fixed paths first avoids any ambiguity).
+/**
+ * Reference data: the filter lists both websites build their controls from.
+ *
+ * These are declared before `/events/:id` on purpose - they are different
+ * resource paths, but keeping the fixed paths first avoids any ambiguity if a
+ * broader pattern is ever introduced.
+ */
 router.get('/categories', categoryController.getCategories);
 router.get('/locations', categoryController.getLocations);
 
-/* ---------------------------------------------------------------------------
- * Events - the full C.R.U.D. cycle (A3)
- * ------------------------------------------------------------------------- */
+/**
+ * Events - the full C.R.U.D. cycle, added in Assessment 3.
+ */
 
 // Read
 router.get('/events', eventController.getEvents);
 router.get('/events/upcoming', eventController.getUpcomingEvents);
 
-// Registration sub-collection. Declared BEFORE /events/:id so that
-// "registrations" is never interpreted as an event id in a future change.
+/**
+ * The registration sub-collection of one event.
+ *
+ * Declared BEFORE `/events/:id` so that "registrations" is never interpreted as
+ * an event id in a future change.
+ */
 router.get('/events/:id/registrations', registrationController.listForEvent);
 router.post('/events/:id/registrations', registrationController.createRegistration);
 
@@ -210,19 +222,21 @@ router.post('/events', adminController.createEvent);
 router.put('/events/:id', adminController.updateEvent);
 router.delete('/events/:id', adminController.deleteEvent);
 
-/* ---------------------------------------------------------------------------
- * Registrations addressed directly (A3)
- * ------------------------------------------------------------------------- */
+/**
+ * Registrations addressed directly, once a row has an identity of its own.
+ */
 router.get('/registrations', registrationController.listRegistrations);
 router.get('/registrations/:id', registrationController.getRegistration);
 router.put('/registrations/:id', registrationController.updateRegistration);
 router.delete('/registrations/:id', registrationController.deleteRegistration);
 
-/* ---------------------------------------------------------------------------
- * Admin view (A3) - the same events, but never filtered by status.
- * Every write handler is shared with the plain RESTful routes above, so there
- * is exactly one implementation of each rule.
- * ------------------------------------------------------------------------- */
+/**
+ * The admin view: the same events, but never filtered by status.
+ *
+ * Every write handler is shared with the plain RESTful routes above, so there is
+ * exactly one implementation of each rule and the two surfaces cannot drift
+ * apart.
+ */
 router.get('/admin/events', adminController.listAllEvents);
 router.get('/admin/events/:id', adminController.getEventById);
 router.get('/admin/reference-data', adminController.getReferenceData);

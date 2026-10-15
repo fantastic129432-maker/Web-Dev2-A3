@@ -1,7 +1,5 @@
 /**
- * shared/src/api/api-error.ts
- * ---------------------------------------------------------------------------
- * The single error type every API call in both Angular applications fails with.
+ * @file The single error type every API call in both Angular applications fails with.
  *
  * Why a custom error at all? Three reasons, and each one earns its place:
  *
@@ -28,6 +26,13 @@ const HTTP_STATUS = {
   serverError: 500,
 } as const;
 
+/**
+ * The error every failing API call arrives as, whatever actually went wrong.
+ *
+ * A component therefore catches one type and renders one message, and the message
+ * is produced late - by `friendlyMessage`, when the UI asks for it - so an error
+ * already on screen is re-rendered in the new language when the visitor switches.
+ */
 export class ApiError extends Error {
   /** The HTTP status, or 0 when the request never reached a server. */
   readonly status: number;
@@ -38,6 +43,13 @@ export class ApiError extends Error {
   /** True when the request timed out rather than being refused. */
   readonly timedOut: boolean;
 
+  /**
+   * Build an error from an HTTP failure, a timeout or a client-side fault.
+   *
+   * @param message - The message to carry, normally the API's own wording.
+   * @param options - The status, the `details` payload, the URL and the timeout flag. May
+   *   be omitted, in which case the error reads as a client-side fault with status 0.
+   */
   constructor(
     message: string,
     options: {
@@ -68,9 +80,10 @@ export class ApiError extends Error {
   }
 
   /**
-   * 409: the request contradicts the current state. In this project that is
-   * mainly "this event already has registrations, so it cannot be deleted" -
-   * the data-integrity rule the brief asks for.
+   * 409: the request contradicts the current state.
+   *
+   * In this project that is mainly "this event already has registrations, so it
+   * cannot be deleted" - the data-integrity rule the brief asks for.
    */
   get isConflict(): boolean {
     return this.status === HTTP_STATUS.conflict;
@@ -152,15 +165,16 @@ export class ApiError extends Error {
   /* ------------------------------------------------------------- display */
 
   /**
-   * A message that is safe and helpful to show a person, in the active
-   * language.
+   * A message that is safe and helpful to show a person, in the active language.
    *
    * The API's own wording is preferred where it is genuinely useful (a 404
    * names the missing event; a 409 explains how many registrations block the
    * delete). For everything else a translated, status-appropriate sentence is
    * better than an internal message, so the i18n key is used instead.
    *
-   * @param t the TranslationService.t function for the active language
+   * @param t - The `TranslationService.t` function for the active language.
+   * @returns The message to display: the API's wording where it is useful, and a
+   *   translated sentence chosen from the status otherwise.
    */
   friendlyMessage(t: (key: string) => string): string {
     if (this.timedOut) return t('error.timeout');
@@ -172,7 +186,17 @@ export class ApiError extends Error {
     return t('error.offline');
   }
 
-  /** Rebuild an ApiError from a decoded error envelope. */
+  /**
+   * Rebuild an ApiError from a decoded error envelope.
+   *
+   * Used by ApiService for an error status and for the contract violation of a
+   * 200 that carries `success: false`.
+   *
+   * @param body - The decoded `{ success: false, error: { ... } }` response.
+   * @param status - The HTTP status the response arrived with.
+   * @param url - The full URL that was requested, which makes a bug report actionable.
+   * @returns A new error carrying the envelope's message, details and status.
+   */
   static fromEnvelope(body: ApiErrorBody, status: number, url: string): ApiError {
     return new ApiError(body.error?.message || `Request failed (${status}).`, {
       status,

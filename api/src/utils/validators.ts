@@ -1,7 +1,5 @@
 /**
- * src/utils/validators.ts
- * ---------------------------------------------------------------------------
- * Reusable parsing and validation helpers.
+ * @file Reusable parsing and validation helpers.
  *
  * A2 used these only for query strings. A3 adds a second group at the bottom
  * for JSON request bodies (creating and updating events, creating
@@ -27,18 +25,37 @@ import type { UntrustedInput, ValidationIssue } from '../types';
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^\d{2}:\d{2}(:\d{2})?$/;
 
-/** Read a query parameter that may legitimately appear more than once. */
+/**
+ * Read a query parameter that may legitimately appear more than once.
+ *
+ * Express gives a single value for one occurrence and an array for several, so
+ * normalising here means every caller below can treat the result as a list and
+ * never has to test which shape arrived.
+ *
+ * @param value - The raw value from `req.query`, which may be undefined, a single value or an array.
+ * @returns A list, empty when the parameter was absent.
+ */
 function asArray(value: unknown): unknown[] {
   if (value === undefined || value === null) return [];
   return Array.isArray(value) ? value : [value];
 }
 
 /**
- * Split repeated parameters and comma separated values into a clean list of
- * ids. This is what allows the client to send either
+ * Split repeated and comma separated parameters into a clean list of ids.
+ *
+ * This is what allows the client to send either
  *   ?category=1&category=2      (repeated)
  *   ?category=1,2               (comma separated)
  *   ?category[]=1&category[]=2  (PHP style brackets)
+ * and is the single reason the three forms behave identically. Duplicates are
+ * collapsed and anything that is not a positive whole number is reported as a
+ * problem rather than silently dropped, so a typo in a filter never widens the
+ * result set.
+ *
+ * @param value - The raw query value in any of the three accepted forms.
+ * @param fieldName - The query parameter name, used in the error message the client displays.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The distinct valid ids, in the order first seen; empty when none were usable.
  */
 export function parseIdList(
   value: unknown,
@@ -65,20 +82,51 @@ export function parseIdList(
   return ids;
 }
 
-/** A real calendar date in YYYY-MM-DD form (rejects 2026-02-31). */
+/**
+ * Test whether a value is a real calendar date in `YYYY-MM-DD` form.
+ *
+ * The regular expression alone would accept 2026-02-31, so the value is also
+ * parsed and formatted back: only a date that survives the round trip is real,
+ * which is what stops an impossible date reaching the database.
+ *
+ * @param value - The value to test, normally a string from a query or a body.
+ * @returns `true` when the value is a genuine date, `false` for anything else.
+ */
 export function isValidDate(value: unknown): boolean {
   if (typeof value !== 'string' || !DATE_PATTERN.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+/**
+ * Test whether a value is a real clock time in `HH:MM` or `HH:MM:SS` form.
+ *
+ * The pattern is checked first and each component is then range checked, so
+ * `25:00` is rejected where a pattern alone would let it through.
+ *
+ * @param value - The value to test, normally a string from a request body.
+ * @returns `true` when the value is a genuine time, `false` for anything else.
+ */
 function isValidTime(value: unknown): boolean {
   if (typeof value !== 'string' || !TIME_PATTERN.test(value)) return false;
   const [hours, minutes, seconds = '00'] = value.split(':');
   return Number(hours) < 24 && Number(minutes) < 60 && Number(seconds) < 60;
 }
 
-/** Parse a positive integer with a bounded range. */
+/**
+ * Parse a positive integer and check it against a bounded range.
+ *
+ * The options object carries `min` (default 1), `max` (default
+ * `Number.MAX_SAFE_INTEGER`) and the shared `errors` array; a value outside the
+ * range is reported and `undefined` comes back so the caller can fall back to
+ * its default. Fractions and non-numeric text are refused here rather than
+ * being rounded, because `LIMIT 2.5` and `LIMIT 'abc'` would otherwise reach the
+ * query builder.
+ *
+ * @param value - The raw value from a query string.
+ * @param fieldName - The query parameter name, used in the error message.
+ * @returns The number when it is a whole number inside the range, otherwise `undefined`.
+ */
 export function parseInteger(
   value: unknown,
   fieldName: string,
@@ -103,24 +151,38 @@ export function parseInteger(
   return number;
 }
 
-/** Read a single trimmed string, treating "" as absent. */
+/**
+ * Read a single trimmed string, treating an empty string as absent.
+ *
+ * An empty value is treated as absent rather than as a value, so a cleared
+ * search box means "no keyword" instead of "keyword is empty".
+ *
+ * @param value - The raw value, which may be a list if the parameter was repeated.
+ * @returns The trimmed text, or `undefined` when there was nothing to read.
+ */
 export function parseText(value: unknown): string | undefined {
   if (value === undefined || value === null) return undefined;
   const text = String(Array.isArray(value) ? value[0] : value).trim();
   return text === '' ? undefined : text;
 }
 
-/* =====================================================================
- * Assessment 3 additions - validation of JSON request bodies
- * ---------------------------------------------------------------------
- * Query strings and JSON bodies arrive in different shapes, so these
- * helpers take a whole `body` object plus a shared `errors` array and
- * report every problem at once instead of failing on the first one. The
- * service layer turns the collected array into a single HTTP 400 with a
- * per-field list, which is what both websites display.
- * ===================================================================== */
-
-/** Is `value` a real calendar date (YYYY-MM-DD)? */
+/**
+ * Read a real calendar date out of a request body.
+ *
+ * This begins the Assessment 3 group of body helpers. Query strings and JSON
+ * bodies arrive in different shapes, so every helper below takes the whole
+ * `body` plus a shared `errors` array and reports every problem at once instead
+ * of failing on the first one; the service layer turns the collected array into a
+ * single HTTP 400 with a per-field list, which is what both websites display. A
+ * full ISO timestamp is accepted and reduced to its date part, which is what an
+ * `<input type="date">` or a Postman timestamp sends, and the options object
+ * controls whether the field is mandatory (`required`, default `true`).
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The date in `YYYY-MM-DD` form, or `undefined` when it is absent or invalid.
+ */
 export function requiredDate(
   body: UntrustedInput,
   field: string,
@@ -143,7 +205,19 @@ export function requiredDate(
   return candidate;
 }
 
-/** A clock time in HH:MM or HH:MM:SS form. */
+/**
+ * Read a clock time out of a request body.
+ *
+ * A bare `HH:MM` is widened to `HH:MM:SS` because the `TIME` columns carry
+ * seconds, so storing the value the client typed keeps the column's own format.
+ * The options object controls whether the field is mandatory (`required`,
+ * default `true`).
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The time in `HH:MM:SS` form, or `undefined` when it is absent or invalid.
+ */
 export function requiredTime(
   body: UntrustedInput,
   field: string,
@@ -164,7 +238,19 @@ export function requiredTime(
   return candidate;
 }
 
-/** A non-empty piece of text, optionally bounded in length. */
+/**
+ * Read a non-empty piece of text out of a request body.
+ *
+ * The options object carries `required` (default `true`), `min` (default 1) and
+ * `max` (default 5000). The upper bound matches the widest `VARCHAR` in the
+ * schema, so a value that would be silently truncated by the database is
+ * refused here with a message the form can display.
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The trimmed text, or `undefined` when it is absent, blank or out of range.
+ */
 export function requiredText(
   body: UntrustedInput,
   field: string,
@@ -192,7 +278,21 @@ export function requiredText(
   return text;
 }
 
-/** A whole number, optionally within a range. */
+/**
+ * Read a number out of a request body.
+ *
+ * The options object carries `required` (default `true`), `min` (default 0),
+ * `max` (default `Number.MAX_SAFE_INTEGER`) and `integer` (default `true`). The
+ * distinction between a whole number and a decimal exists because the schema
+ * mixes `INT` columns with the decimal price columns, so one helper serves
+ * both; the range check mirrors the column's own range where the caller passes
+ * one.
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The number when it is inside the range, otherwise `undefined`.
+ */
 export function requiredNumber(
   body: UntrustedInput,
   field: string,
@@ -224,7 +324,21 @@ export function requiredNumber(
   return number;
 }
 
-/** A boolean that also accepts "true"/"false"/1/0, as HTML forms send them. */
+/**
+ * Read a boolean out of a request body.
+ *
+ * A JSON body carries a real boolean, but an HTML form or a Postman form posts
+ * the strings `true`, `false`, `1`, `0`, `yes` and `no`, so all of them are
+ * accepted rather than forcing every caller to normalise first. The options
+ * object carries `required` (default `false`) and `fallback`, which is returned
+ * when the field is absent - the flag columns are optional, so the fallback is
+ * usually the schema default.
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The boolean when the value was understood, the fallback when it was absent, otherwise `undefined`.
+ */
 export function requiredBoolean(
   body: UntrustedInput,
   field: string,
@@ -247,7 +361,21 @@ export function requiredBoolean(
   return undefined;
 }
 
-/** A value from a fixed list, compared case-insensitively. */
+/**
+ * Read a value from a fixed list out of a request body.
+ *
+ * The comparison is case-insensitive and the accepted spelling is returned in
+ * lower case, so `Published` from a hand-written request and the `ENUM` value in
+ * the schema agree; the error message lists the allowed values, which is what the
+ * admin form shows beside the field. The options object carries `required`
+ * (default `true`) and `fallback`, returned when the field is absent.
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param allowed - The permitted values, in the order they should be listed in an error.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The matching value in lower case, the fallback when absent, otherwise `undefined`.
+ */
 export function requiredEnum(
   body: UntrustedInput,
   field: string,
@@ -277,7 +405,20 @@ export function requiredEnum(
   return text;
 }
 
-/** A referential id: a positive whole number that must exist in its table. */
+/**
+ * Read a referential id out of a request body.
+ *
+ * This is `requiredNumber` with the range pinned to a positive whole number, so
+ * a foreign key of 0 or a negative id is refused before the database has to
+ * reject it; whether the row exists is the repository's business, checked when
+ * the insert or update runs. The options object controls whether the field is
+ * mandatory (`required`, default `true`).
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The id when it is a positive whole number, otherwise `undefined`.
+ */
 export function requiredId(
   body: UntrustedInput,
   field: string,
@@ -287,7 +428,21 @@ export function requiredId(
   return requiredNumber(body, field, errors, { required, min: 1, integer: true });
 }
 
-/** An email address that also satisfies the database CHECK constraint. */
+/**
+ * Read an email address out of a request body.
+ *
+ * The length is capped at 150 characters, matching the column and the database
+ * `CHECK` constraint, and the pattern is deliberately the pragmatic
+ * `something@something.something` test: it accepts every address a real user
+ * types while rejecting the obvious mistakes, which is the check the form can
+ * act on. The options object controls whether the field is mandatory
+ * (`required`, default `true`).
+ *
+ * @param body - The untrusted request body being validated.
+ * @param field - The body field name, used in the message and as the error's field.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The address in its trimmed form, or `undefined` when it is absent or malformed.
+ */
 export function requiredEmail(
   body: UntrustedInput,
   field: string,
@@ -303,7 +458,19 @@ export function requiredEmail(
   return text;
 }
 
-/** Throw a single HTTP 400 carrying every field error, or return the values. */
+/**
+ * Throw a single HTTP 400 carrying every collected field error.
+ *
+ * This is the point where the collect-then-report helpers above become a
+ * response: one 400 with a per-field list, rather than the first problem only.
+ * The require of `./errors` is lazy because `errors.ts` does not import this
+ * module, so the cycle is avoided by loading it at throw time.
+ *
+ * @param errors - The collected problems; an empty list means the request was valid.
+ * @param message - The summary returned alongside the field list. May be
+ *   omitted, in which case a generic invalid-fields message is used.
+ * @throws HttpError with status 400 when `errors` is not empty, carrying the list as `details`.
+ */
 export function throwIfInvalid(
   errors: ValidationIssue[],
   message = 'One or more fields are invalid.'

@@ -1,7 +1,5 @@
 /**
- * shared/src/i18n/translation.service.ts
- * ---------------------------------------------------------------------------
- * Language switching for the interface, shared by both Angular applications.
+ * @file Language switching for the interface, shared by both Angular applications.
  *
  * Behaviour carried over exactly from the vanilla js/i18n.js, because it is
  * already marked and it works:
@@ -40,8 +38,9 @@ import {
 import type { Dictionaries } from './language.model';
 
 /**
- * The dictionary for the application being built. Provided in each app's
- * app.config.ts:
+ * The dictionary for the application being built.
+ *
+ * Provided in each app's app.config.ts:
  *
  *   clientside -> provideTranslations(CLIENT_DICTIONARIES)
  *   adminside  -> provideTranslations(ADMIN_DICTIONARIES)
@@ -56,9 +55,19 @@ function isLanguageCode(value: unknown): value is LanguageCode {
   return typeof value === 'string' && (LANGUAGE_CODES as readonly string[]).includes(value);
 }
 
+/**
+ * Translate interface strings for one of the four supported languages.
+ *
+ * The dictionary arrives through APP_DICTIONARIES rather than an import, so the
+ * same compiled service serves the public site and the admin site without
+ * assuming either one's strings, and the active language is a signal so every
+ * template that reads a translation re-renders when it changes.
+ */
 @Injectable({ providedIn: 'root' })
 export class TranslationService {
+  /** The strings for the application being built, provided by its app config. */
   private readonly dictionaries = inject(APP_DICTIONARIES);
+  /** The document whose <html lang> attribute follows the active language. */
   private readonly document = inject(DOCUMENT);
 
   /** The active language. Private writable signal; `language` below is read-only. */
@@ -75,9 +84,13 @@ export class TranslationService {
   /** The four options, for building the switcher. */
   readonly languages = SUPPORTED_LANGUAGES;
 
+  /**
+   * Keep <html lang> in step with the active language.
+   *
+   * Screen readers and the browser's own hyphenation both use that attribute,
+   * and the CSS :lang() rules can key off it.
+   */
   constructor() {
-    // Keep <html lang> honest, which screen readers and the browser's own
-    // hyphenation both use, and which the CSS :lang() rules can key off.
     effect(() => {
       this.document.documentElement.setAttribute('lang', this.languageInfo().htmlLang);
     });
@@ -92,12 +105,31 @@ export class TranslationService {
    * is what makes a template update when the language changes, and the function
    * can be passed around (for example to ApiError.friendlyMessage) without losing
    * its `this`.
+   *
+   * @param key - Dictionary key, for example `nav.home`.
+   * @param values - Values substituted into `{placeholders}`. May be omitted, in which case
+   *   the placeholders are left as they are.
+   * @returns The translation, or the key itself when neither the active language nor the
+   *   English reference dictionary defines it.
    */
   readonly t = (key: string, values?: TranslationValues): string => {
     return this.translate(this.current(), key, values);
   };
 
-  /** Translate for an explicit language, ignoring the active one. */
+  /**
+   * Translate a key for a language other than the active one.
+   *
+   * This is the single lookup used by `t`, and it is public so a caller can render
+   * a string in a fixed language - the language switcher lists every language in
+   * its own words, for example.
+   *
+   * @param language - Language to read the dictionary for.
+   * @param key - Dictionary key, for example `nav.home`.
+   * @param values - Values substituted into `{placeholders}`. May be omitted, in which case
+   *   the placeholders are left as they are.
+   * @returns The translation, or the key itself when neither dictionary defines it, so a
+   *   missing key is visible on screen rather than rendering as nothing.
+   */
   translate(language: LanguageCode, key: string, values?: TranslationValues): string {
     const dictionary = this.dictionaries[language] ?? {};
     let text = dictionary[key];
@@ -121,8 +153,14 @@ export class TranslationService {
   /* ----------------------------------------------------------------- writes */
 
   /**
-   * Switch language: remember it and update the signal, which re-renders every
-   * template that reads a translation.
+   * Switch language, and remember the choice for the next visit.
+   *
+   * Updating the signal is what re-renders every template that reads a
+   * translation; the write to localStorage only affects a later page load.
+   *
+   * @param language - Language code from the switcher. An unsupported value is warned
+   *   about and ignored, so the active language never becomes something the
+   *   dictionary cannot answer for.
    */
   set(language: string): void {
     if (!isLanguageCode(language)) {
@@ -136,8 +174,13 @@ export class TranslationService {
   /* -------------------------------------------------------------- internals */
 
   /**
-   * Decide the opening language: stored choice, then ?lang=, then the browser's
-   * preference, then English.
+   * Decide the opening language, in the order stored, query, browser, English.
+   *
+   * The stored choice comes first so a returning visitor keeps what they picked
+   * last time; `?lang=` is second so a language can be linked to directly (useful
+   * when demonstrating); the browser's own preference is third and is used only
+   * when it names one of the four supported languages; English is the fallback
+   * when none of those produce an answer.
    */
   private detectInitialLanguage(): LanguageCode {
     try {
@@ -168,6 +211,7 @@ export class TranslationService {
     return DEFAULT_LANGUAGE;
   }
 
+  /** Remember the choice under the key both websites share. */
   private persist(language: LanguageCode): void {
     try {
       globalThis.localStorage?.setItem(APP_CONFIG.storageKeys.language, language);

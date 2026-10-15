@@ -1,9 +1,8 @@
 /**
- * shared/src/models/reference.model.ts
- * ---------------------------------------------------------------------------
- * The supporting resources the two websites read:
- * categories, venues, the featured organisation, headline statistics and the
- * API health report.
+ * @file The supporting resources the two websites read.
+ *
+ * Categories, venues, the featured organisation, headline statistics and the API
+ * health report.
  *
  * These are the "reference data" the admin event forms need for their dropdowns
  * (GET /api/admin/reference-data) and the numbers the home page and admin
@@ -23,10 +22,12 @@ export interface Category {
 }
 
 /**
- * A venue. The latitude/longitude pair is what makes the weather feature
- * possible: Open-Meteo is asked for the forecast at exactly these coordinates.
- * "Online (Australia-wide)" deliberately has none, and the event page then shows
- * no forecast rather than a wrong one.
+ * A venue, carrying the coordinates the weather feature needs.
+ *
+ * The latitude/longitude pair is what makes the forecast possible: Open-Meteo is
+ * asked for the weather at exactly these coordinates. "Online (Australia-wide)"
+ * deliberately has none, and the event page then shows no forecast rather than a
+ * wrong one.
  */
 export interface Venue {
   locationId: number;

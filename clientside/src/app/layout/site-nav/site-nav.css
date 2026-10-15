@@ -1,0 +1,18 @@
+/*
+ * The nav segment adds no box of its own, and that is the whole point of this
+ * file.
+ *
+ * With `display: contents` the <nav> below is laid out exactly as if it were a
+ * direct child of `.site-header__nav` - which is what it was before the markup
+ * moved out of site-header.html. Without it the host element would be a flex item
+ * of that container and would therefore draw an extra `gap` even when the menu is
+ * hidden (on the 404 route, and below 760px where `.site-nav` is `display: none`),
+ * and the mobile `order: 3` / `width: 100%` rules in src/styles.css would resolve
+ * against a different box.
+ *
+ * So no CSS rule moved with the markup, and the header's appearance - desktop,
+ * mobile and print - is unchanged.
+ */
+:host {
+  display: contents;
+}

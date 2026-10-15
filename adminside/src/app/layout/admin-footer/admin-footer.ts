@@ -1,8 +1,13 @@
+import { Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+import { ApiService } from '@charity/shared/api/api.service';
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+
 /**
- * adminside/src/app/layout/admin-footer/admin-footer.ts
- * ---------------------------------------------------------------------------
- * The footer on every page, including the one fact the archived admin site also
- * put there: which DATA SOURCE the API is answering from.
+ * The FOOTER segment of the four every admin page shares (Header, Nav, Body,
+ * Footer), and the one fact the archived admin site also put there: which DATA
+ * SOURCE the API is answering from.
  *
  * WHY THE FOOTER ASKS THE API ITSELF
  *   "local" means the API is serving its in-memory mirror of the seed file and
@@ -13,13 +18,10 @@
  *   It calls GET /api/health. A failure is NOT an error the person has to act on -
  *   the footer simply says the API could not be reached (the error.offline key),
  *   which is genuinely useful information and needs no dialog.
+ *
+ * The shell renders this component once, as a sibling of the routed page, so the
+ * request is made once per full page load rather than once per navigation.
  */
-import { Component, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-
-import { ApiService } from '@charity/shared/api/api.service';
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-
 @Component({
   selector: 'admin-footer',
   imports: [TranslatePipe],

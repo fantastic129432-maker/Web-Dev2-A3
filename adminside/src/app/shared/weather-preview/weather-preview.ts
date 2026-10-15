@@ -1,6 +1,20 @@
+import { Component, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { finalize, switchMap } from 'rxjs';
+
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import { TranslationService } from '@charity/shared/i18n/translation.service';
+import { formatShortDate } from '@charity/shared/util/format';
+import {
+  isWetWeather,
+  weatherCodeKey,
+  weatherGlyph,
+  type WeatherForecast,
+  type WeatherTarget,
+} from '@charity/shared/weather/weather.model';
+import { WeatherService } from '@charity/shared/weather/weather.service';
+
 /**
- * adminside/src/app/shared/weather-preview/weather-preview.ts
- * ---------------------------------------------------------------------------
  * The live Open-Meteo forecast for the venue and date the administrator has
  * chosen - the optional external API from Assessment 3, shown BEFORE the event
  * exists in the database.
@@ -25,22 +39,6 @@
  * issues the new one, so a slow answer for the old venue can never overwrite the
  * forecast for the new one.
  */
-import { Component, computed, inject, input, signal } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { finalize, switchMap } from 'rxjs';
-
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import { TranslationService } from '@charity/shared/i18n/translation.service';
-import { formatShortDate } from '@charity/shared/util/format';
-import {
-  isWetWeather,
-  weatherCodeKey,
-  weatherGlyph,
-  type WeatherForecast,
-  type WeatherTarget,
-} from '@charity/shared/weather/weather.model';
-import { WeatherService } from '@charity/shared/weather/weather.service';
-
 @Component({
   selector: 'admin-weather-preview',
   imports: [TranslatePipe],

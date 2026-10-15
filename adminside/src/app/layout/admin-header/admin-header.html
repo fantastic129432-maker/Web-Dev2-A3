@@ -1,14 +1,21 @@
 <!--
-  The admin header and menu. Every class here comes from the admin stylesheet
-  (src/styles.css), which is the archived admin/css/admin.css, so the header looks
-  the way it did in the vanilla frontend:
+  The HEADER segment of the admin website, on every page: the brand band with the
+  link back to the public website and the two settings controls. The NAV segment is
+  rendered below it by the admin-nav component, so each segment is a component of its
+  own and both are created exactly once, by the shell.
+
+  Every class here comes from the admin stylesheet (src/styles.css), which is the
+  archived admin/css/admin.css, so the header looks the way it did in the vanilla
+  frontend:
 
     .admin-header / __inner      the dark band with the brand and the controls
     .admin-brand / __mark / __text   the badge and the two lines of title
     .admin-link                  the link back to the public website
     .admin-lang-select           the language picker
     .admin-theme-toggle          the light/dark/system button
-    .admin-nav / __list / __link the sticky menu
+
+  (.admin-nav / __list / __link, the sticky menu, moved to admin-nav.html and kept
+  the same class names there.)
 -->
 <header class="admin-header">
   <div class="admin-header__inner">
@@ -70,27 +77,8 @@
   </div>
 </header>
 
-<nav class="admin-nav" [attr.aria-label]="'admin.title' | t">
-  <ul class="admin-nav__list">
-    @for (item of navItems; track item.path) {
-      <li>
-        <!--
-          routerLink, never an href: the application is served from /admin/ in
-          production, so an absolute HTML path would leave the application.
-          Each item is matched EXACTLY, so no entry claims a page it does not
-          name ("/events" does not light up on /events/new).
-        -->
-        <a
-          class="admin-nav__link"
-          [routerLink]="item.path"
-          routerLinkActive="admin-nav__link--active"
-          #active="routerLinkActive"
-          [routerLinkActiveOptions]="{ exact: true }"
-          [attr.aria-current]="active.isActive ? 'page' : null"
-        >
-          {{ item.labelKey | t }}
-        </a>
-      </li>
-    }
-  </ul>
-</nav>
+<!--
+  NAV segment (2 of the 4 in app.html): the menu, its markup and its four router
+  links in one place. `showNav` is forwarded from this component's own input.
+-->
+<admin-nav [showNav]="showNav()" />

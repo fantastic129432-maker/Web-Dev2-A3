@@ -1,7 +1,5 @@
 /**
- * src/repositories/repository.local.ts
- * ---------------------------------------------------------------------------
- * Offline twin of repository.mysql.ts.
+ * @file Offline twin of repository.mysql.ts.
  *
  * It exposes exactly the same methods and returns exactly the same object
  * shapes, but the rows come from local-data.ts (a generated mirror of
@@ -30,8 +28,11 @@ const data = store.data;
 
 /**
  * "Today" for the derived event state.
+ *
  * DATA_SOURCE=local + DEMO_TODAY=2026-09-28 makes the demo reproducible; when
  * DEMO_TODAY is not set the real current date is used, matching CURDATE().
+ *
+ * @returns The demo date, or the real current date as `YYYY-MM-DD`.
  */
 function today(): string {
   const override = process.env.DEMO_TODAY;
@@ -39,17 +40,47 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** upcoming | ongoing | past - the same rule as vw_public_events. */
+/**
+ * Derive upcoming, ongoing or past from the event's own dates.
+ *
+ * The state is computed rather than stored, exactly as vw_public_events does it,
+ * so the mirror cannot disagree with MySQL about whether an event has finished.
+ *
+ * @param row - The raw event row.
+ * @param currentDate - The date to compare against. May be omitted, in which case `today()` is used.
+ * @returns `upcoming`, `ongoing` or `past`.
+ */
 function eventState(row: DataRecord, currentDate = today()): string {
   if (row.date_end < currentDate) return 'past';
   if (row.date_start <= currentDate) return 'ongoing';
   return 'upcoming';
 }
 
+/**
+ * Find one row by a raw column value.
+ *
+ * The snapshot keeps the database's snake_case column names, so a lookup always
+ * names the column it is matching on.
+ *
+ * @param collection - The raw snapshot table to search.
+ * @param key - The column name to match, such as `category_id`.
+ * @param value - The value to match.
+ * @returns The first matching row, or `null` when the table has none.
+ */
 function byId(collection: DataRecord[], key: string, value: unknown): DataRecord | null {
   return collection.find((row) => row[key] === value) || null;
 }
 
+/**
+ * Count whole days between two `YYYY-MM-DD` dates.
+ *
+ * The event detail page uses this for its "days to go" line, and it is computed
+ * here rather than in the client so the two data sources report the same figure.
+ *
+ * @param fromDate - The earlier date, as `YYYY-MM-DD`.
+ * @param toDate - The later date, as `YYYY-MM-DD`.
+ * @returns The number of days, negative when `toDate` is in the past.
+ */
 function daysBetween(fromDate: string, toDate: string): number {
   const from = Date.parse(`${fromDate}T00:00:00Z`);
   const to = Date.parse(`${toDate}T00:00:00Z`);
@@ -57,9 +88,15 @@ function daysBetween(fromDate: string, toDate: string): number {
 }
 
 /**
- * Join the lookup tables, the ticket tiers and the donation totals for one
- * event. These names must stay identical to the aliases in
- * repository.mysql.ts, because both are consumed by the same client code.
+ * Join the lookup tables, the ticket tiers and the donation totals for one event.
+ *
+ * These names must stay identical to the aliases in repository.mysql.ts, because
+ * both are consumed by the same client code; the decorated shape is the API's
+ * real contract, which is why it is assembled in one function per data source
+ * rather than shared.
+ *
+ * @param row - The raw event row from the snapshot or from an override.
+ * @returns The event as the API returns it, with its names, totals, tiers and derived state.
  */
 function decorate(row: DataRecord): DataRecord {
   const organization = byId(data.organizations, 'organization_id', row.organization_id);
@@ -146,16 +183,34 @@ function decorate(row: DataRecord): DataRecord {
  *
  * A3 added `overrides`: the write repository can replace or add a row, so a
  * freshly created event is visible to the very next read.
+ *
+ * @returns Every event in the mirror, decorated, including suspended and deleted-at-runtime rows removed.
  */
 function allEvents(): DataRecord[] {
   return store.effectiveEvents().map(decorate);
 }
 
-/** Public events only: status = 'active' is what vw_public_events enforces. */
+/**
+ * Public events only: status = 'active' is what vw_public_events enforces.
+ *
+ * @returns The decorated events a public endpoint may return.
+ */
 function publicEvents(): DataRecord[] {
   return allEvents().filter((event) => event.status === 'active');
 }
 
+/**
+ * Test one decorated event against the validated filters.
+ *
+ * This is the in-memory equivalent of the WHERE clause repository.mysql.ts
+ * builds, and the two must stay in step: a filter that is added to one and not
+ * the other would make the two data sources disagree, which is exactly what the
+ * test suite runs twice to catch.
+ *
+ * @param event - The decorated event to test.
+ * @param filters - The validated filters from the service layer.
+ * @returns `true` when the event satisfies every filter that was set.
+ */
 function matches(event: DataRecord, filters: EventFilters): boolean {
   if (filters.categoryIds && filters.categoryIds.length > 0) {
     if (!filters.categoryIds.includes(Number(event.categoryId))) return false;
@@ -212,6 +267,13 @@ function matches(event: DataRecord, filters: EventFilters): boolean {
   return true;
 }
 
+/**
+ * The sortable keys, mapped onto the decorated row's own field names.
+ *
+ * A whitelist rather than a dynamic lookup, because the value ends up deciding
+ * the order of the results: anything not named here falls back to the default
+ * sort instead of being passed through.
+ */
 const SORT_KEYS: Record<string, string> = {
   date: 'dateStart',
   name: 'eventName',
@@ -223,6 +285,20 @@ const SORT_KEYS: Record<string, string> = {
   updated: 'eventId',
 };
 
+/**
+ * Sort decorated events by a whitelisted key.
+ *
+ * A copy is sorted rather than the caller's array, and equal values fall back to
+ * the event id so the order is stable - without that, two events on the same
+ * date could swap places between requests and a page could repeat or skip a row.
+ *
+ * @param events - The events to sort.
+ * @param sort - The requested sort key; an unknown key falls back to `defaultSort`.
+ * @param direction - `desc` reverses the order; anything else is ascending.
+ * @param defaultSort - The key to use when `sort` is not in the whitelist. May be omitted, in which case `date` is used.
+ * @param defaultDir - The direction used for the fallback. May be omitted, in which case ascending order is used.
+ * @returns A new, sorted array.
+ */
 function sortEvents(events: DataRecord[], sort: string, direction: string, defaultSort = 'date', defaultDir = 'ASC'): DataRecord[] {
   const key = SORT_KEYS[sort] || SORT_KEYS[defaultSort];
   const dir = String(direction).toLowerCase() === 'desc' ? -1 : 1;
@@ -238,7 +314,16 @@ function sortEvents(events: DataRecord[], sort: string, direction: string, defau
   });
 }
 
-/** The columns the admin ticket-tier panel may contain. */
+/**
+ * Map submitted ticket tiers onto the columns the ticket_types table uses.
+ *
+ * The mirror numbers the tiers from 1 for each event, which is what stands in for
+ * the table's AUTO_INCREMENT on a set of rows that is being replaced as a unit.
+ *
+ * @param eventId - The event the tiers belong to.
+ * @param ticketTypes - The validated tiers from the write service.
+ * @returns The rows to store in the mirror's ticket_types shape.
+ */
 function normaliseTicketTypes(eventId: number, ticketTypes: DataRecord[]): DataRecord[] {
   return ticketTypes.map((ticket, index) => ({
     ticket_type_id: index + 1,
@@ -253,9 +338,24 @@ function normaliseTicketTypes(eventId: number, ticketTypes: DataRecord[]): DataR
   }));
 }
 
+/**
+ * The offline read half of the repository contract.
+ *
+ * It is the same object shape as the MySQL half, which is what lets
+ * src/repositories/index.ts swap one for the other without a single caller
+ * changing; the registration reads ride along on `registrationQueries` so the
+ * merged object publishes them in both modes.
+ */
 const repository: EventReadRepository = {
   driver: 'local',
 
+  /**
+   * Report the health of the offline data source.
+   *
+   * It is always connected: the "database" is an array in memory, so the answer
+   * describes the mirror (including the date the demo is pinned to) instead of
+   * testing a connection that cannot fail.
+   */
   async health() {
     return {
       connected: true,
@@ -272,6 +372,14 @@ const repository: EventReadRepository = {
     };
   },
 
+  /**
+   * Return one page of decorated events for the validated filters.
+   *
+   * The admin list includes suspended and cancelled events; every public caller
+   * keeps the active-only rule. Filtering, sorting and paging all happen in
+   * memory on the same decorated rows that are returned, so the total can never
+   * disagree with the page.
+   */
   async findEvents(filters, paging) {
     // The admin list includes suspended and cancelled events; every public
     // caller keeps the active-only rule.
@@ -282,6 +390,14 @@ const repository: EventReadRepository = {
     return { total: sorted.length, events: page };
   },
 
+  /**
+   * Return one event with its registrations and its days-to-go figure.
+   *
+   * The publish-state rule is the same as MySQL's view: a public caller sees an
+   * active event only, while `status: 'all'` (the admin pages) accepts any
+   * status. The registrations come from the same store the event page reads, and
+   * they are in newest-first order there.
+   */
   async findEventById(eventId, options = {}) {
     const allowAnyStatus = options.status === 'all';
     const source = allowAnyStatus ? allEvents() : publicEvents();
@@ -297,6 +413,12 @@ const repository: EventReadRepository = {
     };
   },
 
+  /**
+   * List every category with a count of its active events.
+   *
+   * The count is taken from the public view, so the filter panel's numbers match
+   * what selecting that category would actually return.
+   */
   async findCategories() {
     const events = publicEvents();
     return data.categories
@@ -311,6 +433,12 @@ const repository: EventReadRepository = {
       .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
   },
 
+  /**
+   * List the venues that host at least one active event.
+   *
+   * Venues with no active event are filtered out here rather than in the client,
+   * so no surface can offer a filter option that could only return nothing.
+   */
   async findLocations() {
     const events = publicEvents();
     return data.locations
@@ -336,7 +464,13 @@ const repository: EventReadRepository = {
       );
   },
 
-  /** A3: the lookup lists the admin event forms need. */
+  /**
+   * Return the lookup lists the admin event forms need.
+   *
+   * Every reference row is included, even one with no public event: staff may be
+   * about to create the first event for it, which is why this is not built from
+   * the public event list the way findCategories() is.
+   */
   async findReferenceData() {
     return {
       organizations: data.organizations
@@ -370,6 +504,13 @@ const repository: EventReadRepository = {
     };
   },
 
+  /**
+   * Return the organisation featured on the home page.
+   *
+   * The mirror has one organisation, so it is the first row; the `null` case is
+   * still handled because the MySQL view can legitimately return no featured row
+   * and both data sources must behave the same way.
+   */
   async findFeaturedOrganization() {
     const organization = data.organizations[0];
     if (!organization) return null;
@@ -385,6 +526,14 @@ const repository: EventReadRepository = {
     };
   },
 
+  /**
+   * Return the headline numbers for the home page.
+   *
+   * They are derived from the same decorated rows the listings return, so the
+   * statistics strip cannot contradict the list below it; the registration totals
+   * come from the mutable store so a registration taken during the demo shows up
+   * immediately.
+   */
   async findStats() {
     const events = publicEvents();
     const active = events.filter((e) => e.eventState !== 'past');
@@ -404,12 +553,18 @@ const repository: EventReadRepository = {
     };
   },
 
-  /** A3: read access to the registration list for the admin pages. */
+  /** Read access to the registration list for the admin pages. */
   registrationQueries: registrationStore,
 };
 
-/* One export: the pure helpers the original attached to module.exports
- * afterwards (for the unit tests) ride along on the same object. */
+/**
+ * The read repository plus the pure helpers the tests exercise.
+ *
+ * One export: the helpers the original attached to module.exports afterwards
+ * ride along on the same object, so `require('./repository.local')` is still the
+ * repository the merged module expects and the unit tests can call `decorate()`
+ * or `matches()` directly.
+ */
 export = Object.assign(repository, {
   decorate,
   eventState,

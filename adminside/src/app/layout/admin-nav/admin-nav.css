@@ -1,0 +1,17 @@
+/*
+ * The nav segment adds no box of its own, and that is the whole point of this file.
+ *
+ * `display: contents` keeps the <nav> below in exactly the place the archived admin
+ * markup had it - a direct child of the block that renders the header band - so the
+ * sticky positioning of `.admin-nav` (src/styles.css) is resolved against the same
+ * containing block as before, and the print rule that hides `.admin-nav` leaves
+ * nothing behind. An extra block wrapper would be invisible here too, but this makes
+ * the menu's box position a guarantee rather than something that happens to be true.
+ *
+ * Nothing about the menu's appearance is redeclared: the colours, the spacing, the
+ * sticky behaviour and the active-link underline all come from the global
+ * stylesheet, and every class name is unchanged.
+ */
+:host {
+  display: contents;
+}

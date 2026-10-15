@@ -1,7 +1,5 @@
 /**
- * shared/src/weather/weather.service.ts
- * ---------------------------------------------------------------------------
- * The optional external API from Assessment 3: a forecast for the day of the
+ * @file The optional external API from Assessment 3: a forecast for the day of the
  * event, from Open-Meteo (https://api.open-meteo.com/v1/forecast).
  *
  * Why Open-Meteo?
@@ -45,19 +43,33 @@ interface OpenMeteoResponse {
   };
 }
 
+/**
+ * Fetch the daily forecast for an event, from the browser.
+ *
+ * The forecast is a bonus, so this service is deliberately quiet: every failure
+ * resolves to null instead of rejecting, and the caller renders the panel
+ * unconditionally. The coordinates come from the event itself, which the API
+ * serves from `locations.latitude` / `locations.longitude`.
+ */
 @Injectable({ providedIn: 'root' })
 export class WeatherService {
+  /** The Angular HTTP client used for the Open-Meteo request. */
   private readonly http = inject(HttpClient);
 
   /**
-   * Can a forecast be shown for this event at all?
+   * Decide whether a forecast can be shown for this event at all.
    *
-   * Two conditions:
+   * Two conditions must hold:
    *   * the venue must have coordinates (the "Online" pseudo-venue has none),
    *   * the event date must be inside Open-Meteo's daily forecast window.
    *
    * A past event gets no forecast: there is nothing useful in telling a visitor
    * what the weather was.
+   *
+   * @param target - The event, or the draft an administrator is still filling in. May be
+   *   null or undefined, in which case no forecast is possible.
+   * @returns True when a request is worth making, false for an event with no
+   *   coordinates, no usable date, a past date or a date beyond the forecast window.
    */
   canShowForecast(target: WeatherTarget | null | undefined): boolean {
     if (!target) return false;
@@ -67,17 +79,28 @@ export class WeatherService {
     return offset >= 0 && offset <= APP_CONFIG.weatherForecastDays;
   }
 
-  /** The ISO date the forecast is requested for. */
+  /**
+   * The ISO date the forecast is requested for.
+   *
+   * @param target - The event whose date is wanted.
+   * @returns `eventDate` when the API sent one, otherwise `dateStart`, and an empty
+   *   string when the event carries neither.
+   */
   forecastDate(target: WeatherTarget): string {
     return String(target.eventDate ?? target.dateStart ?? '');
   }
 
   /**
-   * Fetch the daily forecast for the event's own date, at the event's own
-   * coordinates.
+   * Fetch the daily forecast for the event's own date and coordinates.
    *
    * Resolves to `null` (never rejects) whenever a forecast is unavailable, so the
    * caller can render the panel unconditionally.
+   *
+   * @param target - The event to forecast for. May be null or undefined, in which case
+   *   the result is an immediate null rather than a request.
+   * @returns An Observable that emits the forecast, or null when the event cannot have
+   *   one, when Open-Meteo has no value for the day, or when the request fails or times
+   *   out.
    */
   forecastFor(target: WeatherTarget | null | undefined): Observable<WeatherForecast | null> {
     if (!target || !this.canShowForecast(target)) return of(null);

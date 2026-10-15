@@ -41,6 +41,8 @@
     "check:translations": "node tools/check-translations.mjs",
     "check:angular": "node tools/check-angular-architecture.mjs",
     "check:shared": "tsc -p tsconfig.shared.json",
+    "check:docs": "node tools/doc-comments.mjs --check",
+    "docs": "node tools/doc-comments.mjs --write",
     "generate:i18n": "node tools/generate-i18n-data.mjs",
     "generate:local-data": "node tools/generate-local-data.js"
   },

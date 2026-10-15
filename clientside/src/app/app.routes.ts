@@ -3,6 +3,11 @@ import { Routes } from '@angular/router';
 /**
  * The public website's routing table.
  *
+ * Every page is lazy, every title is a translation key carried in route data, and
+ * a bare /register deliberately falls through to the 404.
+ *
+ * @file Routing for the CLIENT-SIDE website.
+ *
  * WHY EVERY PAGE IS LOADED WITH `loadComponent`
  *   The legacy site was four separate HTML documents, so a visitor only ever
  *   downloaded the code for the page they asked for. A single-page application
@@ -19,7 +24,7 @@ import { Routes } from '@angular/router';
  *   string here would therefore stay English after the visitor switched language.
  *   The key is carried in `data` instead and each page component resolves it
  *   through `Title` + `TranslationService` when it runs - see
- *   `setDocumentTitle()` in `shared/page-title.ts`. `title:` is kept as well in
+ *   `useDocumentTitle()` in `shared/page-title.ts`. `title:` is kept as well in
  *   the documented Angular form so the intent of each route is readable here.
  *
  * WHY THERE IS NO ROUTE FOR 'register' WITHOUT AN ID

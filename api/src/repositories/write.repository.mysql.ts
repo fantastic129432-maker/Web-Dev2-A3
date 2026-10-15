@@ -1,7 +1,6 @@
 /**
- * src/repositories/write.repository.mysql.ts
- * ---------------------------------------------------------------------------
- * Assessment 3, Part 2 - the WRITE half of the MySQL data source:
+ * @file The WRITE half of the MySQL data source (Assessment 3, Part 2).
+ *
  *
  *   insertEvent()  POST   /api/events
  *   updateEvent()  PUT    /api/events/:id
@@ -32,7 +31,12 @@ import mysqlRepository = require('./repository.mysql');
 
 const q = db;
 
-/** The columns an administrator may set, in table order. */
+/**
+ * The columns an administrator may set, in table order.
+ *
+ * Nothing outside this list can be written, so a request cannot set a column the
+ * form does not offer - an id, a timestamp or a computed column.
+ */
 const WRITABLE_COLUMNS = [
   'organization_id',
   'category_id',
@@ -53,7 +57,17 @@ const WRITABLE_COLUMNS = [
   'image_url',
 ];
 
-/** Map the camelCase keys of a validated payload onto database columns. */
+/**
+ * Map the camelCase keys of a validated payload onto database columns.
+ *
+ * Only the keys that are actually present are emitted, which is what makes an
+ * update partial: an absent key means "leave this column alone" rather than
+ * "write its default". The mapping is explicit rather than derived from the key
+ * name so that the API's vocabulary and the schema's cannot drift apart silently.
+ *
+ * @param values - The validated values from the write service.
+ * @returns The column names to write and the values to bind to them, in matching order.
+ */
 function toColumns(values: DataRecord): { columns: string[]; params: any[] } {
   const mapping = {
     organizationId: 'organization_id',
@@ -93,7 +107,13 @@ function toColumns(values: DataRecord): { columns: string[]; params: any[] } {
  * Turn a mysql2 driver error into the HTTP error the client should see.
  *
  * Only the cases a member of staff can actually cause are translated; anything
- * else is re-thrown and becomes a 500 with a stack trace in development.
+ * else is re-thrown and becomes a 500 with a stack trace in development. The
+ * `context` object carries the names the message needs (an event name, a
+ * registration count) because the driver error alone does not know them.
+ *
+ * @param error - The value the driver rejected with, in any shape it uses.
+ * @param context - Extra facts for the message, such as the event name or the registration count. May be omitted.
+ * @returns The matching HttpError, or `null` when the code is not one this layer explains.
  */
 function translateMysqlError(error: any, context: DataRecord = {}) {
   const code = error.code || (error.errors || []).find((item: any) => item && item.code)?.code;
@@ -148,29 +168,67 @@ function translateMysqlError(error: any, context: DataRecord = {}) {
 }
 
 /**
- * Re-read the row that was just written, through the admin view, so the API
- * returns the same shape for a create/update as it does for a read.
+ * Re-read the row that was just written, through the admin view.
+ *
+ * That is what makes the API return the same shape for a create or an update as
+ * it does for a read.
+ *
+ * The read half is reused rather than the inserted values being echoed back:
+ * that is what makes a create return the database's own defaults, constraints
+ * and derived figures instead of what the client hoped it had written.
+ *
+ * @param eventId - The id of the event to read back.
+ * @returns The event as the admin view returns it, with its ticket tiers.
  */
 async function readBack(eventId: number) {
   return mysqlRepository.findEventById(eventId, { status: 'all' });
 }
 
-/* The two lookup helpers are not part of the repository contract; they ride
- * along on the exported object for the unit tests, as they did before. */
+/**
+ * Test whether an email is already registered for an event.
+ *
+ * Not part of the repository contract: it rides along on the exported object for
+ * the unit tests, as it did before.
+ *
+ * @param eventId - The event to test against.
+ * @param email - The normalised attendee address.
+ * @returns `true` when a registration already exists.
+ */
 async function registrationExists(eventId: number, email: string): Promise<boolean> {
   return mysqlRepository.registrationQueries.existsForEventAndEmail(eventId, email);
 }
 
-/** How many registrations an event has. */
+/**
+ * Count how many registrations an event has.
+ *
+ * Also a test helper rather than part of the contract, and the same count the
+ * delete rule takes inside its transaction.
+ *
+ * @param eventId - The event to count for.
+ * @returns The number of registrations for that event.
+ */
 async function countRegistrations(eventId: number): Promise<number> {
   return mysqlRepository.registrationQueries.countByEventId(eventId);
 }
 
+/**
+ * The MySQL write half of the repository contract.
+ *
+ * It is checked against `EventWriteRepository` at compile time, and
+ * write.repository.local.ts must expose exactly the same four methods so the two
+ * data sources stay interchangeable.
+ */
 const writeRepository: EventWriteRepository = {
   /**
-   * POST /api/events
-   * @param {object} values validated payload from eventService
-   * @returns {Promise<object>} the created event, with ticket types included
+   * Insert one event and return it as the API will report it.
+   *
+   * The admin form may send ticket tiers in the same request; when it does, the
+   * event and its tiers are written as one unit, and the row is read back
+   * afterwards so the response carries the database's own values.
+   *
+   * @param values - The validated event values in camelCase.
+   * @returns The created event, read back through the admin view with its ticket tiers included.
+   * @throws HttpError with status 400 when no fields were supplied or a chosen reference does not exist, and 409 when a record with those details already exists.
    */
   async insertEvent(values) {
     const { columns, params } = toColumns(values);
@@ -204,11 +262,18 @@ const writeRepository: EventWriteRepository = {
   },
 
   /**
-   * PUT /api/events/:id - a partial update: only the fields present in the
-   * request body are changed, so the admin form can send the whole object and
-   * a future caller can send a single field.
+   * Update one event as a partial update.
    *
-   * @returns {Promise<object|null>} the updated event, or null when no event has that id
+   * Only the fields present in the request body are changed, so the admin form can
+   * send the whole object while a future caller can send a single field. The
+   * existence check runs first, because an UPDATE that matches nothing is a
+   * success as far as the driver is concerned and would otherwise be reported as
+   * an update that did not happen.
+   *
+   * @param eventId - The id of the event to change.
+   * @param values - The validated fields to change, in camelCase.
+   * @returns The updated event, read back through the admin view, or `null` when no event has that id.
+   * @throws HttpError with status 400 when a value is refused by the database and 409 when it collides with an existing record.
    */
   async updateEvent(eventId, values) {
     // Confirm the event exists first so a missing id is a clean 404 rather than
@@ -243,12 +308,21 @@ const writeRepository: EventWriteRepository = {
   },
 
   /**
-   * DELETE /api/events/:id
+   * Delete one event, refusing when it already has registrations.
    *
-   * Refuses to delete an event that already has registrations, which is the
-   * data-integrity rule the brief asks for.
+   * The existence check, the registration count and the DELETE all run inside ONE
+   * transaction (event_db.transaction), which is the whole point of the design: a
+   * registration created between the check and the DELETE would otherwise be
+   * orphaned or silently destroyed. `SELECT ... FOR UPDATE` locks the event row
+   * for the same reason, so two concurrent deletes cannot both see it as present.
+   * MySQL remains the last line of defence, because
+   * fk_registration_event is ON DELETE RESTRICT and its
+   * ER_ROW_IS_REFERENCED_2 is translated into the same 409 this check emits.
+   * Child rows that are allowed to disappear with the event (ticket_types,
+   * donations) are removed by ON DELETE CASCADE.
    *
-   * @returns {Promise<{deleted:boolean, reason?:string}>}
+   * @param eventId - The id of the event to delete.
+   * @returns The outcome: `deleted: true` with the event name, or `deleted: false` with the reason `not-found` or `has-registrations` and the blocking count.
    */
   async deleteEvent(eventId) {
     return db.transaction(async (connection) => {
@@ -311,9 +385,15 @@ const writeRepository: EventWriteRepository = {
 /**
  * Insert the tiers for an event, unless it already has some.
  *
- * @param {number} eventId
- * @param {Array<{ticketName:string, price:number, quantityAvailable?:number|null,
- *                description?:string|null}>} ticketTypes
+ * The whole set is written inside one transaction, so a failure half way through
+ * cannot leave an event with one of its three tiers. A tier failure is logged and
+ * swallowed rather than rethrown, because the event itself has already been
+ * saved and losing the tiers is not a reason to tell the client the create
+ * failed; a driver error that this layer can explain (an unknown reference, a
+ * value the column refuses) is still raised as an HttpError.
+ *
+ * @param eventId - The event the tiers belong to.
+ * @param ticketTypes - The validated tiers to insert, each with a name, a price and optional quantity and description.
  */
 async function replaceTicketTypes(eventId: number, ticketTypes: DataRecord[]) {
   try {
@@ -348,8 +428,13 @@ async function replaceTicketTypes(eventId: number, ticketTypes: DataRecord[]) {
   }
 }
 
-/* One export: the helpers the original attached to module.exports afterwards
- * ride along on the same object. */
+/**
+ * The write repository plus the helpers the tests exercise.
+ *
+ * One export: the helpers the original attached to module.exports afterwards ride
+ * along on the same object, so `require('./write.repository.mysql')` is still the
+ * object src/repositories/index.ts binds onto the read half.
+ */
 export = Object.assign(writeRepository, {
   translateMysqlError,
   toColumns,

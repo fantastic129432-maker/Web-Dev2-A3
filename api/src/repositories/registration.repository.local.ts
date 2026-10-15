@@ -1,7 +1,5 @@
 /**
- * src/repositories/registration.repository.local.ts
- * ---------------------------------------------------------------------------
- * The registration repository for DATA_SOURCE=local: reads AND writes.
+ * @file The registration repository for DATA_SOURCE=local: reads AND writes.
  *
  * In MySQL the reads live in repository.mysql.ts
  * (`registrationQueries`) and the writes live in
@@ -25,7 +23,15 @@ import store = require('./local-store');
 import type { DataRecord, RegistrationFilters } from '../types';
 import { HttpError } from '../utils/errors';
 
-/** Lower-case and trim an email, matching registration.repository.mysql.ts. */
+/**
+ * Lower-case and trim an email address.
+ *
+ * The same rule the MySQL half and the service layer apply, so "the same email"
+ * means the same thing whichever data source is answering.
+ *
+ * @param email - The address as submitted, in any casing or with surrounding spaces.
+ * @returns The comparable form of the address, or an empty string when nothing was supplied.
+ */
 function normaliseEmail(email: unknown): string {
   return String(email || '').trim().toLowerCase();
 }
@@ -37,6 +43,9 @@ function normaliseEmail(email: unknown): string {
  * created events (store.allTicketTypes()), because a registration may be made
  * against a tier that only came into existence a moment ago in the same
  * session. Looking in data.ticket_types alone would reject it.
+ *
+ * @param ticketTypeId - The tier id stored on the registration, which may be null for a registration with no tier.
+ * @returns The raw tier row, or `null` when the id is absent or unknown.
  */
 function ticketFor(ticketTypeId: unknown): DataRecord | null {
   if (ticketTypeId === null || ticketTypeId === undefined) return null;
@@ -47,11 +56,29 @@ function ticketFor(ticketTypeId: unknown): DataRecord | null {
   );
 }
 
+/**
+ * The current row of the event a registration belongs to.
+ *
+ * It goes through the store rather than the snapshot so a registration made
+ * against an event created earlier in the same session still finds its event.
+ *
+ * @param eventId - The event id stored on the registration.
+ * @returns The raw event row, or `null` when the event is unknown or was deleted.
+ */
 function eventFor(eventId: number): DataRecord | null {
   return store.findEventRow(eventId);
 }
 
-/** Convert one raw row into the API shape used by both data sources. */
+/**
+ * Convert one raw row into the API shape used by both data sources.
+ *
+ * The conversion happens in exactly one place so the two repositories cannot
+ * drift apart; the tier price and the event name are looked up rather than
+ * stored, so a registration always reports the current tier name and price.
+ *
+ * @param row - The raw registration row in the snapshot's snake_case shape.
+ * @returns The registration as the API returns it, including the computed total amount.
+ */
 function toApiShape(row: DataRecord): DataRecord {
   const ticket = ticketFor(row.ticket_type_id);
   const event = eventFor(row.event_id);
@@ -83,6 +110,10 @@ function toApiShape(row: DataRecord): DataRecord {
  * were purchased". registered_at is text in the form "YYYY-MM-DD HH:MM:SS", so
  * a plain string comparison sorts it correctly, and registration_id breaks a
  * tie between two rows written in the same second.
+ *
+ * @param left - One registration row.
+ * @param right - The other registration row.
+ * @returns A negative number when `left` sorts later, as Array.sort expects.
  */
 function compareNewestFirst(left: DataRecord, right: DataRecord): number {
   if (left.registered_at !== right.registered_at) {
@@ -91,22 +122,48 @@ function compareNewestFirst(left: DataRecord, right: DataRecord): number {
   return right.registration_id - left.registration_id;
 }
 
-/** The raw rows for one event, newest first. */
+/**
+ * The raw rows for one event, newest first.
+ *
+ * @param eventId - The event whose registrations should be listed.
+ * @returns A new array of the matching raw rows, sorted as the API reports them.
+ */
 function rawForEvent(eventId: number): DataRecord[] {
   return store.registrations
     .filter((row) => Number(row.event_id) === Number(eventId))
     .sort(compareNewestFirst);
 }
 
+/**
+ * The offline registration repository.
+ *
+ * It holds the reads the merged object publishes as `registrationQueries`, plus
+ * the writes it binds on as its own.
+ *
+ * Every method returns exactly the object shape repository.mysql.ts produces,
+ * because the same controller and the same client code consume both, and the
+ * reads answer immediately rather than returning a promise - which callers can
+ * await anyway, which is what keeps the two data sources interchangeable.
+ */
 const registrationStore = {
   driver: 'local',
 
-  /** Newest first - the event detail page. */
+  /**
+   * List every registration for one event, newest first.
+   *
+   * @param eventId - The event whose registrations should be listed.
+   * @returns The registrations in the API shape, newest purchase first.
+   */
   findByEventId(eventId: number): DataRecord[] {
     return rawForEvent(eventId).map(toApiShape);
   },
 
-  /** One registration, or null. */
+  /**
+   * Return one registration by its primary key.
+   *
+   * @param registrationId - The registration's id.
+   * @returns The registration in the API shape, or `null` when no row has that id.
+   */
   findById(registrationId: number): DataRecord | null {
     const row = store.registrations.find(
       (item) => Number(item.registration_id) === Number(registrationId)
@@ -114,7 +171,18 @@ const registrationStore = {
     return row ? toApiShape(row) : null;
   },
 
-  /** The optional admin list: every registration, newest first, filterable. */
+  /**
+   * List the whole registration population, newest first.
+   *
+   * This powers the optional admin registrations page. The filters are applied in
+   * memory with the same meanings the SQL gives them (an email is a case
+   * insensitive fragment), and the total is counted before paging so it matches
+   * the rows the same filters select.
+   *
+   * @param filters - The event id, email fragment and keyword to filter on. May be omitted, in which case every registration is included.
+   * @param paging - The limit and offset to apply. May be omitted, in which case the first hundred rows are returned.
+   * @returns The page of registrations plus the unpaged total.
+   */
   findAll(filters: RegistrationFilters = {}, paging: { limit: number; offset: number } = { limit: 100, offset: 0 }) {
     let rows = store.registrations.slice().sort(compareNewestFirst);
 
@@ -142,12 +210,29 @@ const registrationStore = {
     };
   },
 
-  /** How many registrations an event has. Used by the delete rule. */
+  /**
+   * Count how many registrations an event has.
+   *
+   * Used by the delete rule, which refuses to remove an event while this is not
+   * zero.
+   *
+   * @param eventId - The event to count for.
+   * @returns The number of registrations for that event.
+   */
   countByEventId(eventId: number): number {
     return rawForEvent(eventId).length;
   },
 
-  /** Has this email already registered for this event? */
+  /**
+   * Test whether an email already has a registration for an event.
+   *
+   * The address is normalised on both sides, which is what makes this agree with
+   * the unique key on (event_id, attendee_email).
+   *
+   * @param eventId - The event to test against.
+   * @param email - The attendee address, in any casing.
+   * @returns `true` when a registration already exists, `false` otherwise.
+   */
   existsForEventAndEmail(eventId: number, email: string): boolean {
     const needle = normaliseEmail(email);
     return store.registrations.some(
@@ -157,16 +242,32 @@ const registrationStore = {
     );
   },
 
-  /** The raw rows, for the statistics strip. */
+  /**
+   * Return the raw registration rows.
+   *
+   * The statistics strip needs the snake_case rows rather than the API shape,
+   * because it counts and sums them itself; handing out the live array is safe
+   * because the store is the single owner of that mutable state.
+   *
+   * @returns The live array of raw registration rows.
+   */
   findAllRaw(): DataRecord[] {
     return store.registrations;
   },
 
-  /* ----------------------------------------------------------------- writes */
-
   /**
-   * POST /api/events/:id/registrations
-   * @returns {object|null} the stored registration, or null when the event does not exist
+   * Insert one registration for an event.
+   *
+   * The chosen tier must belong to the event, exactly as the composite foreign
+   * key fk_registration_ticket requires in MySQL, and the email must not already
+   * be registered for it, which is the unique key
+   * uq_registration_event_email. Both rules are checked here because offline
+   * there is no database to enforce them.
+   *
+   * @param eventId - The event being registered for.
+   * @param values - The validated registration values in camelCase.
+   * @returns The stored registration, or `null` when the event does not exist.
+   * @throws HttpError with status 400 when the tier belongs to another event and 409 when that email is already registered for it.
    */
   insertRegistration(eventId: number, values: DataRecord): DataRecord | null {
     const event = eventFor(eventId);
@@ -225,8 +326,17 @@ const registrationStore = {
   },
 
   /**
-   * PUT /api/registrations/:id
-   * @returns {object|null} the updated row, or null when it does not exist
+   * Update one registration in place.
+   *
+   * Only the fields present in the payload are changed. Moving the registration
+   * to another tier is checked against the same event, and changing the email is
+   * checked against the other registrations for that event, because the same
+   * unique key has to hold after an update as after an insert.
+   *
+   * @param registrationId - The id of the registration to change.
+   * @param values - The validated fields to change, in camelCase.
+   * @returns The updated registration, or `null` when no row has that id.
+   * @throws HttpError with status 400 when the tier belongs to another event and 409 when the new email is already registered for that event.
    */
   updateRegistration(registrationId: number, values: DataRecord): DataRecord | null {
     const row = store.registrations.find(
@@ -278,7 +388,15 @@ const registrationStore = {
     return toApiShape(row);
   },
 
-  /** DELETE /api/registrations/:id */
+  /**
+   * Remove one registration.
+   *
+   * The result is a boolean rather than the removed row, because the service only
+   * needs to know whether anything was deleted in order to answer 204 or 404.
+   *
+   * @param registrationId - The id of the registration to remove.
+   * @returns `true` when a row was removed, `false` when no row had that id.
+   */
   deleteRegistration(registrationId: number): boolean {
     const index = store.registrations.findIndex(
       (item) => Number(item.registration_id) === Number(registrationId)
@@ -289,7 +407,14 @@ const registrationStore = {
   },
 };
 
-/** "YYYY-MM-DD HH:MM:SS" in local time, matching a MySQL DATETIME literal. */
+/**
+ * "YYYY-MM-DD HH:MM:SS" in local time, matching a MySQL DATETIME literal.
+ *
+ * It stands in for the column's CURRENT_TIMESTAMP default when a registration is
+ * stored without an explicit date.
+ *
+ * @returns The current moment as the snapshot writes it.
+ */
 function nowStamp(): string {
   const now = new Date();
   const pad = (value: number): string => String(value).padStart(2, '0');
@@ -299,8 +424,14 @@ function nowStamp(): string {
   );
 }
 
-/* One export: the helpers the original attached to module.exports afterwards
- * ride along on the same object. */
+/**
+ * The registration store plus the helpers the tests exercise.
+ *
+ * One export: the helpers the original attached to module.exports afterwards ride
+ * along on the same object, so `require('./registration.repository.local')` is
+ * both the read half MySQL keeps separately and the write half it keeps in
+ * registration.repository.mysql.ts.
+ */
 export = Object.assign(registrationStore, {
   toApiShape,
   rawForEvent,

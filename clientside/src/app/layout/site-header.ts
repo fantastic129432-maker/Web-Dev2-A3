@@ -1,41 +1,38 @@
 import { Component, inject, input, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink } from '@angular/router';
 
-import { OTHER_SITE_URL } from '@charity/shared/di/tokens';
 import { TranslationService } from '@charity/shared/i18n/translation.service';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 
 import { SettingsBarComponent } from './settings-bar';
+import { SiteNavComponent } from './site-nav/site-nav';
 
 /**
- * The site header: brand, primary menu, the language/theme controls and the
- * mobile menu button. Rendered once, above `<router-outlet>`, so it is identical
- * on every page - which is what the legacy js/nav.js achieved by writing the same
- * markup into every document.
+ * The site header: the HEADER segment of the four every page shares (Header, Nav,
+ * Body, Footer), holding the brand and the language/theme controls, and rendering
+ * the NAV segment inside its own `<header>` landmark.
  *
- * Menu destinations, and why they are these three:
- *   Home          the landing page with the About and Contact sections
- *   Search Events the filter form and the results
- *   Admin site    the OTHER_SITE_URL token, i.e. the separate staff website
+ * WHAT IS IN IT, AND WHAT IS NOT
+ *   The brand, the settings bar and the mobile menu button. The menu itself is
+ *   `app-site-nav`, a component of its own: see that file for why the three
+ *   destinations are Home, Search Events and Admin site, and for why the menu lives
+ *   in this header rather than beside it in the shell. The component is rendered
+ *   once, above `<router-outlet>`, so it is identical on every page - which is what
+ *   the legacy js/nav.js achieved by writing the same markup into every document.
  *
- * There is deliberately no "Register" item. Registration is per event, so a
- * global link would have no subject: it could only ask the visitor to pick an
- * event first, which is exactly what Home and Search already do. The Register
- * button on an event's own page carries the event id.
- *
- * The admin link IS in the public menu even though it is a staff tool. It was
- * footer-only at first, on the grounds that a separate site does not belong in a
- * visitor's journey - but the brief treats the two websites as two deliverables,
- * and a deliverable that cannot be found costs more than a slightly unusual menu
- * item. The footer keeps its link as well: two routes to the same place is not
- * duplication worth removing.
- *
- * `routerLinkActive` sets both the highlight class and `aria-current="page"`,
- * which is how a screen reader announces the current page.
+ * WHY THE HEADER STILL OWNS `showNav` AND `menuOpen`
+ *   Both pieces of state describe the header's own controls. `showNav` is the shell's
+ *   instruction ("this route does not want a menu") and the header forwards it to the
+ *   nav; `menuOpen` is the answer to the hamburger button, which is a child of this
+ *   template because that is the position the layout stylesheet gives it. Keeping the
+ *   button and the state here, and pushing the result down as an input, means the nav
+ *   component holds no state of its own and the two can never disagree. The admin
+ *   header forwards `showNav` the same way; it has no menu button, because the admin
+ *   menu is always visible, so it has no `menuOpen` either.
  */
 @Component({
   selector: 'app-site-header',
-  imports: [RouterLink, RouterLinkActive, SettingsBarComponent, TranslatePipe],
+  imports: [RouterLink, SettingsBarComponent, SiteNavComponent, TranslatePipe],
   templateUrl: './site-header.html',
   styleUrl: './site-header.css',
 })
@@ -43,34 +40,40 @@ export class SiteHeaderComponent {
   protected readonly i18n = inject(TranslationService);
 
   /**
-   * Whether to render the primary menu.
+   * Whether the page wants the primary menu.
    *
    * The 404 route passes `false`: a menu of links to pages the visitor was not
    * looking for is noise on an error page, but the language and theme controls
-   * still matter, so the header itself stays. A signal input (not a plain
-   * `@Input()`) because Angular 22's signal inputs are typed and give the
-   * template a plain value to read without a `strictTemplates` null check.
+   * still matter, so the header itself stays. Forwarded unchanged to
+   * `app-site-nav`, which is the component that decides whether to render the
+   * `<nav>`. A signal input (not a plain `@Input()`) because Angular 22's signal
+   * inputs are typed and give the template a plain value to read without a
+   * `strictTemplates` null check.
    */
   readonly showNav = input(true);
-
-  /** The admin (or, from the admin site, client) URL, provided in app.config.ts. */
-  protected readonly otherSiteUrl = inject(OTHER_SITE_URL);
 
   /**
    * Whether the mobile menu is open.
    *
    * A signal rather than a class toggled by hand: the header is zoneless, so DOM
-   * state written outside a signal would not repaint the template. Below 760px
-   * the stylesheet hides `.site-nav` and shows it again only with
-   * `.site-nav--open`, so all this has to do is decide whether that class is on.
+   * state written outside a signal would not repaint the template. Below 760px the
+   * global stylesheet hides `.site-nav` and shows it again only with
+   * `.site-nav--open`, so all this state has to do is decide whether that class is
+   * on - which the nav component applies from its `menuOpen` input.
    */
   protected readonly menuOpen = signal(false);
 
+  /** Flip the mobile menu: the click handler on the header's menu button. */
   protected toggleMenu(): void {
     this.menuOpen.update((open) => !open);
   }
 
-  /** Close the menu after a navigation, so it does not cover the new page. */
+  /**
+   * Close the menu after a navigation, so it does not cover the new page.
+   *
+   * Wired to the nav component's `linkActivated` output rather than to a `click` on
+   * markup this template does not own any more.
+   */
   protected closeMenu(): void {
     this.menuOpen.set(false);
   }

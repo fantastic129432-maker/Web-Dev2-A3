@@ -1,7 +1,24 @@
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+
+import { ApiError } from '@charity/shared/api/api-error';
+import { ApiService } from '@charity/shared/api/api.service';
+import { PUBLISH_STATUSES } from '@charity/shared/config/app-config';
+import { OTHER_SITE_URL } from '@charity/shared/di/tokens';
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import { TranslationService } from '@charity/shared/i18n/translation.service';
+import type { Event as CharityEvent } from '@charity/shared/models/event.model';
+import { formatCurrency, formatDateRange } from '@charity/shared/util/format';
+
+import { banner, conflictFacts, errorBanner, type Banner } from '../../core/feedback';
+import { usePageTitle } from '../../core/page-title';
+import { ConfirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
+import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
+
 /**
- * adminside/src/app/pages/event-list/event-list.ts
- * ---------------------------------------------------------------------------
- * The main admin listing: EVERY event, whatever its status, with the three
+ * The main admin listing, showing EVERY event whatever its status, with the three
  * actions the brief asks for.
  *
  * ENDPOINTS
@@ -23,25 +40,6 @@
  * shared, and the dashboard's "review the registrations" style links can
  * preselect a filter.
  */
-import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-
-import { ApiError } from '@charity/shared/api/api-error';
-import { ApiService } from '@charity/shared/api/api.service';
-import { PUBLISH_STATUSES } from '@charity/shared/config/app-config';
-import { OTHER_SITE_URL } from '@charity/shared/di/tokens';
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import { TranslationService } from '@charity/shared/i18n/translation.service';
-import type { Event as CharityEvent } from '@charity/shared/models/event.model';
-import { formatCurrency, formatDateRange } from '@charity/shared/util/format';
-
-import { banner, conflictFacts, errorBanner, type Banner } from '../../core/feedback';
-import { usePageTitle } from '../../core/page-title';
-import { ConfirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
-import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
-
 @Component({
   selector: 'admin-event-list',
   imports: [RouterLink, ReactiveFormsModule, TranslatePipe, FeedbackBanner, ConfirmDialog],
@@ -76,8 +74,13 @@ export class EventList {
     keyword: new FormControl('', { nonNullable: true }),
   });
 
+  /** The events matched by the filters, as the API returned them. */
   protected readonly events = signal<readonly CharityEvent[]>([]);
+
+  /** True while a list request is in flight. */
   protected readonly loading = signal(true);
+
+  /** The page-level message, or null when nothing has been reported. */
   protected readonly banner = signal<Banner | null>(null);
 
   /** How many events the API matched, which can exceed the rows returned. */
@@ -85,6 +88,8 @@ export class EventList {
 
   /** The event awaiting confirmation, or null when no dialog is open. */
   protected readonly pendingDelete = signal<CharityEvent | null>(null);
+
+  /** True while the DELETE is in flight, so the dialog's button cannot repeat it. */
   protected readonly deleting = signal(false);
 
   /**
@@ -181,6 +186,7 @@ export class EventList {
     this.pendingDelete.set(event);
   }
 
+  /** Close the confirmation dialog without deleting anything. */
   protected cancelDelete(): void {
     this.pendingDelete.set(null);
   }
@@ -237,6 +243,7 @@ export class EventList {
       });
   }
 
+  /** Drop the remembered refusal for one event, once its delete has succeeded. */
   private clearBlocked(eventId: number): void {
     const next = new Map(this.blocked());
     next.delete(eventId);
@@ -276,6 +283,7 @@ export class EventList {
     return 'events.stateUpcoming';
   }
 
+  /** The badge class for the DERIVED time state (upcoming / ongoing / past). */
   protected stateClass(eventState: string | null | undefined): string {
     if (eventState === 'past') return 'badge badge--past';
     if (eventState === 'ongoing') return 'badge badge--ongoing';

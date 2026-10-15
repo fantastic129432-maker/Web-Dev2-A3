@@ -1,6 +1,6 @@
 /**
- * src/db/event_db.ts
- * ---------------------------------------------------------------------------
+ * @file The MySQL connection layer.
+ *
  * REQUIRED FILE: "Set up a Node.js file, named event_db.js, that connects to
  * your database." (Assessment 2, Part 1 - extended for Assessment 3.)
  *
@@ -69,17 +69,27 @@ const connectionSettings: mysql.PoolOptions = {
   namedPlaceholders: false,
 };
 
-/** Create (once) and return the shared pool. */
+/**
+ * Create (once) and return the shared pool.
+ *
+ * The `error` listener is registered through a narrow local cast because
+ * mysql2's own typings list only the pool's lifecycle events.
+ *
+ * @returns The process-wide pool, creating it on the first call and reusing it afterwards.
+ */
 function getPool(): mysql.Pool {
   if (pool) return pool;
 
   pool = mysql.createPool(connectionSettings);
 
-  // A pool level error listener stops an idle-connection failure from
-  // crashing the Node process. mysql2's own typings only list the pool's
-  // lifecycle events ('connection', 'acquire', ...), but the pool is an
-  // EventEmitter at run time and 'error' is the event that matters here, so
-  // the listener is registered through that narrow shape.
+  /**
+   * Keep an idle-connection failure from crashing the Node process.
+   *
+   * A pool level error listener is the documented way to do that: mysql2's own
+   * typings only list the pool's lifecycle events ('connection', 'acquire',
+   * ...), but the pool is an EventEmitter at run time and 'error' is the event
+   * that matters here.
+   */
   const emitter = pool as unknown as {
     on(event: string, listener: (error: any) => void): void;
   };
@@ -97,16 +107,23 @@ function getPool(): mysql.Pool {
  * concatenation. mysql2 escapes every value in `params`, which is what
  * prevents SQL injection on the search endpoint.
  *
- * @param sql    SQL text containing "?" placeholders.
- * @param params Values bound to the placeholders.
- * @returns rows (SELECT) or a result header (INSERT/UPDATE).
+ * @param sql - The SQL text, containing "?" placeholders.
+ * @param params - The values bound to the placeholders. May be omitted for a statement that takes none.
+ * @returns The rows for a SELECT, or the result header for an INSERT or UPDATE.
  */
 async function query(sql: string, params: any[] = []): Promise<any> {
   const [rows] = await getPool().execute(sql, params);
   return rows;
 }
 
-/** Borrow a connection for a manual transaction. Remember to release it. */
+/**
+ * Borrow a connection for a manual transaction.
+ *
+ * Callers must release it themselves; `transaction()` below does that for the
+ * code that does not need the raw handle.
+ *
+ * @returns A pooled connection that stays checked out until it is released.
+ */
 async function getConnection(): Promise<mysql.PoolConnection> {
   return getPool().getConnection();
 }
@@ -114,26 +131,28 @@ async function getConnection(): Promise<mysql.PoolConnection> {
 /**
  * The connection a transaction callback receives.
  *
- * It is a mysql2 PoolConnection at run time, but the result of each statement is
- * `any` here so that one callback can read either a row array or a
- * ResultSetHeader from the same call - which is exactly what the delete rule
- * does (SELECT the event, SELECT the registration count, then DELETE). See the
- * typing note at the top of this file.
+ * The statement results are `any` here so that one callback can read either a
+ * row array or a ResultSetHeader from the same call - which is exactly what the
+ * delete rule does (SELECT the event, SELECT the registration count, then
+ * DELETE). See the typing note at the top of this file.
  */
 interface TransactionConnection {
+  /** Run a prepared statement and return its `[result, fields]` pair. */
   execute(sql: string, params?: any[]): Promise<[any, any[]]>;
+  /** Run a statement through the connection's query interface. */
   query(sql: string, params?: any[]): Promise<[any, any[]]>;
 }
 
 /**
- * Run `work` inside a database transaction.                        A3
- *
- * @param work receives the connection the transaction runs on
- * @returns whatever `work` returned
+ * Run `work` inside a database transaction.
  *
  * The connection is always released, and the transaction is rolled back if
  * `work` throws, so a failed write can never leave half-applied data behind.
  * Used by the event delete rule, which must decide and act as one unit.
+ *
+ * @param work - The callback that does the work, given the connection to run on.
+ * @returns Whatever `work` returned, once the transaction has committed.
+ * @throws Whatever `work` threw, after the rollback has been attempted, so the caller sees the original failure.
  */
 async function transaction<T>(
   work: (connection: TransactionConnection) => Promise<T>
@@ -160,10 +179,16 @@ async function transaction<T>(
 
 /**
  * Check that the database is reachable and that the expected tables exist.
- * Used by GET /api/health so a marker can confirm the setup in one click.
  *
- * A3 report: `registrationTable` tells the marker at a glance whether the
- * new event_registrations table was created by 01_schema.sql.
+ * Used by GET /api/health so a marker can confirm the setup in one click, and by
+ * the start-up banner. It deliberately never throws: an unreachable database is
+ * reported as `connected: false` with the driver's code and a hint, because a
+ * health check that fails is less useful than one that explains the failure. A3
+ * reports `registrationTable` as well, so the marker can see at a glance whether
+ * the new event_registrations table was created by 01_schema.sql.
+ *
+ * @returns A report of the connection, the server version, the table count, and
+ *   the failure details when the database could not be reached.
  */
 async function ping(): Promise<DataRecord> {
   try {
@@ -209,7 +234,13 @@ async function ping(): Promise<DataRecord> {
   }
 }
 
-/** Close the pool (used on shutdown and after the test suite). */
+/**
+ * Close the pool, used on shutdown and after the test suite.
+ *
+ * The module-level handle is cleared before awaiting `end()`, so a second call
+ * (or a `query()` racing the shutdown) creates a fresh pool instead of using one
+ * that is closing.
+ */
 async function close(): Promise<void> {
   if (!pool) return;
   const closing = pool;
@@ -217,7 +248,14 @@ async function close(): Promise<void> {
   await closing.end();
 }
 
-/** Expose the settings for diagnostics (password deliberately omitted). */
+/**
+ * Expose the settings for diagnostics.
+ *
+ * The password is deliberately omitted, so this can be logged or returned by a
+ * health endpoint without leaking credentials.
+ *
+ * @returns The host, port, user, database and connection limit in use.
+ */
 function describe(): DataRecord {
   return {
     host: connectionSettings.host,
@@ -228,6 +266,13 @@ function describe(): DataRecord {
   };
 }
 
+/**
+ * The module's public surface.
+ *
+ * The first group is the API the repositories and the server use; the second is
+ * exported so the test suite can inspect the pool and the exact connection
+ * settings without rebuilding them.
+ */
 export = {
   // main API
   query,

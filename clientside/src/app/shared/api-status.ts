@@ -9,6 +9,9 @@ type ApiState = 'checking' | 'online' | 'warning' | 'offline';
 /**
  * The live API status indicator in the site footer.
  *
+ * It reports three states rather than two, and a failure is informational rather
+ * than an error message.
+ *
  * Endpoint: `GET /api/health` (ApiService.getHealth()).
  *
  * WHY IT LIVES IN ITS OWN COMPONENT

@@ -1,47 +1,41 @@
-/**
- * adminside/src/app/layout/admin-header/admin-header.ts
- * ---------------------------------------------------------------------------
- * The site header AND the menu, present on every page of the admin website.
- *
- * THE MENU IS THE BRIEF'S REQUIREMENT
- *   "Implement a clear and functional menu that allows users to navigate
- *   seamlessly to the other required pages. This menu must be present on all
- *   pages." The archived admin site satisfied it by having every page call
- *   initAdminLayout(), which built the same menu from one array. In Angular that
- *   becomes one component rendered once by the application shell (app.html), so a
- *   new page CANNOT forget the menu - it is not part of any page's template.
- *
- * WHAT THE MENU CONTAINS
- *   Dashboard, Events, Add event, Registrations - the four pages this
- *   application has - plus a link back to the public website. The link uses the
- *   OTHER_SITE_URL injection token rather than a hard-coded path: the admin site
- *   is served from /admin/ in production and the public site from /, so the
- *   address differs per environment and is decided by environments/*.ts.
- *
- * The language and theme controls live here too, which is why they are also on
- * every page. Both write through the SHARED services, so the choice made here is
- * the same localStorage entry the public website reads - the two sites cannot
- * end up in different languages or themes.
- *
- * No API endpoint is called by this component.
- */
-import { Component, computed, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, computed, inject, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { OTHER_SITE_URL } from '@charity/shared/di/tokens';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import { TranslationService } from '@charity/shared/i18n/translation.service';
 import { ThemeService } from '@charity/shared/theme/theme.service';
 
-/** One menu entry: the route and the translation key of its label. */
-interface NavItem {
-  readonly path: string;
-  readonly labelKey: string;
-}
+import { AdminNav } from '../admin-nav/admin-nav';
 
+/**
+ * The admin header: the HEADER segment of the four every admin page shares (Header,
+ * Nav, Body, Footer), holding the brand, the link back to the public website and the
+ * language/theme controls, and rendering the NAV segment below its own band.
+ *
+ * WHAT IS IN IT, AND WHAT IS NOT
+ *   The menu is `admin-nav`, a component of its own: see that file for the four
+ *   destinations, for the brief's "menu on all pages" requirement and for why the
+ *   menu is a file of its own. Everything here is chrome that is not navigation.
+ *
+ * THE CONTROLS ARE HERE, SO THEY ARE ON EVERY PAGE
+ *   The language picker and the theme button live in this header, which the shell
+ *   renders once, so both are on every admin screen. Both write through the SHARED
+ *   services, so the choice made here is the same localStorage entry the public
+ *   website reads - the two sites cannot end up in different languages or themes.
+ *
+ * WHY THE HEADER OWNS `showNav`
+ *   The shell talks to the header, and the header forwards the value to the menu -
+ *   the same wiring the public website's `site-header`/`site-nav` pair uses, so the
+ *   two applications can be read side by side. No admin route asks for the menu to
+ *   be hidden; the input exists because the two shells are deliberately identical in
+ *   shape.
+ *
+ * No API endpoint is called by this component.
+ */
 @Component({
   selector: 'admin-header',
-  imports: [RouterLink, RouterLinkActive, TranslatePipe],
+  imports: [RouterLink, AdminNav, TranslatePipe],
   styleUrl: './admin-header.css',
   templateUrl: './admin-header.html',
 })
@@ -52,13 +46,14 @@ export class AdminHeader {
   /** Absolute URL of the public website; "/" under the production baseHref. */
   protected readonly otherSiteUrl = inject(OTHER_SITE_URL);
 
-  /** The four pages, in the order the archived admin menu listed them. */
-  protected readonly navItems: readonly NavItem[] = [
-    { path: '/', labelKey: 'nav.dashboard' },
-    { path: '/events', labelKey: 'nav.events' },
-    { path: '/events/new', labelKey: 'nav.new' },
-    { path: '/registrations', labelKey: 'nav.registrations' },
-  ];
+  /**
+   * Whether the menu should be rendered.
+   *
+   * Forwarded unchanged to `admin-nav`, which renders the `<nav>`. The admin site has
+   * no route that hides the menu - the brief requires it on every page - so nothing
+   * currently passes `false`; see the class comment for why the input is here anyway.
+   */
+  readonly showNav = input(true);
 
   /** The four supported languages, and the active one. */
   protected readonly languages = this.i18n.languages;

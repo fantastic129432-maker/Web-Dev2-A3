@@ -1,9 +1,12 @@
 import { Routes } from '@angular/router';
 
 /**
- * adminside/src/app/app.routes.ts
- * ---------------------------------------------------------------------------
  * The five pages of the admin website, plus the catch-all.
+ *
+ * Every route is lazy, the literal 'events/new' is declared before the
+ * parameterised edit route, and no route sets a static title.
+ *
+ * @file Routing for the ADMIN-SIDE website.
  *
  * WHY EVERY ROUTE IS LAZY
  *   `loadComponent` splits each page into its own chunk, so the dashboard does not

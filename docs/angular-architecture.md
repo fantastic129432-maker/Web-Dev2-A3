@@ -25,6 +25,7 @@ Angular.
 9. [The TypeScript API build, and why cPanel needs it](#9-the-typescript-api-build-and-why-cpanel-needs-it)
 10. [Testing strategy](#10-testing-strategy)
 11. [What was rejected, and why](#11-what-was-rejected-and-why)
+12. [The four segments: Header, Nav, Body and Footer](#12-the-four-segments-header-nav-body-and-footer)
 
 ---
 
@@ -1032,6 +1033,75 @@ made rather than inherited.
 | **Translating the event data as well as the interface.** | It would need translated columns or a translation table - a content management feature well beyond the assessment. The interface is translated (306 client keys + 253 admin keys); event names, descriptions and venues come from the database in English, and the header says so while another language is active |
 | **`?lang=` only, with no stored preference.** | A choice that does not survive a reload is not a settings control. The stored key is shared between the two sites on purpose, so the choice follows the visitor |
 | **A theme applied only after Angular bootstraps.** | Produces a white flash for a dark-mode visitor, which is exactly the defect `EARLY_THEME_SNIPPET` and the two inline `<head>` scripts exist to prevent |
+
+---
+
+## 12. The four segments: Header, Nav, Body and Footer
+
+Assessment 2 marker feedback asked for the webpages to be broken into **Header, Nav,
+Body and Footer**, with the common segments - Header, Nav and Footer - "created once
+and common across all your pages". The vanilla site had four documents and wrote the
+same header and footer into each of them from `js/nav.js`; in this project the four
+segments are the structure of the **application shell**, and the common three are
+rendered once, by `app.html`.
+
+### Where each segment is defined
+
+| Segment | Landmark in the rendered page | Defined in | How often |
+| --- | --- | --- | --- |
+| Header | `<header class="site-header">` / `<header class="admin-header">` | `clientside/src/app/layout/site-header/`, `adminside/src/app/layout/admin-header/` | once, in the shell |
+| Nav | `<nav class="site-nav">` / `<nav class="admin-nav">` | `clientside/src/app/layout/site-nav/`, `adminside/src/app/layout/admin-nav/` | once, in the shell |
+| Body | `<main id="main">` with `<router-outlet />` | `clientside/src/app/app.html`, `adminside/src/app/app.html` | one outlet; each routed page is the content |
+| Footer | `<footer class="site-footer">` / `<footer class="admin-footer">` | `clientside/src/app/layout/site-footer/`, `adminside/src/app/layout/admin-footer/` | once, in the shell |
+
+The shell names the four in order with a comment on each, so the structure is visible
+before any component is opened.
+
+### Why the common three are siblings of the routed page
+
+`Header`, `Nav` and `Footer` are rendered by `app.html` as siblings of
+`<router-outlet>`, never inside a page's template. Navigating therefore replaces only
+the Body, which is exactly the property the feedback asks for:
+
+* the three common segments are never destroyed and rebuilt, so **the language and
+  theme state survives a navigation** - and a page **cannot forget** the header, the
+  menu or the footer (the archived admin site had to call `initAdminLayout()` from
+  every page to get the same guarantee);
+* it is also why **`GET /api/health` is fetched once per full page load** rather than
+  once per route: the footer's live indicator is a child of the shell, so the router
+  never re-creates it.
+
+### Why Nav is rendered inside Header
+
+The nav segment is rendered by the header component, inside its `<header>` landmark
+(`app-site-header` -> `<header>` -> `app-site-nav`), so the document has the four
+landmarks in the natural order `header > nav`, `main`, `footer`. It is still a
+component of its own: the menu markup, its destinations and its `routerLink`
+configuration exist in one file per application.
+
+Two details make the extraction safe, and both are deliberate:
+
+* **No CSS moved.** Every class name (`site-nav`, `site-nav__list`, `site-nav__link`,
+  `site-nav--open`, `admin-nav`, `admin-nav__list`, `admin-nav__link`) is still the one
+  the global `styles.css` defines, and the markup is still a direct child of the box
+  that used to contain it. Nothing was restyled.
+* **The new host element adds no box.** `site-nav.css` and `admin-nav.css` give the
+  host `display: contents`, so the `<nav>` is laid out exactly as it was before the
+  markup moved. Without it the host would be a flex item of `.site-header__nav` and
+  would add a `gap` even when the menu is hidden, and the sticky `.admin-nav` would be
+  resolved against a different containing block.
+
+### How `showNav` is wired
+
+The public site hides the menu - and only the menu - on the wildcard 404 route. The
+shell passes `[showNav]="showSiteChrome()"` to the **header**, which keeps the input
+because it also owns the mobile menu button, and forwards it to the **nav**, which
+renders or omits the `<nav>`. `app-site-nav` additionally takes the mobile-open flag
+from the header (`menuOpen`, whose state lives next to the button that toggles it) and
+emits `linkActivated` so the header can close the menu after a navigation. The admin
+shell is wired the same way (`[showNav]="showNav()"` from `admin-header` to
+`admin-nav`, always true there because the brief requires the menu on every admin
+page), so the two applications can be read side by side.
 
 ---
 

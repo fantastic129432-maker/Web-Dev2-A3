@@ -1,9 +1,8 @@
 /**
- * src/repositories/repository.mysql.ts
- * ---------------------------------------------------------------------------
- * The submission read data source: every question the API asks the database is
- * written here as one parameterised MySQL statement, built against the views
- * created in database/01_schema.sql.
+ * @file The submission read data source.
+ *
+ * Every question the API asks the database is written here as one parameterised
+ * MySQL statement, built against the views created in database/01_schema.sql.
  *
  * Three rules are applied consistently:
  *   1. Only rows with status = 'active' are ever publicly visible. This is
@@ -77,11 +76,14 @@ const PRIMARY_PRICE = `
 /**
  * Build the WHERE / HAVING fragment used by every event listing.
  *
- * All user input is bound through `params`; even the sort column is
- * whitelisted rather than interpolated into the SQL text.
+ * All user input is bound through `params`; even the sort column is whitelisted
+ * rather than interpolated into the SQL text, which is what keeps a filter value
+ * like `%' OR 1=1 --` inert. The state filter goes into HAVING rather than WHERE
+ * because `eventState` is derived by the view and cannot be tested before the row
+ * is assembled.
  *
- * @param {object} filters  normalised filters from eventService
- * @returns {{where:string, having:string, params:Array}}
+ * @param filters - The validated filters from the service layer. May be omitted, in which case no condition is added.
+ * @returns The WHERE and HAVING fragments, empty when nothing was filtered, plus the values to bind to them.
  */
 function buildEventFilter(filters: Partial<EventFilters> = {}) {
   const params: any[] = [];
@@ -173,14 +175,36 @@ const SORT_COLUMNS: Record<string, string> = {
   updated: 'eventId',
 };
 
-/** Turn a requested sort key/direction into safe SQL. */
+/**
+ * Turn a requested sort key and direction into safe SQL.
+ *
+ * An unknown key falls back to the default instead of reaching the statement, and
+ * `eventId ASC` is always appended as a tie-breaker so two events sharing a date
+ * cannot swap places between requests and make a page repeat or skip a row.
+ *
+ * @param sort - The requested sort key; an unknown key falls back to `defaultSort`.
+ * @param direction - `desc` reverses the order; anything else is ascending.
+ * @param defaultSort - The key to use when `sort` is not in the whitelist. May be omitted, in which case `date` is used.
+ * @param defaultDir - The direction used with the fallback key. May be omitted, in which case ascending order is used.
+ * @returns The ORDER BY fragment, ready to interpolate into a statement.
+ */
 function buildOrderBy(sort: string, direction: string, defaultSort = 'date', defaultDir = 'ASC'): string {
   const column = SORT_COLUMNS[sort] || SORT_COLUMNS[defaultSort];
   const dir = String(direction).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
   return `ORDER BY ${column} ${dir}, eventId ASC`;
 }
 
-/** Shared normalisation so both repositories return identical field types. */
+/**
+ * Shared normalisation so both repositories return identical field types.
+ *
+ * The driver hands back DECIMAL and COUNT values in whichever type it chose, so
+ * every numeric field is converted here; without this the two data sources would
+ * emit `"1200.00"` and `1200` for the same field and the Angular pages would have
+ * to defend against both.
+ *
+ * @param row - The row as the driver returned it, or null when the query matched nothing.
+ * @returns The row with numeric fields converted, or `null` unchanged.
+ */
 function normaliseEvent(row: DataRecord | null): DataRecord | null {
   if (!row) return null;
   return {
@@ -203,11 +227,16 @@ function normaliseEvent(row: DataRecord | null): DataRecord | null {
 }
 
 /**
- * Wrap the filtered event query in a derived table so the API can page the
- * result and count the total using exactly the same filters.
+ * Wrap the filtered event query in a derived table.
  *
- * A derived table (rather than a CTE) is used so the statement also runs on
- * MySQL 5.7 and on MariaDB.
+ * That is what lets the API page the result and count the total using exactly
+ * the same filters. A derived table (rather than a CTE) is used so the statement
+ * also runs on MySQL 5.7 and on MariaDB.
+ *
+ * @param filters - The validated filters to apply.
+ * @param orderBy - The ORDER BY fragment built by `buildOrderBy`.
+ * @param view - The view to read: the public one by default, or the admin one for the admin list.
+ * @returns The SQL text of the derived table plus the values to bind to it.
  */
 function buildFilteredSubquery(filters: EventFilters, orderBy: string, view = 'vw_public_events') {
   const { where, having, params } = buildEventFilter(filters);
@@ -220,19 +249,35 @@ function buildFilteredSubquery(filters: EventFilters, orderBy: string, view = 'v
   return { sql, params };
 }
 
+/**
+ * The MySQL read half of the repository contract.
+ *
+ * It is one object literal so the shape is checked against
+ * `EventReadRepository` at compile time; src/repositories/index.ts swaps it for
+ * the offline twin based on DATA_SOURCE, and the registration reads ride along on
+ * `registrationQueries` so the merged object publishes them in both modes.
+ */
 const repository: EventReadRepository = {
   driver: 'mysql',
 
-  /** Does the database answer, and do the tables exist? */
+  /** Report whether the database answers and the expected tables exist. */
   async health() {
     return db.ping();
   },
 
   /**
-   * Home page + search page listing.
+   * Return one page of events for the validated filters, with the unpaged total.
    *
-   * @param {object} filters  normalised filters from eventService
-   * @param {{limit:number, offset:number, sort:string, direction:string}} paging
+   * The admin list must include suspended and cancelled events, so it reads
+   * vw_all_events; everything else keeps the safe public view. Paging is applied
+   * to the derived table rather than to the view, so LIMIT and OFFSET cannot
+   * change which rows the total counted - the two statements share one filter
+   * fragment (and therefore the same bound values) precisely so they cannot
+   * disagree.
+   *
+   * @param filters - The validated filters from the service layer.
+   * @param paging - The limit, offset and ordering to apply.
+   * @returns The rows for this page, normalised, plus the total number of matches.
    */
   async findEvents(filters, paging) {
     const orderBy = buildOrderBy(
@@ -266,11 +311,15 @@ const repository: EventReadRepository = {
   },
 
   /**
-   * Full details for one event, including its ticket tiers.
+   * Return full details for one event, including its ticket tiers.
    *
-   * @param {number} eventId
-   * @param {{status?: 'active'|'all'}} [options]  A3: 'all' lets the admin
-   *        website open an event that is suspended or cancelled.
+   * The view decides visibility, exactly as it does for the list: a public caller
+   * reads vw_public_events and therefore cannot see a suspended event, while
+   * `status: 'all'` lets the admin website open one for editing.
+   *
+   * @param eventId - The id of the event to read.
+   * @param options - Which publish states to accept. May be omitted, in which case only an active event is returned.
+   * @returns The event with its ticket tiers, days remaining and registrations, or `null` when the view has no such row.
    */
   async findEventById(eventId, options = {}) {
     const allowAnyStatus = options.status === 'all';
@@ -289,7 +338,15 @@ const repository: EventReadRepository = {
     return decorateEventDetail(event, eventId);
   },
 
-  /** All categories with a count of how many active events use each one. */
+  /**
+   * List every category with a count of how many active events use each one.
+   *
+   * A LEFT JOIN against the public view is what makes a category with no events
+   * come back with a count of zero rather than disappearing, so the search form
+   * can still show it and say so.
+   *
+   * @returns Every category, ordered by name, with its active event count as a number.
+   */
   async findCategories() {
     const rows = await q.query(
       `SELECT c.category_id      AS categoryId,
@@ -310,7 +367,14 @@ const repository: EventReadRepository = {
     }));
   },
 
-  /** Distinct venues that currently host at least one public event. */
+  /**
+   * List the distinct venues that currently host at least one public event.
+   *
+   * A plain JOIN rather than a LEFT JOIN, because a venue with no active event
+   * would only ever produce an empty page; omitting it is the point.
+   *
+   * @returns Every such venue with its active event count, ordered by city then venue.
+   */
   async findLocations() {
     const rows = await q.query(
       `SELECT l.location_id     AS locationId,
@@ -335,9 +399,14 @@ const repository: EventReadRepository = {
   },
 
   /**
-   * Reference data the admin forms need in a dropdown: every organisation,
-   * category and venue, whether or not it currently has a public event.
-   *                                                                      A3
+   * Return the reference data the admin forms need in their dropdowns.
+   *
+   * Every organisation, category and venue is included whether or not it
+   * currently has a public event, because staff may be about to create the first
+   * one. The three statements are independent, so they are issued together with
+   * Promise.all rather than in sequence.
+   *
+   * @returns The three lookup lists, ready for the form controls.
    */
   async findReferenceData() {
     const [organizations, categories, locations] = await Promise.all([
@@ -360,7 +429,15 @@ const repository: EventReadRepository = {
     return { organizations, categories, locations };
   },
 
-  /** The organisation featured on the home page. */
+  /**
+   * Return the organisation featured on the home page.
+   *
+   * The seed marks no organisation as featured, so the first row by id is the
+   * documented stand-in; `LIMIT 1` keeps the query honest about returning one row
+   * rather than relying on the caller to take the first.
+   *
+   * @returns The featured organisation, or `null` when the table is empty.
+   */
   async findFeaturedOrganization() {
     const rows = await q.query(
       `SELECT organization_id  AS organizationId,
@@ -378,7 +455,17 @@ const repository: EventReadRepository = {
     return rows[0] || null;
   },
 
-  /** Headline numbers for the home page statistics strip. */
+  /**
+   * Return the headline numbers for the home page statistics strip.
+   *
+   * All eight figures come from one statement of scalar subqueries, so they are
+   * read at a single point in time and cannot contradict each other, and the
+   * round trips do not multiply as figures are added. The public view is what
+   * decides which events are counted, so a suspended event is excluded here as
+   * everywhere else.
+   *
+   * @returns The counts and totals as numbers, with zero standing in for an empty database.
+   */
   async findStats() {
     const rows = await q.query(
       `SELECT
@@ -407,11 +494,17 @@ const repository: EventReadRepository = {
 };
 
 /**
- * Attach the ticket tiers, the days remaining and (A3) the registration list
- * to an event that has already been read from a view.
+ * Attach the ticket tiers, the days remaining and the registrations to an event.
  *
- * Kept as a plain function so repository.local.ts can reuse the identical
- * field names and ordering rules.
+ * The event has already been read from a view. Three small queries rather than
+ * one wide join: the tiers, the days-remaining computation and the registrations
+ * have different cardinalities, and joining them would multiply the event row and
+ * force the caller to de-duplicate it. Kept as a plain function so
+ * repository.local.ts can reuse the identical field names and ordering rules.
+ *
+ * @param event - The event row that has already been normalised.
+ * @param eventId - The event's id, used by the follow-up queries.
+ * @returns The same event object, with `ticketTypes`, `daysUntil`, `registrations` and `totalTicketsSold` added.
  */
 async function decorateEventDetail(event: DataRecord, eventId: number): Promise<DataRecord> {
   const tickets = await q.query(
@@ -453,9 +546,13 @@ async function decorateEventDetail(event: DataRecord, eventId: number): Promise<
   return event;
 }
 
-/* =====================================================================
- * A3 - registrations (read)
- * ===================================================================== */
+/**
+ * The registration columns shared by the read queries.
+ *
+ * The joined form is used wherever the tier name, the price and the event name
+ * are needed; the amounts are computed in SQL so both data sources report the
+ * same total for a registration.
+ */
 const REGISTRATION_COLUMNS = `
   r.registration_id      AS registrationId,
   r.event_id             AS eventId,
@@ -483,7 +580,12 @@ const REGISTRATION_COLUMNS_BARE = `
   r.registered_at        AS registeredAt,
   r.notes                AS notes`;
 
-/** Normalise a registration row so both repositories emit the same types. */
+/**
+ * Normalise a registration row so both repositories emit the same types.
+ *
+ * @param row - The row as the driver returned it, or null when the query matched nothing.
+ * @returns The row with its ids and amounts converted to numbers, or `null` unchanged.
+ */
 function normaliseRegistration(row: DataRecord | null): DataRecord | null {
   if (!row) return null;
   return {
@@ -503,6 +605,14 @@ function normaliseRegistration(row: DataRecord | null): DataRecord | null {
   };
 }
 
+/**
+ * The registration reads the merged repository publishes as `registrationQueries`.
+ *
+ * They live on the read half because MySQL keeps every registration read here;
+ * the offline twin keeps its reads and writes in one module instead, which is why
+ * src/repositories/index.ts publishes this member only when the read half does
+ * not already carry it.
+ */
 const registrationQueries: RegistrationQueries = {
   /**
    * Every registration for one event, newest first.
@@ -510,6 +620,9 @@ const registrationQueries: RegistrationQueries = {
    * ORDER BY registered_at DESC is the brief's "sorted by the latest date when
    * the tickets were purchased"; registration_id DESC breaks a tie between two
    * rows written in the same second, so the order is always stable.
+   *
+   * @param eventId - The event whose registrations should be listed.
+   * @returns The registration rows, normalised, newest first.
    */
   async findByEventId(eventId) {
     const rows = await q.query(
@@ -524,7 +637,12 @@ const registrationQueries: RegistrationQueries = {
     return rows.map(normaliseRegistration);
   },
 
-  /** One registration by id, or null. */
+  /**
+   * Return one registration by its primary key.
+   *
+   * @param registrationId - The registration's id.
+   * @returns The registration row, or `null` when no row has that id.
+   */
   async findById(registrationId) {
     const rows = await q.query(
       `SELECT ${REGISTRATION_COLUMNS}
@@ -538,8 +656,15 @@ const registrationQueries: RegistrationQueries = {
   },
 
   /**
-   * The whole registration list across all events, newest first. Powers the
-   * optional admin registrations page.
+   * List the whole registration population, newest first.
+   *
+   * This powers the optional admin registrations page. The count is taken with
+   * the same WHERE fragment (and the same bound values) as the page, so a filter
+   * cannot make the total disagree with the rows returned.
+   *
+   * @param filters - The event id, email fragment and keyword to filter on. May be omitted, in which case every registration is included.
+   * @param paging - The limit and offset to apply. May be omitted, in which case the first hundred rows are returned.
+   * @returns The page of registration rows plus the unpaged total.
    */
   async findAll(filters = {}, paging = { limit: 100, offset: 0 }) {
     const params: any[] = [];
@@ -583,7 +708,15 @@ const registrationQueries: RegistrationQueries = {
     };
   },
 
-  /** How many registrations an event has. Used by the delete rule. */
+  /**
+   * Count how many registrations an event has.
+   *
+   * Used by the delete rule, which runs this check inside the same transaction as
+   * the delete.
+   *
+   * @param eventId - The event to count for.
+   * @returns The number of registrations, or zero for an event with none.
+   */
   async countByEventId(eventId) {
     const rows = await q.query(
       'SELECT COUNT(*) AS total FROM event_registrations WHERE event_id = ?',
@@ -592,7 +725,17 @@ const registrationQueries: RegistrationQueries = {
     return rows[0] ? Number(rows[0].total) : 0;
   },
 
-  /** Does this email already have a registration for this event? */
+  /**
+   * Test whether an email already has a registration for an event.
+   *
+   * The address is compared as stored, so the caller must normalise it first -
+   * which the registration service does, and which is what makes this check agree
+   * with the unique key on (event_id, attendee_email).
+   *
+   * @param eventId - The event to test against.
+   * @param email - The normalised attendee address.
+   * @returns `true` when a registration already exists, `false` otherwise.
+   */
   async existsForEventAndEmail(eventId, email) {
     const rows = await q.query(
       `SELECT registration_id AS registrationId
@@ -605,16 +748,29 @@ const registrationQueries: RegistrationQueries = {
   },
 };
 
-/** The first row of a query, or null. */
+/**
+ * Return the first row of a query, or null.
+ *
+ * A small convenience for the statements that are known to match at most one row,
+ * so the caller does not have to index the result array.
+ *
+ * @param sql - The SQL text to run.
+ * @param params - The values to bind. May be omitted for a statement that takes none.
+ * @returns The first row, or `null` when the statement returned nothing.
+ */
 async function queryOne(sql: string, params: any[] = []): Promise<any> {
   const rows = await q.query(sql, params);
   return rows.length > 0 ? rows[0] : null;
 }
 
-/* One export: the SQL helpers and column lists the original attached to
- * module.exports afterwards ride along on the same object. registrationQueries
- * is a member of the object literal above because the repository contract
- * (src/types.ts) requires it. */
+/**
+ * The read repository plus the SQL helpers the tests exercise.
+ *
+ * One export: the helpers and column lists the original attached to
+ * module.exports afterwards ride along on the same object, so
+ * `require('./repository.mysql')` is still the repository the merged module
+ * expects and the unit tests can assert on the generated SQL.
+ */
 export = Object.assign(repository, {
   buildEventFilter,
   buildOrderBy,

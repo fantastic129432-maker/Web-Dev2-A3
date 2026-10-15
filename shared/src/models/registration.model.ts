@@ -1,7 +1,5 @@
 /**
- * shared/src/models/registration.model.ts
- * ---------------------------------------------------------------------------
- * An event registration (Assessment 3, Part 1).
+ * @file An event registration (Assessment 3, Part 1).
  *
  * Database shape: the `registrations` table created by database/01_schema.sql.
  * One row records who registered for which event, when, how many tickets, and

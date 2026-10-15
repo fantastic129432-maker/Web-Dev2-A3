@@ -1,17 +1,21 @@
-<!--
-  The one event form, used by "Add a charity event" and "Update a charity event".
+<!-- ==================================================================
+     THE EVENT FORM (shared by "Add" and "Update")
+     Every field of the write contract with its own message slot, the
+     live weather preview, the repeating ticket-tier block and the
+     submit row. It emits a validated payload and never calls the API.
 
-  Every class comes from the admin stylesheet (src/styles.css):
-    .admin-form          the form block and its section headings
-    .field / .form-row   one labelled control / two controls side by side
-    .field-message       the slot under every control, empty until it has to speak
-    .ticket-rows / .ticket-row   the repeating ticket-tier block
-    .admin-form__actions the submit row
+     Every class comes from the admin stylesheet (src/styles.css):
+       .admin-form          the form block and its section headings
+       .field / .form-row   one labelled control / two controls side by side
+       .field-message       the slot under every control, empty until it has to speak
+       .ticket-rows / .ticket-row   the repeating ticket-tier block
+       .admin-form__actions the submit row
 
-  novalidate: the browser's own bubbles are switched off deliberately. The form
-  has its own messages in the staff member's language, placed next to the field
-  they are about, and a native bubble cannot be translated or positioned.
--->
+     novalidate: the browser's own bubbles are switched off deliberately. The form
+     has its own messages in the staff member's language, placed next to the field
+     they are about, and a native bubble cannot be translated or positioned.
+     ================================================================== -->
+
 <form class="admin-form" [formGroup]="form" (submit)="onSubmit($event)" novalidate>
   <!-- Shown once a submit has been refused, so the whole form's state is
        explained in one sentence as well as field by field. -->

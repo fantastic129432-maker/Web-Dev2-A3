@@ -1,8 +1,35 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
+
+import { ApiService } from '@charity/shared/api/api.service';
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import { TranslationService } from '@charity/shared/i18n/translation.service';
+import type { HealthReport, EventStats } from '@charity/shared/models/reference.model';
+import type { Registration } from '@charity/shared/models/registration.model';
+import { formatCurrency, formatDateTime } from '@charity/shared/util/format';
+
+import { errorBanner, type Banner } from '../../core/feedback';
+import { usePageTitle } from '../../core/page-title';
+import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
+
+/** One statistic tile. `tone` picks the admin-stat--* accent colour. */
+interface StatTile {
+  readonly value: string;
+  readonly labelKey: string;
+  readonly tone: 'brand' | 'ok' | 'warn' | 'muted';
+}
+
+/** One label/value row of the health panel. */
+interface HealthRow {
+  readonly labelKey: string;
+  readonly value: string;
+}
+
 /**
- * adminside/src/app/pages/dashboard/dashboard.ts
- * ---------------------------------------------------------------------------
- * The landing page: the state of the event programme at a glance, the API's
- * health, and the way in to the three working pages.
+ * The landing page, showing the state of the event programme at a glance, the
+ * API's health, and the way in to the three working pages.
  *
  * ENDPOINTS
  *   GET /api/stats          the headline counts (upcoming events, categories,
@@ -21,34 +48,6 @@
  * blank a dashboard whose statistics loaded perfectly well, so the health panel
  * reports its own state and the rest of the page carries on.
  */
-import { Component, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
-
-import { ApiService } from '@charity/shared/api/api.service';
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import { TranslationService } from '@charity/shared/i18n/translation.service';
-import type { HealthReport, EventStats } from '@charity/shared/models/reference.model';
-import type { Registration } from '@charity/shared/models/registration.model';
-import { formatCurrency, formatDateTime } from '@charity/shared/util/format';
-
-import { errorBanner, type Banner } from '../../core/feedback';import { usePageTitle } from '../../core/page-title';
-import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
-
-/** One statistic tile. `tone` picks the admin-stat--* accent colour. */
-interface StatTile {
-  readonly value: string;
-  readonly labelKey: string;
-  readonly tone: 'brand' | 'ok' | 'warn' | 'muted';
-}
-
-/** One label/value row of the health panel. */
-interface HealthRow {
-  readonly labelKey: string;
-  readonly value: string;
-}
-
 @Component({
   selector: 'admin-dashboard',
   imports: [RouterLink, TranslatePipe, FeedbackBanner],
@@ -59,10 +58,19 @@ export class Dashboard {
   private readonly api = inject(ApiService);
   private readonly i18n = inject(TranslationService);
 
+  /** The headline statistics, or null before they arrive. */
   protected readonly stats = signal<EventStats | null>(null);
+
+  /** The API's health report, or null before it arrives. */
   protected readonly health = signal<HealthReport | null>(null);
+
+  /** The five most recent registrations, newest first. */
   protected readonly recent = signal<readonly Registration[]>([]);
+
+  /** True until the statistics and the recent registrations have settled. */
   protected readonly loading = signal(true);
+
+  /** The page-level failure message, or null when nothing has failed. */
   protected readonly banner = signal<Banner | null>(null);
 
   /** Exposed to the template: money is formatted the same way everywhere. */

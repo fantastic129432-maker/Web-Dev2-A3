@@ -1,7 +1,5 @@
 /**
- * src/middleware/errorHandler.ts
- * ---------------------------------------------------------------------------
- * One place where every failure becomes a predictable JSON response:
+ * @file The single place where every failure becomes a predictable JSON response.
  *
  *   { success: false, error: { status, message, details? } }
  *
@@ -22,7 +20,19 @@ import type { NextFunction, Request, Response } from 'express';
 import env = require('../config/env');
 import type { DataRecord } from '../types';
 
-/** 404 for any URL that no route matched. */
+/**
+ * Answer 404 for any URL that no route matched.
+ *
+ * It is registered after every route, so reaching it means nothing claimed the
+ * request. The reply names the method and the URL so a mistyped endpoint is
+ * obvious from the response body alone, and the hint points at the endpoint
+ * index rather than leaving the caller to guess.
+ *
+ * @param req - The request that matched no route; its method and URL are quoted in the message.
+ * @param res - The response the 404 envelope is written to.
+ * @param next - Accepted so Express recognises a four- or three-argument
+ *   middleware, but never called: this handler always writes the response.
+ */
 export function notFound(req: Request, res: Response, next: NextFunction): void {
   res.status(404).json({
     success: false,
@@ -34,7 +44,16 @@ export function notFound(req: Request, res: Response, next: NextFunction): void 
   });
 }
 
-/** The underlying code, including when mysql2 wraps failures in AggregateError. */
+/**
+ * Read the driver error code out of whatever was thrown.
+ *
+ * mysql2 wraps some failures in an `AggregateError`, whose own `code` is
+ * undefined, so the nested errors have to be searched as well; without this the
+ * most common setup mistakes would fall through to a faceless 500.
+ *
+ * @param error - The value thrown by a handler, in any shape.
+ * @returns The first driver code found, or `undefined` when the error carries none.
+ */
 function underlyingCode(error: any): string | undefined {
   if (!error) return undefined;
   if (error.code) return error.code;
@@ -42,8 +61,20 @@ function underlyingCode(error: any): string | undefined {
   return nested ? nested.code : undefined;
 }
 
-/** Central error handler - must keep four arguments for Express to use it. */
-// eslint-disable-next-line no-unused-vars
+/**
+ * Convert anything thrown into the API's single error envelope.
+ *
+ * It must keep four arguments for Express to treat it as an error handler, so
+ * `next` is declared but unused even though the chain ends here. The status is
+ * taken from the thrown value when it looks like an HTTP status and otherwise
+ * becomes 500, and unexpected failures are logged with their full stack while
+ * the client receives only the message, so internal details are not leaked.
+ *
+ * @param error - The thrown value: an HttpError, a mysql2 driver error, or anything else.
+ * @param req - The request being answered, used for the log line and to know whether the response is still open.
+ * @param res - The response the error envelope is written to.
+ * @param next - Required so Express registers this as an error handler; never called.
+ */
 export function errorHandler(
   error: any,
   req: Request,

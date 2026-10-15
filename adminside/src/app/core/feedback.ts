@@ -1,8 +1,8 @@
 /**
- * adminside/src/app/core/feedback.ts
- * ---------------------------------------------------------------------------
- * The one description of an on-screen feedback message, and the one place a
- * failed API call is turned into one.
+ * The one description of an on-screen feedback message, and the one place a failed
+ * API call is turned into one.
+ *
+ * @file The feedback-message model shared by every admin page.
  *
  * WHY THIS IS A PLAIN MODULE RATHER THAN PART OF THE BANNER COMPONENT
  *   A banner is DATA (tone, title, message, extra lines) and a component is the
@@ -24,16 +24,28 @@ export type BannerTone = 'info' | 'success' | 'warning' | 'error';
 
 /** One message at the top of a page. `details` becomes a list under the message. */
 export interface Banner {
+  /** Which accent the stylesheet applies to the banner. */
   readonly tone: BannerTone;
+  /** The short heading, which is often the name of the thing acted on. */
   readonly title: string;
+  /** The one-sentence explanation of what happened. */
   readonly message: string;
+  /** Extra lines rendered as a list under the message. */
   readonly details: readonly string[];
 }
 
 /** A translation function: the `.t` of TranslationService, or a stand-in. */
 export type Translate = (key: string, values?: Readonly<Record<string, string | number>>) => string;
 
-/** Build a banner, so no page has to spell out all four fields. */
+/**
+ * Build a banner, so no page has to spell out all four fields.
+ *
+ * @param tone - Which accent the banner is drawn with.
+ * @param title - The short heading.
+ * @param message - The one-sentence explanation.
+ * @param details - Extra lines rendered as a list; may be omitted for none.
+ * @returns The assembled banner value.
+ */
 export function banner(
   tone: BannerTone,
   title: string,
@@ -45,8 +57,11 @@ export function banner(
 
 /** One label/value pair a page can render itself if it wants more than a banner. */
 export interface ConflictFacts {
+  /** The id of the event the refused delete was about, when the API named it. */
   readonly eventId?: number;
+  /** The name of that event, when the API named it. */
   readonly eventName?: string;
+  /** How many registrations block the delete, when the API reported a number. */
   readonly registrationCount?: number;
 }
 
@@ -59,6 +74,10 @@ export interface ConflictFacts {
  * `message` - so the raw `details` record is read as a fallback. Without that
  * fallback the banner would show the event name and count only inside the API's
  * own sentence, and nothing structured at all.
+ *
+ * @param error - The 409 the API answered a delete with.
+ * @returns Whatever the conflict payload named; an empty object when it carried
+ *   nothing structured.
  */
 export function conflictFacts(error: ApiError): ConflictFacts {
   const direct = error.conflictDetails;
@@ -91,6 +110,15 @@ export function conflictFacts(error: ApiError): ConflictFacts {
  * `labels` maps an API field name ("eventName", "ticketTypes[0].price") to the
  * label a person recognises, so a 400 does not list raw column names. The event
  * form owns that mapping because it is the only thing that knows the field list.
+ *
+ * @param error - The value a failed request rejected with; anything that is not
+ *   an ApiError becomes a generic server-error banner.
+ * @param t - The translation function, called at the moment the banner is built.
+ * @param title - The heading to give the banner, usually the page's own context.
+ * @param labels - Optional map from an API field name to the label a person
+ *   recognises.
+ * @returns The banner describing the failure, with its tone chosen from the one
+ *   error's status.
  */
 export function errorBanner(
   error: unknown,

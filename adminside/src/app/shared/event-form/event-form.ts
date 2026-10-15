@@ -1,6 +1,30 @@
+import { Component, DestroyRef, DOCUMENT, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormArray, ReactiveFormsModule, ValidationErrors } from '@angular/forms';
+import { startWith } from 'rxjs';
+
+import { APP_CONFIG, EVENT_IMAGES, PUBLISH_STATUSES } from '@charity/shared/config/app-config';
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import { TranslationService } from '@charity/shared/i18n/translation.service';
+import type { EventDetail, EventInput } from '@charity/shared/models/event.model';
+import type { ReferenceData, Venue } from '@charity/shared/models/reference.model';
+import { formatPrice } from '@charity/shared/util/format';
+import type { WeatherTarget } from '@charity/shared/weather/weather.model';
+
+import {
+  FIELD_LABEL_KEYS,
+  REQUIRED_MESSAGE_KEYS,
+  createEventForm,
+  createTicketTier,
+  resetEventForm,
+  toEventInput,
+  type EventFormGroup,
+  type EventFormValue,
+  type TicketTierGroup,
+} from '../../core/event-form';
+import { WeatherPreview } from '../weather-preview/weather-preview';
+
 /**
- * adminside/src/app/shared/event-form/event-form.ts
- * ---------------------------------------------------------------------------
  * The event form itself: the ONE form used by both "Add a charity event" and
  * "Update a charity event", rendered once and driven by the definition in
  * app/core/event-form.ts.
@@ -28,32 +52,6 @@
  * whether that becomes a POST or a PUT. That is what keeps the same component
  * usable for two different endpoints.
  */
-import { Component, DestroyRef, DOCUMENT, OnInit, computed, inject, input, output, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormArray, ReactiveFormsModule, ValidationErrors } from '@angular/forms';
-import { startWith } from 'rxjs';
-
-import { APP_CONFIG, EVENT_IMAGES, PUBLISH_STATUSES } from '@charity/shared/config/app-config';
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import { TranslationService } from '@charity/shared/i18n/translation.service';
-import type { EventDetail, EventInput } from '@charity/shared/models/event.model';
-import type { ReferenceData, Venue } from '@charity/shared/models/reference.model';
-import { formatPrice } from '@charity/shared/util/format';
-import type { WeatherTarget } from '@charity/shared/weather/weather.model';
-
-import {
-  FIELD_LABEL_KEYS,
-  REQUIRED_MESSAGE_KEYS,
-  createEventForm,
-  createTicketTier,
-  resetEventForm,
-  toEventInput,
-  type EventFormGroup,
-  type EventFormValue,
-  type TicketTierGroup,
-} from '../../core/event-form';
-import { WeatherPreview } from '../weather-preview/weather-preview';
-
 @Component({
   selector: 'admin-event-form',
   imports: [ReactiveFormsModule, TranslatePipe, WeatherPreview],

@@ -1,8 +1,7 @@
 /**
- * src/services/registrationService.ts
- * ---------------------------------------------------------------------------
- * The business rules behind event registration - the feature Assessment 3 adds
- * to the client website.
+ * @file The business rules behind event registration.
+ *
+ * Registration is the feature Assessment 3 adds to the client website.
  *
  *   createRegistration()  POST   /api/events/:id/registrations
  *   updateRegistration()  PUT    /api/registrations/:id
@@ -46,7 +45,15 @@ const {
 /** The largest number of tickets one registration may buy. */
 const MAX_TICKETS_PER_REGISTRATION = 20;
 
-/** Lower-case and trim - the one place that decides what "the same email" means. */
+/**
+ * Lower-case and trim an email address.
+ *
+ * This is the one place that decides what "the same email" means, which is what
+ * makes the uniqueness check and the database's unique key agree with each other.
+ *
+ * @param email - The address as submitted, in any casing or with surrounding spaces.
+ * @returns The comparable form of the address, or an empty string when nothing was supplied.
+ */
 function normaliseEmail(email: unknown): string {
   return String(email || '').trim().toLowerCase();
 }
@@ -54,9 +61,15 @@ function normaliseEmail(email: unknown): string {
 /**
  * Validate a registration body.
  *
- * @param {object} body
- * @param {{partial:boolean}} options  true for PUT
- * @returns {object} camelCase values ready for the repository
+ * A create and an update share this function because they accept the same
+ * fields; the options object's `partial` flag is the only difference. It also
+ * gives an explicit empty string a meaning on an update: clearing the phone
+ * number or the notes sends `""`, which becomes `null` in the row, because
+ * "absent" and "cleared" have to be distinguishable in a partial update.
+ *
+ * @param body - The untrusted request body. May be omitted, in which case a create fails validation for every required field.
+ * @returns The values to write, in camelCase, with the email normalised and cleared optional fields set to null.
+ * @throws HttpError with status 400 listing every invalid field, when at least one field could not be accepted.
  */
 function validateRegistrationBody(
   body: UntrustedInput = {},
@@ -130,11 +143,23 @@ function validateRegistrationBody(
 }
 
 /**
- * Turn a supplied date into a DATETIME literal.
+ * Turn a supplied registration date into a DATETIME literal.
  *
  * Accepts "2026-09-21", "2026-09-21 14:30", "2026-09-21T14:30" or a full ISO
- * string. A bare date becomes midday so that a date-only entry still sorts
+ * string, and a bare date becomes midday so that a date-only entry still sorts
  * sensibly against the registrations that carry a real time.
+ *
+ * The clock time is range checked, because `\d{2}` on its own accepted "99:99",
+ * which became "2026-09-21 99:99:00". MySQL rejects that with an out-of-range
+ * error, so the caller saw a 500 rather than the 400 a bad field deserves; the
+ * offline store accepted it and then sorted the row as the NEWEST registration,
+ * quietly corrupting the order the event page is required to show. A field error
+ * is the honest answer.
+ *
+ * @param raw - The value as submitted, in any of the accepted shapes.
+ * @param datePart - The validated `YYYY-MM-DD` part, taken from the same value.
+ * @param errors - The shared problem list, appended to when the time is impossible. May be omitted by a caller with no list to report into.
+ * @returns The `YYYY-MM-DD HH:MM:SS` literal, or `undefined` when the time is out of range.
  */
 function normaliseRegisteredAt(
   raw: unknown,
@@ -149,15 +174,6 @@ function normaliseRegisteredAt(
 
   const [, hours, minutes, seconds = '00'] = timeMatch;
 
-  /*
-   * Range-check the clock time.
-   *
-   * `\d{2}` on its own accepted "99:99", which became "2026-09-21 99:99:00". MySQL
-   * rejects that with an out-of-range error, so the caller saw a 500 rather than the
-   * 400 that a bad field deserves; the offline store accepted it and then sorted the
-   * row as the NEWEST registration, quietly corrupting the order the event page is
-   * required to show. A field error is the honest answer.
-   */
   const [h, m, s] = [hours, minutes, seconds].map(Number);
   if (h > 23 || m > 59 || s > 59) {
     errors.push({
@@ -171,10 +187,17 @@ function normaliseRegisteredAt(
 }
 
 /**
- * POST /api/events/:id/registrations
+ * Register one attendee for one event.
  *
- * @throws {HttpError} 400 invalid body or id, 404 unknown event,
- *        409 the email is already registered for this event
+ * The remaining allocation is checked before the insert (rule 3), and the
+ * repository's unique key is the final authority on rule 1 - the check here
+ * gives a readable 409 in the ordinary case, and the key still refuses a second
+ * registration if two requests race.
+ *
+ * @param rawEventId - The event id from the route parameter, still unvalidated text.
+ * @param body - The untrusted request body describing the attendee.
+ * @returns The stored registration, including its new id.
+ * @throws HttpError with status 400 for an invalid id, body or ticket count, 404 when the event does not exist, and 409 when that email is already registered for the event.
  */
 async function createRegistration(
   rawEventId: string | number,
@@ -204,7 +227,15 @@ async function createRegistration(
  * Check a tier's remaining allocation.
  *
  * Only tiers that publish `quantity_available` are limited; a NULL means
- * unlimited, which is how the virtual challenge tiers are seeded.
+ * unlimited, which is how the virtual challenge tiers are seeded. The sold count
+ * is derived from the registrations already recorded for the tier rather than
+ * from a stored counter, so it cannot drift away from the rows the event page
+ * displays.
+ *
+ * @param eventId - The id of the event being registered for.
+ * @param ticketTypeId - The tier the attendee chose.
+ * @param requested - The number of tickets being requested.
+ * @throws HttpError with status 404 when the event does not exist, and 400 when the tier belongs to another event, is sold out, or has fewer tickets left than were requested.
  */
 async function assertTicketsAvailable(
   eventId: number,
@@ -250,9 +281,17 @@ async function assertTicketsAvailable(
 }
 
 /**
- * PUT /api/registrations/:id
- * @throws {HttpError} 400 invalid body or id, 404 unknown registration,
- *        409 the new email is already used for that event
+ * Update one registration as a partial update.
+ *
+ * Only the fields sent are changed, and sending `{}` is a 400 rather than a
+ * silent success, because a client that sent nothing has almost certainly made a
+ * mistake. Changing the email is re-checked against the event's unique key by
+ * the repository, so a move onto an address that is already registered is a 409.
+ *
+ * @param rawId - The registration id from the route parameter, still unvalidated text.
+ * @param body - The untrusted request body holding only the fields to change.
+ * @returns The registration as it now stands.
+ * @throws HttpError with status 400 for an invalid id, an empty body or a value the database refuses, 404 when no registration has that id, and 409 when the new email is already registered for that event.
  */
 async function updateRegistration(
   rawId: string | number,
@@ -277,8 +316,14 @@ async function updateRegistration(
 }
 
 /**
- * DELETE /api/registrations/:id
- * @throws {HttpError} 400 invalid id, 404 unknown registration
+ * Delete one registration.
+ *
+ * The repository reports whether a row was removed, which is what lets an
+ * unknown id be a 404 rather than a 204 that claims to have deleted something.
+ *
+ * @param rawId - The registration id from the route parameter, still unvalidated text.
+ * @returns The id of the registration that was deleted.
+ * @throws HttpError with status 400 for an invalid id and 404 when no registration has that id.
  */
 async function deleteRegistration(
   rawId: string | number
@@ -295,8 +340,16 @@ async function deleteRegistration(
 }
 
 /**
- * GET /api/events/:id/registrations
- * Newest first, which is the order the event page displays.
+ * List every registration for one event, newest first.
+ *
+ * The order is the one the event page displays, and the event is looked up with
+ * `status: 'all'` so a withdrawn event still shows the registrations already
+ * taken for it. The ticket total is summed from the same rows that are returned,
+ * so the count in the metadata can never contradict the list.
+ *
+ * @param rawEventId - The event id from the route parameter, still unvalidated text.
+ * @returns The event's name and date, its registration count, the tickets sold and the registrations themselves.
+ * @throws HttpError with status 400 for an invalid id and 404 when no event has that id.
  */
 async function listForEvent(rawEventId: string | number) {
   const eventId = parsePositiveId(rawEventId, 'event');
@@ -320,8 +373,16 @@ async function listForEvent(rawEventId: string | number) {
 }
 
 /**
- * GET /api/registrations - the optional admin list across every event.
- * Supports ?eventId=, ?email=, ?keyword=, ?limit= and ?offset=.
+ * List registrations across every event, for the optional admin screen.
+ *
+ * The query string supplies ?eventId=, ?email=, ?keyword=, ?limit= and ?offset=.
+ * The paging values are bounded here rather than trusted, so one admin request
+ * cannot ask for the whole table; the filter values are passed through as text
+ * because the repository parameterises them.
+ *
+ * @param query - The untrusted query string. May be omitted, in which case the first hundred registrations are returned.
+ * @returns The page of registrations, its totals and the tickets sold across the returned rows.
+ * @throws HttpError with status 400 when a paging or filter value cannot be understood.
  */
 async function listRegistrations(query: UntrustedInput = {}) {
   const errors: ValidationIssue[] = [];
@@ -364,8 +425,11 @@ async function listRegistrations(query: UntrustedInput = {}) {
 }
 
 /**
- * GET /api/registrations/:id
- * @throws {HttpError} 404 when it does not exist
+ * Return one registration by its id.
+ *
+ * @param rawId - The registration id from the route parameter, still unvalidated text.
+ * @returns The stored registration.
+ * @throws HttpError with status 400 for an invalid id and 404 when no registration has that id.
  */
 async function getRegistration(rawId: string | number) {
   const registrationId = parsePositiveId(rawId, 'registration');
@@ -376,7 +440,17 @@ async function getRegistration(rawId: string | number) {
   return registration;
 }
 
-/** Shared id parsing. */
+/**
+ * Parse a positive id, naming the resource in the message.
+ *
+ * One helper for events and registrations, so both routes reject a malformed id
+ * with the same status and the same wording.
+ *
+ * @param rawId - The id from the route parameter, still unvalidated text.
+ * @param noun - The resource name used in the message, such as `event`.
+ * @returns The id as a number, once it is known to be a positive whole number.
+ * @throws HttpError with status 400 when the value is not a positive whole number.
+ */
 function parsePositiveId(rawId: string | number, noun: string): number {
   const id = Number(rawId);
   if (!Number.isInteger(id) || id <= 0) {
@@ -387,6 +461,14 @@ function parsePositiveId(rawId: string | number, noun: string): number {
   return id;
 }
 
+/**
+ * The service's public surface.
+ *
+ * The five operations are used by the registration and admin controllers; the
+ * validators and the id parser are exported so the tests can exercise a rule
+ * without going through Express, and the ticket ceiling is exported so the admin
+ * form can state the same limit the validator enforces.
+ */
 export = {
   createRegistration,
   updateRegistration,

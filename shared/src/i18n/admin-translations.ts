@@ -1,22 +1,35 @@
-/*
- * MIGRATED FROM the archived vanilla frontend during the Angular migration, by
- * tools/generate-i18n-data.mjs. The text was copied byte for byte so no
+/**
+ * @file The admin website's interface strings, one dictionary per language.
+ *
+ * Shape: language code -> key -> string, so a lookup reads
+ * ADMIN_DICTIONARIES['ja']['admin.title']. Keys are grouped by feature prefix
+ * (admin., dash., delete., error., event., events., field., form., health.,
+ * nav., notFound., registrations., settings., status., ticket., update.,
+ * validation., weather.) and sorted alphabetically within each language block,
+ * which is what keeps a file of this size reviewable and a diff readable.
+ *
+ * All four languages carry IDENTICAL key sets. A key present in one block and
+ * missing from another would silently fall back to English, so
+ * tools/check-translations.mjs fails the build when the sets diverge.
+ *
+ * Generated from the archived vanilla frontend during the Angular migration by
+ * tools/generate-i18n-data.mjs, which copied the text byte for byte so no
  * translation could be corrupted on the way over.
  *
  * THIS FILE IS NOW THE SOURCE OF TRUTH. Edit the strings here.
- * Add a new key to EVERY language block, keeping the four key sets identical -
- * tools/check-translations.mjs fails the build if they diverge. Re-running the
- * generator would overwrite your edits; it exists to document and reproduce the
- * one-off migration, not to be run again.
+ * Re-running the generator would overwrite your edits; it exists to document and
+ * reproduce the one-off migration, not to be run again.
  */
 
 import type { Dictionaries } from './language.model';
 import type { LanguageCode } from './languages';
 
 /**
- * Every string the ADMIN-SIDE website shows. Run `npm run check:translations`
- * for the current key count, and for a check that all four languages define
- * exactly the same keys.
+ * Every string the staff-facing admin website shows, one flat key/value map per
+ * language.
+ *
+ * Run `npm run check:translations` for the current key count, and for a check
+ * that all four languages define exactly the same keys.
  *
  * The two sites keep separate dictionaries on purpose. The public site's
  * dictionary is about a visitor's journey (browsing, searching, registering);

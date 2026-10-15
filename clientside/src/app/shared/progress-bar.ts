@@ -54,6 +54,8 @@ export class ProgressBarComponent {
 
   /** "$14,830" - whole dollars, which is how the legacy page showed it. */
   protected readonly raised = computed(() => formatCurrency(this.event().raisedAmount));
+
+  /** The fundraising target, formatted the same way as the amount raised. */
   protected readonly goal = computed(() => formatCurrency(this.event().goalAmount));
 
   /** How many donations the figure is based on, or 0 when the API sent none. */

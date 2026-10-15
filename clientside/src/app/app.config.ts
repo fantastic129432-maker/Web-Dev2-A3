@@ -10,7 +10,10 @@ import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 
 /**
- * Application-wide providers for the CLIENT-SIDE website.
+ * The application-wide providers, and the three values that differ from the admin
+ * site.
+ *
+ * @file Application configuration for the CLIENT-SIDE website.
  *
  * Each application has its own app.config.ts, which is where the two sites
  * genuinely differ:

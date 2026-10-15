@@ -1,7 +1,5 @@
 /**
- * shared/src/api/api.service.ts
- * ---------------------------------------------------------------------------
- * The single point in EITHER Angular application that talks to the REST API.
+ * @file The single point in EITHER Angular application that talks to the REST API.
  *
  * Design decisions, each of which the assessment brief or good practice asks for:
  *
@@ -50,15 +48,29 @@ import { ApiError } from './api-error';
 
 /** Filters GET /api/registrations accepts (admin view). */
 export interface RegistrationQuery {
+  /** Keep only the registrations recorded against one event. */
   eventId?: number | string;
+  /** Match part of the attendee's email address, not the whole of it. */
   email?: string;
+  /** Free-text search over the attendee's name and email address. */
   keyword?: string;
   limit?: number;
   offset?: number;
+  /**
+   * One-based page number, accepted for symmetry with the event list.
+   *
+   * This endpoint pages with `limit` and `offset` only, so a `page` sent here is
+   * ignored rather than rejected.
+   */
   page?: number;
 }
 
-/** Values a query parameter may hold. Arrays become repeated parameters. */
+/**
+ * Values a query parameter may hold.
+ *
+ * An array becomes repeated parameters, which is one of the two forms the API
+ * accepts for a multi-value filter.
+ */
 export type QueryValue = string | number | boolean | Array<string | number> | undefined;
 
 /** A decoded API response: the payload plus the metadata the API attached. */
@@ -98,8 +110,10 @@ function buildHttpParams(query: Record<string, QueryValue> = {}): HttpParams {
 }
 
 /**
- * Fill in the paging fields the UI relies on. A list endpoint always sends them,
- * but a defensive default means a control can render even if one is missing.
+ * Fill in the paging fields the UI relies on.
+ *
+ * A list endpoint always sends them, but a defensive default means a control can
+ * render even if one is missing.
  */
 function toPagedMeta(meta: ApiMeta, fallbackCount: number): PagedMeta {
   return {
@@ -113,9 +127,23 @@ function toPagedMeta(meta: ApiMeta, fallbackCount: number): PagedMeta {
   };
 }
 
+/**
+ * The one place in either Angular application that talks to the REST API.
+ *
+ * Every endpoint the two websites use is a method here, so a component never
+ * builds a URL and never sees the response envelope: it asks for data and gets
+ * either the payload or an ApiError. The design decisions behind that are
+ * recorded in the file block at the top of this file.
+ *
+ * @throws ApiError Every method's Observable errors with an ApiError, never a bare
+ *   HttpErrorResponse or a TimeoutError, so a caller has one error type to render in the
+ *   active language.
+ */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
+  /** The Angular HTTP client every request goes through. */
   private readonly http = inject(HttpClient);
+  /** The API root from the API_BASE_URL token, with a trailing slash removed. */
   private readonly baseUrl = inject(API_BASE_URL).replace(/\/+$/, '');
 
   /* =====================================================================
@@ -125,9 +153,11 @@ export class ApiService {
   /**
    * Perform a request and return the payload plus the API metadata.
    *
-   * @param method  GET | POST | PUT | DELETE
-   * @param path    e.g. '/events/2'
-   * @param options query parameters and/or a JSON body
+   * `method` is the HTTP verb, `path` is the API path such as '/events/2', and
+   * `options` carries query parameters and/or a JSON body. A body is sent only
+   * when one was supplied, so a GET is never given a Content-Type it does not
+   * need. The single timeout lives here, which is what makes it apply to every
+   * endpoint rather than to the ones each caller remembered.
    */
   private send<T>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -213,23 +243,39 @@ export class ApiService {
    * =================================================================== */
 
   /**
-   * GET /api/events
-   * The workhorse behind the home page and the search page. With no parameters
-   * the API answers with the current and upcoming events only.
+   * Read a page of events for the public site.
+   *
+   * GET /api/events, the workhorse behind the home page and the search page.
+   *
+   * @param query - Filters, sorting and paging. May be omitted, in which case the API
+   *   answers with the current and upcoming events only.
+   * @returns The events on this page, plus the paging metadata a list control needs.
    */
   getEvents(query: EventQuery = {}): Observable<Paged<Event>> {
     return this.getPaged<Event>('/events', query as Record<string, QueryValue>);
   }
 
-  /** GET /api/events/upcoming - current and upcoming events, soonest first. */
+  /**
+   * Read a page of the events that are current or upcoming, soonest first.
+   *
+   * GET /api/events/upcoming.
+   *
+   * @param query - Filters, sorting and paging. May be omitted, in which case the API's
+   *   own defaults apply.
+   * @returns The events on this page, plus the paging metadata a list control needs.
+   */
   getUpcomingEvents(query: EventQuery = {}): Observable<Paged<Event>> {
     return this.getPaged<Event>('/events/upcoming', query as Record<string, QueryValue>);
   }
 
   /**
-   * GET /api/events/:id
-   * Assessment 3: the response also carries every registration for the event,
+   * Read one event, together with every registration recorded against it.
+   *
+   * GET /api/events/:id. Assessment 3: the response also carries the registrations,
    * newest purchase first, which the detail page renders directly.
+   *
+   * @param eventId - Primary key of the event, or the id taken from the route.
+   * @returns The event, its ticket tiers and its registrations.
    */
   getEventById(eventId: number | string): Observable<EventDetail> {
     return this.get<EventDetail>(`/events/${encodeURIComponent(eventId)}`);
@@ -239,12 +285,28 @@ export class ApiService {
    * Events - the C.R.U.D. cycle the admin site drives
    * =================================================================== */
 
-  /** POST /api/events - create a charity event. */
+  /**
+   * Create a charity event.
+   *
+   * POST /api/events.
+   *
+   * @param event - The validated values for the new event.
+   * @returns The created event as the API stored it, including its new id.
+   */
   createEvent(event: EventInput): Observable<Event> {
     return this.send<Event>('POST', '/events', { body: event }).pipe(map((r) => r.data));
   }
 
-  /** PUT /api/events/:id - a partial update; only the fields sent are changed. */
+  /**
+   * Change an event, sending only the fields that changed.
+   *
+   * PUT /api/events/:id, used as a partial update: the API changes what is sent and
+   * leaves the rest of the row alone.
+   *
+   * @param eventId - Primary key of the event to change.
+   * @param changes - The fields to change, as a partial event.
+   * @returns The updated event as the API stored it.
+   */
   updateEvent(eventId: number | string, changes: Partial<EventInput>): Observable<Event> {
     return this.send<Event>('PUT', `/events/${encodeURIComponent(eventId)}`, { body: changes }).pipe(
       map((r) => r.data)
@@ -252,12 +314,16 @@ export class ApiService {
   }
 
   /**
-   * DELETE /api/events/:id
+   * Delete an event, unless it already has registrations.
    *
-   * Resolves with null on 204 No Content. When the event already has
-   * registrations the API refuses with 409, which arrives here as a rejected
-   * ApiError whose `isConflict` is true - that is the data-integrity rule the
-   * brief requires, and the admin list shows it instead of pretending success.
+   * DELETE /api/events/:id. Resolves with null on 204 No Content. When the event
+   * already has registrations the API refuses with 409, which arrives as a rejected
+   * ApiError whose `isConflict` is true - that is the data-integrity rule the brief
+   * requires, and the admin list shows it instead of pretending success.
+   *
+   * @param eventId - Primary key of the event to delete.
+   * @returns An Observable that emits null once the API has confirmed the delete with
+   *   204 No Content.
    */
   deleteEvent(eventId: number | string): Observable<null> {
     return this.send<null>('DELETE', `/events/${encodeURIComponent(eventId)}`).pipe(
@@ -270,17 +336,27 @@ export class ApiService {
    * =================================================================== */
 
   /**
-   * GET /api/events/:id/registrations
-   * The list the event detail page displays, newest purchase first.
+   * Read every registration for one event.
+   *
+   * GET /api/events/:id/registrations, newest purchase first.
+   *
+   * @param eventId - Primary key of the event whose registrations are wanted.
+   * @returns The registrations for that event, newest purchase first.
    */
   getEventRegistrations(eventId: number | string): Observable<Registration[]> {
     return this.get<Registration[]>(`/events/${encodeURIComponent(eventId)}/registrations`);
   }
 
   /**
-   * POST /api/events/:id/registrations
-   * The registration form calls this. One email may register for an event once;
-   * a second attempt is answered with 409.
+   * Register an attendee for an event.
+   *
+   * POST /api/events/:id/registrations. One email may register for an event once; a
+   * second attempt is answered with 409, which the form shows against the email
+   * field rather than as a page-level failure.
+   *
+   * @param eventId - Primary key of the event being registered for.
+   * @param registration - The attendee details and the number of tickets.
+   * @returns The stored registration, including the total the API computed for it.
    */
   createRegistration(
     eventId: number | string,
@@ -291,17 +367,41 @@ export class ApiService {
     }).pipe(map((r) => r.data));
   }
 
-  /** GET /api/registrations - every registration, for the admin list. */
+  /**
+   * Read a page of registrations for the admin list.
+   *
+   * GET /api/registrations.
+   *
+   * @param query - Filters and paging. May be omitted, in which case the API's own
+   *   defaults apply.
+   * @returns The registrations on this page, plus the paging metadata a list control
+   *   needs.
+   */
   getRegistrations(query: RegistrationQuery = {}): Observable<Paged<Registration>> {
     return this.getPaged<Registration>('/registrations', query as Record<string, QueryValue>);
   }
 
-  /** GET /api/registrations/:id */
+  /**
+   * Read one registration.
+   *
+   * GET /api/registrations/:id.
+   *
+   * @param registrationId - Primary key of the registration.
+   * @returns The registration as the API stored it.
+   */
   getRegistration(registrationId: number | string): Observable<Registration> {
     return this.get<Registration>(`/registrations/${encodeURIComponent(registrationId)}`);
   }
 
-  /** PUT /api/registrations/:id */
+  /**
+   * Change a registration, sending only the fields that changed.
+   *
+   * PUT /api/registrations/:id.
+   *
+   * @param registrationId - Primary key of the registration to change.
+   * @param changes - The fields to change, as a partial registration.
+   * @returns The updated registration as the API stored it.
+   */
   updateRegistration(
     registrationId: number | string,
     changes: Partial<RegistrationInput>
@@ -311,7 +411,15 @@ export class ApiService {
     }).pipe(map((r) => r.data));
   }
 
-  /** DELETE /api/registrations/:id */
+  /**
+   * Delete a registration.
+   *
+   * DELETE /api/registrations/:id.
+   *
+   * @param registrationId - Primary key of the registration to delete.
+   * @returns An Observable that emits null once the API has confirmed the delete with
+   *   204 No Content.
+   */
   deleteRegistration(registrationId: number | string): Observable<null> {
     return this.send<null>('DELETE', `/registrations/${encodeURIComponent(registrationId)}`).pipe(
       map((r) => r.data)
@@ -323,20 +431,39 @@ export class ApiService {
    * =================================================================== */
 
   /**
-   * GET /api/admin/events
-   * EVERY event regardless of status (active, past, suspended, cancelled),
-   * which is the admin "list feature" the brief describes.
+   * Read a page of EVERY event, whatever its publishing status.
+   *
+   * GET /api/admin/events: active, past, suspended and cancelled alike, which is
+   * the admin "list feature" the brief describes.
+   *
+   * @param query - Filters, sorting and paging, including `publishStatus`. May be
+   *   omitted, in which case the API's own defaults apply.
+   * @returns The events on this page, plus the paging metadata a list control needs.
    */
   getAdminEvents(query: EventQuery = {}): Observable<Paged<Event>> {
     return this.getPaged<Event>('/admin/events', query as Record<string, QueryValue>);
   }
 
-  /** GET /api/admin/events/:id - one event whatever its publishing status. */
+  /**
+   * Read one event whatever its publishing status.
+   *
+   * GET /api/admin/events/:id.
+   *
+   * @param eventId - Primary key of the event.
+   * @returns The event, its ticket tiers and its registrations.
+   */
   getAdminEventById(eventId: number | string): Observable<EventDetail> {
     return this.get<EventDetail>(`/admin/events/${encodeURIComponent(eventId)}`);
   }
 
-  /** GET /api/admin/reference-data - organisations, categories and venues. */
+  /**
+   * Read the three dropdown lists the admin event forms need.
+   *
+   * GET /api/admin/reference-data.
+   *
+   * @returns The organisations, categories and venues, in one response rather than
+   *   three.
+   */
   getReferenceData(): Observable<ReferenceData> {
     return this.get<ReferenceData>('/admin/reference-data');
   }
@@ -345,27 +472,58 @@ export class ApiService {
    * Reference data and health
    * =================================================================== */
 
-  /** GET /api/categories - category filter options with active event counts. */
+  /**
+   * Read the category filter options.
+   *
+   * GET /api/categories.
+   *
+   * @returns Every category with the number of active events that use it.
+   */
   getCategories(): Observable<Category[]> {
     return this.get<Category[]>('/categories');
   }
 
-  /** GET /api/locations - venues that currently host at least one active event. */
+  /**
+   * Read the venue filter options.
+   *
+   * GET /api/locations.
+   *
+   * @returns The venues that currently host at least one active event.
+   */
   getLocations(): Observable<Venue[]> {
     return this.get<Venue[]>('/locations');
   }
 
-  /** GET /api/stats - headline numbers for the home page and the dashboard. */
+  /**
+   * Read the headline numbers.
+   *
+   * GET /api/stats.
+   *
+   * @returns The counts and totals the home page and the admin dashboard display.
+   */
   getStats(): Observable<EventStats> {
     return this.get<EventStats>('/stats');
   }
 
-  /** GET /api/organization - the charitable organisation featured on the home page. */
+  /**
+   * Read the featured charitable organisation.
+   *
+   * GET /api/organization.
+   *
+   * @returns The organisation whose mission the home page features.
+   */
   getOrganization(): Observable<Organization> {
     return this.get<Organization>('/organization');
   }
 
-  /** GET /api/health - used by the footer and the admin dashboard. */
+  /**
+   * Check the API and the database behind it.
+   *
+   * GET /api/health, used by the footer and the admin dashboard.
+   *
+   * @returns The API's own status, and the database half of the report with the data
+   *   source that answered.
+   */
   getHealth(): Observable<HealthReport> {
     return this.get<HealthReport>('/health');
   }

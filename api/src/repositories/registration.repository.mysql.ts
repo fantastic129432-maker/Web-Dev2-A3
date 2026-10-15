@@ -1,7 +1,7 @@
 /**
- * src/repositories/registration.repository.mysql.ts
- * ---------------------------------------------------------------------------
- * Assessment 3, Part 2 - writes for the event_registrations table.
+ * @file The registration writes for the event_registrations table.
+ *
+ * Part 2 of Assessment 3.
  *
  * The brief says endpoints for registration are optional, but the client
  * website needs one: the registration page cannot submit a new record without
@@ -36,12 +36,25 @@ import mysqlRepository = require('./repository.mysql');
 
 const q = db;
 
-/** Lower-case and trim an email so the unique key behaves as users expect. */
+/**
+ * Lower-case and trim an email so the unique key behaves as users expect.
+ *
+ * @param email - The address as submitted, in any casing or with surrounding spaces.
+ * @returns The comparable form of the address, or an empty string when nothing was supplied.
+ */
 function normaliseEmail(email: unknown): string {
   return String(email || '').trim().toLowerCase();
 }
 
-/** Does the event exist? Returns its name, or null. */
+/**
+ * Look up an event's name.
+ *
+ * The name is needed for the "already registered" message, so the existence check
+ * and the message text come from one query rather than two.
+ *
+ * @param eventId - The event to look up.
+ * @returns The event's name, or `null` when no event has that id.
+ */
 async function findEventName(eventId: number) {
   const rows = await q.query('SELECT event_name AS eventName FROM events WHERE event_id = ?', [
     eventId,
@@ -49,7 +62,18 @@ async function findEventName(eventId: number) {
   return rows.length > 0 ? rows[0].eventName : null;
 }
 
-/** Is the ticket tier valid for this event? */
+/**
+ * Test whether a ticket tier is offered by an event.
+ *
+ * A tier id that was not supplied passes, because the column is optional; a tier
+ * belonging to a different event is refused here as well as by the composite
+ * foreign key fk_registration_ticket, so the client gets a readable 400 rather
+ * than a driver error.
+ *
+ * @param ticketTypeId - The tier id, which may be null or undefined for a registration without a tier.
+ * @param eventId - The event the registration belongs to.
+ * @returns `true` when the tier belongs to that event, or when none was supplied.
+ */
 async function ticketBelongsToEvent(ticketTypeId: number, eventId: number) {
   if (ticketTypeId === null || ticketTypeId === undefined) return true;
   const rows = await q.query(
@@ -61,13 +85,29 @@ async function ticketBelongsToEvent(ticketTypeId: number, eventId: number) {
   return rows.length > 0;
 }
 
+/**
+ * The MySQL registration write half of the repository contract.
+ *
+ * It is checked against `RegistrationWriteRepository` at compile time, and
+ * registration.repository.local.ts enforces the same rules against the in-memory
+ * store, so the two data sources answer identically.
+ */
 const registrationRepository: RegistrationWriteRepository = {
   /**
-   * POST /api/events/:id/registrations
+   * Insert one registration for an event.
    *
-   * @param {number} eventId
-   * @param {object} values validated payload from registrationService
-   * @returns {Promise<object>} the stored registration, fully decorated
+   * Three rules are applied in order: the event must exist, a supplied tier must
+   * belong to it, and the email must not already be registered for it. The
+   * database is still the final authority - the unique key and the foreign keys
+   * can refuse the insert if two requests race past the checks - so the driver
+   * codes are translated into the same 400 and 409 rather than surfacing as a
+   * 500. `registered_at` is only included when the caller supplied one, so the
+   * column default records the moment of submission otherwise.
+   *
+   * @param eventId - The event being registered for.
+   * @param values - The validated registration values in camelCase.
+   * @returns The stored registration, read back in the API shape, or `null` when the event does not exist.
+   * @throws HttpError with status 400 when the tier or the values are refused by the database, and 409 when that email is already registered for the event.
    */
   async insertRegistration(eventId, values) {
     // 1. The event must exist.
@@ -163,8 +203,17 @@ const registrationRepository: RegistrationWriteRepository = {
   },
 
   /**
-   * PUT /api/registrations/:id - partial update of a registration.
-   * @returns {Promise<object|null>} the updated row, or null when not found
+   * Update one registration as a partial update.
+   *
+   * Only the fields present in the payload are changed. Swapping the tier is
+   * checked against the registration's own event, and the email is normalised
+   * before it is written, so the unique key still means what it meant on insert;
+   * ER_DUP_ENTRY is translated so a collision is a 409 rather than a 500.
+   *
+   * @param registrationId - The id of the registration to change.
+   * @param values - The validated fields to change, in camelCase.
+   * @returns The updated registration, read back in the API shape, or `null` when no row has that id.
+   * @throws HttpError with status 400 when the tier belongs to another event or a value is refused by the database, and 409 when the new email is already registered for that event.
    */
   async updateRegistration(registrationId, values) {
     const existing = await mysqlRepository.registrationQueries.findById(registrationId);
@@ -233,8 +282,13 @@ const registrationRepository: RegistrationWriteRepository = {
   },
 
   /**
-   * DELETE /api/registrations/:id
-   * @returns {Promise<boolean>} true when a row was removed
+   * Remove one registration.
+   *
+   * `affectedRows` is what distinguishes a delete from a delete that matched
+   * nothing, which is how the service decides between 204 and 404.
+   *
+   * @param registrationId - The id of the registration to remove.
+   * @returns `true` when a row was removed, `false` when no row had that id.
    */
   async deleteRegistration(registrationId) {
     const result = await q.query(
@@ -245,6 +299,11 @@ const registrationRepository: RegistrationWriteRepository = {
   },
 };
 
-/* One export: the helpers the original attached to module.exports afterwards
- * ride along on the same object. */
+/**
+ * The write repository plus the helper the tests exercise.
+ *
+ * One export: the helper the original attached to module.exports afterwards rides
+ * along on the same object, so `require('./registration.repository.mysql')` is
+ * still the object src/repositories/index.ts binds onto the merged repository.
+ */
 export = Object.assign(registrationRepository, { normaliseEmail });

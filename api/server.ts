@@ -1,7 +1,5 @@
 /**
- * server.ts
- * ---------------------------------------------------------------------------
- * Application entry point.
+ * @file Application entry point.
  *
  * Startup order
  *   1. load configuration (config/env.ts reads api/.env)
@@ -12,6 +10,11 @@
  *
  * Run with:  npm start        (api folder, runs the compiled dist/server.js)
  * Build first: npm run build
+ *
+ * The compiled file is what runs, not this source: `tsc` writes api/dist so that
+ * the layout mirrors the source (api/server.ts -> api/dist/server.js), which is
+ * the entry point `npm start`, the automated test suite and the cPanel
+ * deployment all use.
  */
 'use strict';
 
@@ -29,12 +32,15 @@ import {
 } from './src/middleware/security';
 import repository = require('./src/repositories');
 
+/** The Express application, exported so a test can drive it without opening a port. */
 const app = express();
 
 // ---------------------------------------------------------------------------
 // Mount point (Passenger / cPanel)
 // ---------------------------------------------------------------------------
 /**
+ * Strip the Passenger mount point from the front of every request URL.
+ *
  * Passenger tells the application where it was mounted through
  * PASSENGER_BASE_URI, and it passes the FULL url through to the application
  * rather than stripping the mount point.
@@ -68,17 +74,18 @@ if (baseUri) {
 // ---------------------------------------------------------------------------
 // Middleware
 // ---------------------------------------------------------------------------
+/** Remove the framework fingerprint Express adds to every response. */
 app.disable('x-powered-by');
 
-/*
- * Trust exactly ONE proxy hop - Passenger, which sits in front of this app on the
- * cPanel - and no more.
+/**
+ * Trust exactly ONE proxy hop.
  *
- * `true` was wrong and quietly defeated the rate limiter: it makes req.ip the
- * LEFTMOST X-Forwarded-For value, and the limiter keys on req.ip, so any caller
- * could send a different `X-Forwarded-For` on every request and never be limited
- * (RATE_LIMIT_MAX is 300). Trusting one hop takes the address Passenger appends,
- * which the client cannot forge.
+ * Passenger sits in front of this app on the cPanel, and no more than one hop
+ * may be trusted. `true` was wrong and quietly defeated the rate limiter: it
+ * makes req.ip the LEFTMOST X-Forwarded-For value, and the limiter keys on
+ * req.ip, so any caller could send a different `X-Forwarded-For` on every
+ * request and never be limited (RATE_LIMIT_MAX is 300). Trusting one hop takes
+ * the address Passenger appends, which the client cannot forge.
  */
 app.set('trust proxy', 1);
 
@@ -86,12 +93,23 @@ app.use(securityHeaders);
 app.use(createCors());
 app.use(createRateLimiter());
 
-// The API only needs JSON in Assessment 2, but the parser is capped so that
-// the POST/PUT/DELETE endpoints added in Assessment 3 cannot be abused.
+/**
+ * Cap the size of the JSON and form bodies the write endpoints accept.
+ *
+ * The API only needs JSON in Assessment 2, but the parser is capped so that the
+ * POST/PUT/DELETE endpoints added in Assessment 3 cannot be abused by a very
+ * large body.
+ */
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
-// A tiny request log so the demo video can show the API being called.
+/**
+ * Log one line per request, so the demo video can show the API being called.
+ *
+ * The line is written when the response finishes rather than when it starts, so
+ * it can report the status code and the time taken; the test runs silence it by
+ * setting NODE_ENV=test.
+ */
 app.use((req, res, next) => {
   const startedAt = Date.now();
   res.on('finish', () => {
@@ -110,8 +128,7 @@ app.use((req, res, next) => {
 app.use('/api', apiRoutes);
 
 /**
- * The friendly landing page so opening http://localhost:3000 in a browser is
- * useful.
+ * The friendly landing page, so opening the API root in a browser is useful.
  *
  * The page is a static .html file and `tsc` does not copy it, so its location
  * is resolved from the API ROOT - the folder holding package.json, found by
@@ -127,6 +144,13 @@ const LANDING_PAGE =
   ].find((candidate) => fs.existsSync(candidate)) ??
   path.join(env.API_ROOT, 'src', 'views', 'api-index.html');
 
+/**
+ * Serve the landing page, falling back to a JSON banner if it cannot be read.
+ *
+ * The fallback keeps the root URL useful even in a deployment that shipped
+ * without the static file, which is the one case where sendFile fails after the
+ * headers were already committed.
+ */
 app.get('/', (req, res) => {
   res.sendFile(LANDING_PAGE, (error) => {
     if (error) {
@@ -146,6 +170,20 @@ app.use(errorHandler);
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
+/**
+ * Connect to the data source, print the banner and begin listening.
+ *
+ * The banner names the data source and reports whether the database answered,
+ * because the two most common setup mistakes (the wrong DATA_SOURCE, or no
+ * database at all) are then visible at a glance. An unreachable database is a
+ * warning rather than a fatal error: the API still starts and /api/health
+ * reports the problem, which is more useful than a process that dies with a
+ * driver stack trace. The signal handlers close the server first and only then
+ * release the pool, so no in-flight request loses its connection.
+ *
+ * @returns The listening server, returned so a test or a caller can close it
+ *   instead of leaving the port bound.
+ */
 async function start() {
   const health = await repository.health();
 
@@ -174,13 +212,18 @@ async function start() {
     // started
   });
 
+  /**
+   * Close the server and release the database pool, then end the process.
+   *
+   * The require of the pool module stays INSIDE the handler so that the pool is
+   * only loaded when the process actually shuts down, exactly as before, and it
+   * is safe in both modes because the local data source has nothing to close.
+   */
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received - shutting down.`);
     server.close(async () => {
       try {
         // Safe in both modes: the local data source has nothing to close.
-        // The require stays INSIDE the handler so that the pool module is only
-        // loaded when the process actually shuts down, exactly as before.
         const db = require('./src/db/event_db') as typeof import('./src/db/event_db');
         await db.close();
       } catch (error) {
@@ -196,11 +239,11 @@ async function start() {
   return server;
 }
 
-/*
- * ---------------------------------------------------------------------------
- * Start the server.
- * ---------------------------------------------------------------------------
- * The guard has to cover two different ways this file gets loaded.
+/**
+ * Whether Passenger loaded this file, detected from the variable it sets.
+ *
+ * The start-up guard below has to cover two different ways this file gets
+ * loaded:
  *
  *   1. `node dist/server.js` (local development, `npm start`)
  *      -> require.main === module is true.
@@ -232,6 +275,11 @@ if (require.main === module || IS_PASSENGER) {
   });
 }
 
-// Named exports: the compiled CommonJS output is `exports.app` / `exports.start`,
-// so `const { app } = require('./dist/server.js')` keeps working unchanged.
+/**
+ * The two names the rest of the project imports.
+ *
+ * The compiled CommonJS output is `exports.app` / `exports.start`, so
+ * `const { app } = require('./dist/server.js')` keeps working unchanged - which
+ * is what the test suite does instead of starting a server on a port.
+ */
 export { app, start };

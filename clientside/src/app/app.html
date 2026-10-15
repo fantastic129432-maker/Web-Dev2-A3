@@ -1,20 +1,40 @@
 <!--
-  Application shell.
+  Application shell: the four segments every page shares.
 
-  The header and footer are siblings of the routed page rather than part of each
-  page's template, so navigating between pages never rebuilds them: the language
-  and theme controls keep their state, and GET /api/health is called once per
-  full page load instead of once per navigation.
+  Header, Nav and Footer are created exactly once, here, as siblings of the routed
+  page rather than inside each page's template, so navigating between pages never
+  rebuilds them: the language and theme controls keep their state, and GET
+  /api/health is called once per full page load instead of once per navigation. Body
+  is the <main> the router fills.
+
+  NAV IS NESTED IN HEADER, AND THAT IS DELIBERATE
+  The nav segment is rendered inside the header segment (app-site-header ->
+  <header> -> app-site-nav): a navigation menu belongs inside the header landmark,
+  and that is the position the layout stylesheet already gives it. It is still a
+  component of its own with its own <nav> landmark - see
+  clientside/src/app/layout/site-nav/site-nav.html - and it is still defined once.
 
   On the wildcard 404 route only the MENU is hidden (`showNav`). The header itself
   stays so the visitor still has the language and theme controls, and the footer
   stays because its contact details are often how someone recovers from a broken
   link. A menu of links to pages they were not looking for would only add noise.
 -->
+
+<!--
+  Segment 1 of 4 - HEADER: the brand, the settings controls and the menu button.
+  Segment 2 of 4 - NAV: the primary menu, rendered INSIDE the header above by
+  app-site-nav, so the menu sits in the header landmark and its markup exists in one
+  file (layout/site-nav/site-nav.html).
+-->
 <app-site-header [showNav]="showSiteChrome()" />
 
+<!-- Segment 3 of 4 - BODY: the routed page, which renders only its own content. -->
 <main id="main">
   <router-outlet />
 </main>
 
+<!--
+  Segment 4 of 4 - FOOTER: contact details, quick links, the project note and the
+  live API indicator.
+-->
 <app-site-footer />

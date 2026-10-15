@@ -1,0 +1,54 @@
+<!--
+  The nav segment: the primary menu, present on every page that shows the site
+  chrome (all of them except the wildcard 404 route, which passes showNav = false).
+
+  It is rendered by app-site-header, inside that component's <header> landmark, so
+  the menu belongs to the header region - which is where a navigation menu belongs -
+  while still being a <nav> landmark of its own and a file of its own.
+
+  Every class here (.site-nav, .site-nav__list, .site-nav__link, .site-nav--open) is
+  defined in the global src/styles.css and is unchanged: nothing was restyled when
+  the markup moved out of the header, because the same rules still match the same
+  elements. site-nav.css only stops the new host element from adding a box.
+-->
+@if (showNav()) {
+  <nav
+    class="site-nav"
+    id="primary-navigation"
+    [class.site-nav--open]="menuOpen()"
+    [attr.aria-label]="'nav.toggle' | t"
+  >
+    <ul class="site-nav__list">
+      <li>
+        <a
+          class="site-nav__link"
+          routerLink="/"
+          routerLinkActive="site-nav__link--active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+          (click)="linkActivated.emit()"
+        >{{ 'nav.home' | t }}</a>
+      </li>
+      <li>
+        <a
+          class="site-nav__link"
+          routerLink="/search"
+          routerLinkActive="site-nav__link--active"
+          ariaCurrentWhenActive="page"
+          (click)="linkActivated.emit()"
+        >{{ 'nav.search' | t }}</a>
+      </li>
+      <li>
+        <!--
+          A plain <a href>, not routerLink: the admin site is a separate Angular
+          application on its own origin, so the click must be a real document
+          navigation. rel="noopener" stops a new tab from reaching back into this
+          page through window.opener.
+        -->
+        <a class="site-nav__link" [href]="otherSiteUrl" rel="noopener">
+          {{ 'nav.admin' | t }}
+        </a>
+      </li>
+    </ul>
+  </nav>
+}

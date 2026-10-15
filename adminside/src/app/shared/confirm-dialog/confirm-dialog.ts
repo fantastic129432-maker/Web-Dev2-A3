@@ -1,6 +1,9 @@
+import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
+
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import type { TranslationValues } from '@charity/shared/i18n/translation.service';
+
 /**
- * adminside/src/app/shared/confirm-dialog/confirm-dialog.ts
- * ---------------------------------------------------------------------------
  * The "are you sure?" step in front of anything that cannot be undone: deleting
  * an event, deleting a registration.
  *
@@ -19,11 +22,6 @@
  * Access: role="dialog" + aria-modal, Escape cancels, focus starts on Cancel so a
  * stray Enter cannot delete anything, and clicking the backdrop cancels.
  */
-import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
-
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import type { TranslationValues } from '@charity/shared/i18n/translation.service';
-
 @Component({
   selector: 'admin-confirm-dialog',
   imports: [TranslatePipe],
@@ -39,15 +37,26 @@ import type { TranslationValues } from '@charity/shared/i18n/translation.service
 export class ConfirmDialog {
   /** Translation keys, not text: the dialog must re-render on a language change. */
   readonly titleKey = input.required<string>();
+
+  /** Translation key of the body sentence, which explains what is about to happen. */
   readonly bodyKey = input.required<string>();
+
+  /** Placeholders substituted into the body sentence, for example the event name. */
   readonly bodyValues = input<TranslationValues>({});
+
+  /** Translation key of the label on the destructive button. */
   readonly confirmLabelKey = input.required<string>();
+
+  /** Translation key of the label on the safe button. */
   readonly cancelLabelKey = input<string>('delete.cancel');
 
   /** True while the delete is in flight, so the button cannot be pressed twice. */
   readonly busy = input(false);
 
+  /** Emitted when the staff member confirms the destructive action. */
   readonly confirmed = output<void>();
+
+  /** Emitted when the dialog is dismissed without acting. */
   readonly cancelled = output<void>();
 
   private readonly cancelButton = viewChild<ElementRef<HTMLButtonElement>>('cancelButton');

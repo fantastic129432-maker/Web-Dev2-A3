@@ -1,16 +1,34 @@
 <!--
-  The application shell. The header carries the menu and the two settings controls,
-  so they are present on every page; the router fills the container between them.
+  The application shell: the four segments every admin page shares, in order -
+  Header (which contains Nav), Body and Footer. All three common segments are created
+  exactly once, here, as siblings of the routed page, so navigating between pages
+  never rebuilds them.
+
   The markup deliberately mirrors the archived admin pages:
   <header class="admin-header">, <nav class="admin-nav">, <main class="admin-main">
-  with an .admin-container inside it, and <footer class="admin-footer">.
+  with an .admin-container inside it, and <footer class="admin-footer">. The header
+  component renders the menu as well, so the rendered document still has all four
+  landmarks in the same order.
+-->
+
+<!--
+  Segment 1 of 4 - HEADER: the brand band, the link to the public website and the
+  language/theme controls.
+  Segment 2 of 4 - NAV: the menu, rendered INSIDE the header above by admin-nav, so
+  its four links exist in one file (layout/admin-nav/admin-nav.html) and no page can
+  forget it - which is the brief's "menu present on all pages" requirement.
 -->
 <admin-header />
 
+<!-- Segment 3 of 4 - BODY: the routed page, inside the shared width container. -->
 <main id="main" class="admin-main">
   <div class="admin-container">
     <router-outlet />
   </div>
 </main>
 
+<!--
+  Segment 4 of 4 - FOOTER: the project note, the data source the API reported and the
+  copyright line.
+-->
 <admin-footer />

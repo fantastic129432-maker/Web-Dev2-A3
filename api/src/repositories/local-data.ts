@@ -1,6 +1,6 @@
 /**
- * src/repositories/local-data.ts
- * ---------------------------------------------------------------------------
+ * @file The offline mirror of the seeded sample data.
+ *
  * GENERATED FILE - do not edit by hand.
  * Produced by: node tools/generate-local-data.js
  * Source     : database/02_seed.sql
@@ -19,6 +19,7 @@
 
 import type { DataRecord } from '../types';
 
+/** The seed rows for the organisations table. */
 const organizations: DataRecord[] = [
   {
     "organization_id": 1,
@@ -82,6 +83,7 @@ const organizations: DataRecord[] = [
   }
 ];
 
+/** The seed rows for the categories table. */
 const categories: DataRecord[] = [
   {
     "category_id": 1,
@@ -141,6 +143,7 @@ const categories: DataRecord[] = [
   }
 ];
 
+/** The seed rows for the locations table, the venues the events are held at. */
 const locations: DataRecord[] = [
   {
     "location_id": 1,
@@ -234,6 +237,7 @@ const locations: DataRecord[] = [
   }
 ];
 
+/** The seed rows for the events table, which the read repository decorates. */
 const events: DataRecord[] = [
   {
     "event_id": 1,
@@ -457,6 +461,7 @@ const events: DataRecord[] = [
   }
 ];
 
+/** The seed rows for the ticket_types table, one or more per event. */
 const ticket_types: DataRecord[] = [
   {
     "ticket_type_id": 1,
@@ -604,6 +609,7 @@ const ticket_types: DataRecord[] = [
   }
 ];
 
+/** The seed rows for the donations table, which drive each event's progress. */
 const donations: DataRecord[] = [
   {
     "event_id": 1,
@@ -859,6 +865,7 @@ const donations: DataRecord[] = [
   }
 ];
 
+/** The seed rows for the event_registrations table, copied into the mutable store. */
 const event_registrations: DataRecord[] = [
   {
     "registration_id": 1,
@@ -1082,6 +1089,13 @@ const event_registrations: DataRecord[] = [
   }
 ];
 
+/**
+ * The whole snapshot, keyed by the table name the SQL uses.
+ *
+ * The keys keep the database's snake_case names (`ticket_types`,
+ * `event_registrations`) so a difference from the seed file is easy to spot, and
+ * local-store.ts is the only module that mutates any of it.
+ */
 export = {
   organizations,
   categories,

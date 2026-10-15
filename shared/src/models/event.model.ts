@@ -1,7 +1,5 @@
 /**
- * shared/src/models/event.model.ts
- * ---------------------------------------------------------------------------
- * A charity event, exactly as the REST API returns it.
+ * @file A charity event, exactly as the REST API returns it.
  *
  * Why one interface with optional fields rather than several? The API enriches
  * the same `events` row differently per endpoint:
@@ -27,15 +25,24 @@ export interface TicketType {
 }
 
 /**
- * The state of an event relative to today, derived by the API from
- * date_start/date_end rather than stored. It is what the cards and the
- * "Upcoming / Past" filters use.
+ * The state of an event relative to today, derived rather than stored.
+ *
+ * The API derives it from date_start/date_end, and it is what the cards and the
+ * "Upcoming / Past" filters use. The union ends in `string` so a state the API
+ * adds later cannot become a compile error in the front end.
  */
 export type EventState = 'upcoming' | 'ongoing' | 'past' | string;
 
 /** The publishing status an administrator controls. */
 export type PublishStatus = 'active' | 'suspended' | 'cancelled' | string;
 
+/**
+ * One charity event, as the API returns it from the event endpoints.
+ *
+ * The API enriches the same database row differently per endpoint, which is why
+ * the joined reference data, the weather coordinates and the computed figures
+ * below are all optional.
+ */
 export interface Event {
   eventId: number;
   eventName: string;
@@ -140,9 +147,9 @@ export interface TicketTypeInput {
  * carries the filters the user actually chose.
  */
 export interface EventQuery {
-  /** Repeatable: ?category=1&category=2 */
+  /** Repeatable, as in ?category=1&category=2. */
   category?: Array<number | string>;
-  /** Repeatable: ?location=3&location=5 */
+  /** Repeatable, as in ?location=3&location=5. */
   location?: Array<number | string>;
   city?: string;
   /** A single day, YYYY-MM-DD. */
@@ -150,12 +157,12 @@ export interface EventQuery {
   /** A range, YYYY-MM-DD. */
   from?: string;
   to?: string;
-  /** 'upcoming' | 'past' | 'all' */
+  /** One of 'upcoming', 'past' or 'all'. */
   state?: string;
   keyword?: string;
   isFree?: boolean;
   organizationId?: number | string;
-  /** Admin only: 'active' | 'past' | 'suspended' | 'cancelled' | 'all' */
+  /** Admin only: one of 'active', 'past', 'suspended', 'cancelled' or 'all'. */
   publishStatus?: string;
   /** For example 'date' | 'name' | 'raised'. */
   sort?: string;

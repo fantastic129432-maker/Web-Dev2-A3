@@ -1,7 +1,5 @@
 /**
- * shared/src/i18n/language.model.ts
- * ---------------------------------------------------------------------------
- * Types shared by the generated dictionaries and the translation service.
+ * @file Types shared by the generated dictionaries and the translation service.
  *
  * The DATA (the language list and the dictionaries) lives in generated files:
  *   languages.ts            the codes and their labels

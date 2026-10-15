@@ -1,8 +1,7 @@
 /**
- * src/services/eventWriteService.ts
- * ---------------------------------------------------------------------------
- * Assessment 3, Part 2 - the business rules behind the three new admin
- * endpoints:
+ * @file The business rules behind the three admin write endpoints.
+ *
+ * Assessment 3, Part 2:
  *
  *   createEvent()  POST   /api/events
  *   updateEvent()  PUT    /api/events/:id
@@ -40,9 +39,10 @@ const {
 const PUBLISH_STATUSES = ['active', 'suspended', 'cancelled'];
 
 /**
- * The image files the client website ships with. A free-text image_url is
- * accepted as well (an external URL), but choosing from this list guarantees
- * the event card shows real artwork.
+ * The image files the client website ships with.
+ *
+ * A free-text image_url is accepted as well (an external URL), but choosing from
+ * this list guarantees the event card shows real artwork.
  */
 const KNOWN_IMAGES = [
   'fun-run.svg',
@@ -59,10 +59,18 @@ const KNOWN_IMAGES = [
 /**
  * Validate and normalise an event body.
  *
- * @param {object} body       req.body
- * @param {{partial:boolean}} options  true for PUT, where only the fields that
- *        are present are validated and changed
- * @returns {object} the values to write, in camelCase
+ * A create and an update share this function because they validate the same
+ * fields; the options object's `partial` flag is the only difference, and it is
+ * what makes PUT a partial update - a field that is absent is left alone rather
+ * than being blanked. The size bounds repeat the column definitions
+ * (`goal_amount` is `DECIMAL(12,2)`, so 9,999,999,999.99 is the largest value it
+ * can hold) on purpose: a value the column cannot store used to pass validation
+ * and then be refused by MySQL, which surfaced as a 500 instead of the 400 a
+ * validation failure deserves.
+ *
+ * @param body - The untrusted request body. May be omitted, in which case a create fails validation for every required field.
+ * @returns The values to write, in camelCase, with defaults filled in and empty optional fields left out.
+ * @throws HttpError with status 400 listing every invalid field, when at least one field could not be accepted.
  */
 function validateEventBody(
   body: UntrustedInput = {},
@@ -206,7 +214,19 @@ function validateEventBody(
   return values;
 }
 
-/** One ticket tier inside an event body. */
+/**
+ * Validate one ticket tier inside an event body.
+ *
+ * The index is used in the field name (`ticketTypes[0].price`), because that is
+ * what lets the admin form point at the exact row that is wrong. A tier without
+ * a name is dropped by returning `null` rather than throwing, so the remaining
+ * tiers are still reported and the caller can filter the nulls out.
+ *
+ * @param ticket - The untrusted ticket tier object. May be omitted, in which case the tier is reported as missing its name.
+ * @param index - The tier's position in the submitted list, used in the field names of any problem.
+ * @param errors - The shared problem list that this helper appends to.
+ * @returns The normalised tier, or `null` when it has no usable name.
+ */
 function validateTicketType(
   ticket: UntrustedInput = {},
   index: number,
@@ -250,9 +270,15 @@ function validateTicketType(
 }
 
 /**
- * POST /api/events
- * @param {object} body
- * @returns {Promise<object>} the created event
+ * Create one event.
+ *
+ * A create is never partial, so `required` is true throughout validation and the
+ * optional fields fall back to their column defaults. The controller turns the
+ * returned row into a 201 with a `Location` header.
+ *
+ * @param body - The untrusted request body describing the event.
+ * @returns The stored event, including its new id and its ticket tiers.
+ * @throws HttpError with status 400 when a field is invalid or a selected organisation, category or venue does not exist, and 409 when a record with those details already exists.
  */
 async function createEvent(body: UntrustedInput): Promise<DataRecord> {
   const values = validateEventBody(body, { partial: false });
@@ -260,11 +286,16 @@ async function createEvent(body: UntrustedInput): Promise<DataRecord> {
 }
 
 /**
- * PUT /api/events/:id
- * A partial update: only the fields sent are changed. Sending `{}` is a 400,
- * because that is more likely to be a client bug than a real request.
+ * Update one event as a partial update.
  *
- * @throws {HttpError} 400 for an invalid id, 404 when no event has that id
+ * Only the fields sent are changed, and sending `{}` is a 400 because that is
+ * more likely to be a client bug than a real request - it would otherwise be a
+ * silent no-op reported as success.
+ *
+ * @param rawId - The id from the route parameter, still unvalidated text.
+ * @param body - The untrusted request body holding only the fields to change.
+ * @returns The event as it now stands, including its ticket tiers.
+ * @throws HttpError with status 400 for an invalid id, an empty body or a value the database refuses, and 404 when no event has that id.
  */
 async function updateEvent(rawId: string | number, body: UntrustedInput): Promise<DataRecord> {
   const eventId = parseEventId(rawId);
@@ -286,15 +317,17 @@ async function updateEvent(rawId: string | number, body: UntrustedInput): Promis
 }
 
 /**
- * DELETE /api/events/:id
+ * Delete one event.
  *
  * Enforces the data-integrity rule from the brief: an event that has received
  * registrations must not be deleted. The repository performs the check and the
  * delete as one transaction; this layer turns the outcome into the right HTTP
- * status and a message a member of staff can act on.
+ * status and a message a member of staff can act on - which is why the 409 names
+ * how many registrations block it and offers suspending as the alternative.
  *
- * @throws {HttpError} 400 for an invalid id, 404 when it does not exist,
- *        409 when registrations block the delete
+ * @param rawId - The id from the route parameter, still unvalidated text.
+ * @returns The id and name of the event that was deleted.
+ * @throws HttpError with status 400 for an invalid id, 404 when no event has that id, and 409 when registrations block the delete.
  */
 async function deleteEvent(rawId: string | number): Promise<{
   eventId: number;
@@ -330,7 +363,16 @@ async function deleteEvent(rawId: string | number): Promise<{
   return { eventId, eventName: outcome.eventName, deleted: true };
 }
 
-/** Shared id parsing so all three endpoints reject a bad id identically. */
+/**
+ * Parse an event id, so all three endpoints reject a bad id identically.
+ *
+ * One helper rather than three copies is what keeps the message and the status
+ * the same whichever write route was called.
+ *
+ * @param rawId - The id from the route parameter, still unvalidated text.
+ * @returns The id as a number, once it is known to be a positive whole number.
+ * @throws HttpError with status 400 when the value is not a positive whole number.
+ */
 function parseEventId(rawId: string | number): number {
   const eventId = Number(rawId);
   if (!Number.isInteger(eventId) || eventId <= 0) {
@@ -341,6 +383,14 @@ function parseEventId(rawId: string | number): number {
   return eventId;
 }
 
+/**
+ * The service's public surface.
+ *
+ * The three write operations are used by the admin controller; the two
+ * validators and `parseEventId` are exported so the tests can exercise a rule
+ * without going through Express, and the two constant lists are exported so the
+ * tests and the admin form refer to the same values the validator enforces.
+ */
 export = {
   createEvent,
   updateEvent,

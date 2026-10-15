@@ -1,7 +1,5 @@
 /**
- * src/services/eventService.ts
- * ---------------------------------------------------------------------------
- * The only place where query-string text becomes a validated filter object.
+ * @file The only place where query-string text becomes a validated filter object.
  *
  * Why a service layer? The controller stays thin (HTTP in, JSON out) and the
  * repository stays purely about data, which means the same validation rules
@@ -28,15 +26,22 @@ const {
   isValidDate,
 } = require('../utils/validators') as typeof import('../utils/validators');
 
+/** The states a client may ask for; anything else is a 400. */
 const ALLOWED_STATES = ['upcoming', 'ongoing', 'past', 'all'];
+/** The columns the client may sort by, which is what keeps ORDER BY out of user hands. */
 const ALLOWED_SORTS = ['date', 'name', 'goal', 'progress', 'category', 'city'];
-/** A3: the publishing states the admin list can filter on. */
+/** The publishing states the admin list can filter on. */
 const ALLOWED_PUBLISH_STATUSES = ['active', 'suspended', 'cancelled', 'all'];
-/** A3: which audience is asking, which decides whether suspended events appear. */
+/** Which audience is asking, which decides whether suspended events appear. */
 const ALLOWED_AUDIENCES = ['public', 'admin'];
 
 /**
  * Turn raw req.query into { filters, paging } or throw HttpError(400).
+ *
+ * Every value is checked here rather than in the controller, because the same
+ * filters have to be produced for both data sources and for the admin and public
+ * views. A problem is collected rather than thrown on the spot, so one 400 can
+ * list every bad parameter instead of only the first.
  *
  * Supported parameters
  *   category, categoryId  one or many ids (repeat the key or use commas)
@@ -51,6 +56,10 @@ const ALLOWED_AUDIENCES = ['public', 'admin'];
  *   includePast           true | false (used by the home page)
  *   sort, direction       whitelisted sort keys
  *   limit, offset, page   pagination
+ *
+ * @param query - The untrusted query string. May be omitted, in which case the defaults describe the next upcoming events.
+ * @returns The validated filters and the paging values derived from them.
+ * @throws HttpError with status 400 when any parameter cannot be understood, carrying the per-parameter list.
  */
 function buildQuery(query: UntrustedInput = {}) {
   const errors: ValidationIssue[] = [];
@@ -206,7 +215,18 @@ function buildQuery(query: UntrustedInput = {}) {
   };
 }
 
-/** List events (home page and search page both use this). */
+/**
+ * List the events matching a query string, for the home page and the search page.
+ *
+ * The repository returns one page plus the unpaged total; the extra figures added
+ * here (count, totalPages and the applied filters) are what the Angular pages
+ * need to render a result summary and the "no results" message, so they are
+ * computed once on the server rather than re-derived in each client.
+ *
+ * @param query - The untrusted query string from the request.
+ * @returns The page of events, the paging totals and the filters that were actually applied.
+ * @throws HttpError with status 400 when the query string is not valid.
+ */
 async function searchEvents(query: UntrustedInput) {
   const { filters, paging } = buildQuery(query);
   const result = await repository.findEvents(filters, paging);
@@ -223,19 +243,36 @@ async function searchEvents(query: UntrustedInput) {
   };
 }
 
-/** Listing for the home page: everything that has not finished yet. */
+/**
+ * Listing for the home page: everything that has not finished yet.
+ *
+ * The state is pinned to `upcoming` rather than defaulted, so a caller cannot
+ * turn the home page listing into a history listing by passing a query
+ * parameter; anything else the caller sends is still honoured.
+ *
+ * @param query - The untrusted query string. May be omitted, in which case the default page of upcoming events is returned.
+ * @returns The page of upcoming events, in the same shape as `searchEvents`.
+ * @throws HttpError with status 400 when the remaining query parameters are not valid.
+ */
 async function listActiveEvents(query: UntrustedInput = {}) {
   return searchEvents({ ...query, state: 'upcoming' });
 }
 
 /**
- * One event plus its tickets.
+ * Return one event with its ticket tiers.
  *
- * @param {string|number} rawId
- * @param {{status?: 'active'|'all'}} [options]  A3: the admin website passes
- *        'all' so it can open a suspended or cancelled event.
- * @throws {HttpError} 400 when the id is not a positive whole number
- * @throws {HttpError} 404 when no event has that id
+ * The id is checked here rather than by the database so that a request for
+ * `/api/events/abc` is a 400 (the client sent nonsense) while a well-formed id
+ * that matches nothing is a 404 (the resource is not there) - a distinction the
+ * Angular pages use to decide what to tell the user. The options object widens
+ * the lookup: the admin website passes `status: 'all'` so it can open a
+ * suspended or cancelled event, which the public route deliberately cannot.
+ *
+ * @param rawId - The id from the route parameter, still unvalidated text.
+ * @param options - Which publish states to accept. May be omitted, in which case only an active event is returned.
+ * @returns The event, with its ticket tiers and progress figures.
+ * @throws HttpError with status 400 when the id is not a positive whole number.
+ * @throws HttpError with status 404 when no event matches, or when the only match is not active and `status` was not widened.
  */
 async function getEventById(rawId: string | number, options: FindEventOptions = {}) {
   const eventId = Number(rawId);
@@ -257,12 +294,18 @@ async function getEventById(rawId: string | number, options: FindEventOptions = 
 }
 
 /**
- * A3: every event regardless of status, for the admin listing.
+ * List every event regardless of status, for the admin listing.
  *
  * This is deliberately a separate entry point rather than a flag on
  * searchEvents(), so the public path cannot be switched to the admin view by a
  * query parameter alone - `getEventById` and `searchEvents` keep their own
- * defaults and only the admin controller asks for the wider view.
+ * defaults and only the admin controller asks for the wider view. The defaults
+ * are the admin ones (everything, newest first) so an admin screen with no
+ * filters still shows the complete list.
+ *
+ * @param query - The untrusted query string. May be omitted, in which case every event is returned newest first.
+ * @returns The page of events of every status, in the same shape as `searchEvents`.
+ * @throws HttpError with status 400 when the query string is not valid.
  */
 async function listAllEvents(query: UntrustedInput = {}) {
   return searchEvents({
@@ -276,36 +319,69 @@ async function listAllEvents(query: UntrustedInput = {}) {
   });
 }
 
-/** Category list for the search page filter. */
+/**
+ * List the categories for the search page filter.
+ *
+ * @returns Every category with its active event count, so the filter can show how much each one would return.
+ */
 async function listCategories() {
   return repository.findCategories();
 }
 
-/** Location list for the search page filter. */
+/**
+ * List the venues for the search page filter.
+ *
+ * @returns The venues that currently host at least one active event, so no filter option can only return an empty page.
+ */
 async function listLocations() {
   return repository.findLocations();
 }
 
 /**
- * A3: organisations, categories and venues for the admin event forms.
+ * Return the organisations, categories and venues for the admin event forms.
+ *
  * Unlike listCategories()/listLocations(), this includes reference rows that
  * currently have no public event, because staff may be about to create one.
+ *
+ * @returns The three reference lists, in one payload so the form needs a single request.
  */
 async function getReferenceData() {
   return repository.findReferenceData();
 }
 
-/** The organisation shown on the home page. */
+/**
+ * Return the organisation shown on the home page.
+ *
+ * @returns The featured organisation, or `null` when the seed marks none, in which case the home page hides the section.
+ */
 async function getFeaturedOrganization() {
   return repository.findFeaturedOrganization();
 }
 
-/** Numbers for the home page statistics strip. */
+/**
+ * Return the numbers for the home page statistics strip.
+ *
+ * @returns The headline counts and totals, computed by the repository so both data sources report the same figures.
+ */
 async function getStats() {
   return repository.findStats();
 }
 
-/** Echo back what was actually applied, for the "no results" message. */
+/**
+ * Echo back the filters that were actually applied.
+ *
+ * Only the filters the caller really set are reported, and `state` is always
+ * included because every listing has one; that is what lets the client build its
+ * "no results for these filters" message and its filter chips from the response
+ * alone, instead of remembering what it asked for.
+ *
+ * The admin switches (`audience`, `publishStatus`) are reported only when the
+ * admin view was requested, so a public response is byte-for-byte what it was
+ * before Assessment 3.
+ *
+ * @param filters - The validated filters used for the query.
+ * @returns The subset of the filters that were applied, ready to place in the response metadata.
+ */
 function describeFilters(filters: EventFilters): DataRecord {
   const applied: DataRecord = {};
   if (filters.categoryIds && filters.categoryIds.length > 0) {
@@ -329,6 +405,13 @@ function describeFilters(filters: EventFilters): DataRecord {
   return applied;
 }
 
+/**
+ * The service's public surface.
+ *
+ * The query builders and listings are used by the event and admin controllers;
+ * the four ALLOWED_* lists are exported so the tests and the API directory can
+ * state the same rule the validator enforces, rather than repeating the values.
+ */
 export = {
   buildQuery,
   searchEvents,

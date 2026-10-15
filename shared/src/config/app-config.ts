@@ -1,19 +1,18 @@
 /**
- * shared/src/config/app-config.ts
- * ---------------------------------------------------------------------------
- * Values that do not change between development and production, so they live
- * here instead of in an environment file.
+ * @file Values that do not change between development and production.
  *
  * The two `environments/environment*.ts` files hold what DOES change (the API
- * address, the link to the other site); everything else is one shared truth so
+ * address, the link to the other site); everything here is one shared truth, so
  * the two websites cannot drift apart.
  */
 
 /** Where the API and the external weather service live. */
 export const APP_CONFIG = {
   /**
-   * Request timeout in milliseconds. The legacy client used 10 seconds; a slow
-   * or dead API must never leave a page spinning forever.
+   * Request timeout in milliseconds.
+   *
+   * The legacy client used 10 seconds, and a slow or dead API must never leave a
+   * page spinning forever.
    */
   requestTimeoutMs: 10_000,
 
@@ -24,12 +23,20 @@ export const APP_CONFIG = {
    * API key and no registration, so nothing secret has to be committed.
    */
   weatherApiUrl: 'https://api.open-meteo.com/v1/forecast',
+
+  /**
+   * The timezone the forecast is requested in.
+   *
+   * A "day" then means the venue's day rather than UTC's, which would shift an
+   * evening event into the next date.
+   */
   weatherTimezone: 'Australia/Sydney',
 
   /**
-   * How many days ahead Open-Meteo gives a reliable daily forecast. Asking for
-   * a date beyond this window returns nothing useful, so the event page says so
-   * instead of showing an empty panel.
+   * How many days ahead Open-Meteo gives a reliable daily forecast.
+   *
+   * Asking for a date beyond this window returns nothing useful, so the event page
+   * says so instead of showing an empty panel.
    */
   weatherForecastDays: 16,
 
@@ -43,9 +50,10 @@ export const APP_CONFIG = {
   fallbackImage: 'fun-run.svg',
 
   /**
-   * localStorage keys. The language key is shared by BOTH websites on purpose:
-   * choosing Chinese on the public site means the admin site also opens in
-   * Chinese.
+   * The localStorage keys both websites read and write.
+   *
+   * The language key is shared by BOTH websites on purpose: choosing Chinese on the
+   * public site means the admin site also opens in Chinese.
    */
   storageKeys: {
     language: 'charity-events:language',
@@ -54,10 +62,11 @@ export const APP_CONFIG = {
 } as const;
 
 /**
- * The artwork an administrator can choose from when creating an event. Kept in
- * step with the files in assets/images so a new event always has a real picture
- * rather than a broken link, and in step with KNOWN_IMAGES in the API
- * (api/src/services/eventWriteService.ts).
+ * The artwork an administrator can choose from when creating an event.
+ *
+ * The list is kept in step with the files in assets/images so a new event always
+ * has a real picture rather than a broken link, and in step with KNOWN_IMAGES in
+ * the API (api/src/services/eventWriteService.ts).
  */
 export const EVENT_IMAGES: readonly string[] = [
   'fun-run.svg',

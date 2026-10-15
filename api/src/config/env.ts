@@ -1,7 +1,5 @@
 /**
- * config/env.ts
- * ---------------------------------------------------------------------------
- * Small, dependency-free environment loader.
+ * @file Small, dependency-free environment loader.
  *
  * Why not `dotenv`? Keeping the dependency list to exactly what the brief
  * requires (Express + MySQL driver) makes the marker's setup simpler and
@@ -33,7 +31,9 @@ import fs = require('fs');
 import path = require('path');
 
 /**
- * The API root: the nearest directory at or above `startDir` that contains a
+ * Locate the API root by walking up to the directory that holds package.json.
+ *
+ * The API root is the nearest directory at or above `startDir` that contains a
  * package.json. Falls back to the historical two-levels-up resolution so the
  * loader still behaves predictably in a deployment that ships no package.json.
  */
@@ -101,10 +101,14 @@ function get(key: string, fallback: string | number): string | number {
 
 /** Everything that comes straight from the environment. */
 interface FileEnv {
+  /** `development`, `production` or `test`; `production` changes what a 500 may reveal. */
   NODE_ENV: string;
+  /** The port the API listens on, and the one the two Angular sites call. */
   PORT: number;
 
   /**
+   * Where the data comes from.
+   *
    * 'mysql' -> read from the MySQL database (the configuration that is
    *            submitted and demonstrated).
    * 'local' -> read the same sample data straight from
@@ -113,11 +117,17 @@ interface FileEnv {
    */
   DATA_SOURCE: string;
 
+  /** Host of the MySQL server. */
   DB_HOST: string;
+  /** Port of the MySQL server. */
   DB_PORT: number;
+  /** MySQL user the pool connects as. */
   DB_USER: string;
+  /** Password for that user; never logged, and empty by default. */
   DB_PASSWORD: string;
+  /** Schema name, which the health check reports back. */
   DB_NAME: string;
+  /** Maximum pooled connections; requests queue once the pool is full. */
   DB_CONNECTION_LIMIT: number;
 
   /** Comma separated list of origins allowed to call the API. */
@@ -127,7 +137,9 @@ interface FileEnv {
   RATE_LIMIT_WINDOW_MS: number;
   RATE_LIMIT_MAX: number;
 
+  /** Page size used when the client sends no `limit`. */
   DEFAULT_PAGE_SIZE: number;
+  /** Hard ceiling on `limit`, so one request cannot ask for the whole table. */
   MAX_PAGE_SIZE: number;
 }
 
@@ -135,9 +147,11 @@ interface FileEnv {
 interface EnvConfig extends FileEnv {
   /** Absolute path of the api/ folder (see findApiRoot above). */
   API_ROOT: string;
+  /** True when NODE_ENV is `production`, which hides 500 details and stack traces. */
   IS_PRODUCTION: boolean;
 }
 
+/** The file and process values, read once, before anything derived from them. */
 const fileValues: FileEnv = {
   NODE_ENV: get('NODE_ENV', 'development'),
   PORT: Number(get('PORT', 3000)),
@@ -160,6 +174,15 @@ const fileValues: FileEnv = {
   MAX_PAGE_SIZE: Number(get('MAX_PAGE_SIZE', 100)),
 };
 
+/**
+ * The configuration the rest of the API reads.
+ *
+ * It is the value of this module's `export =`, so every other module imports it
+ * as `env` and reads a setting once, when the module graph loads, instead of
+ * re-parsing api/.env on each request. `IS_PRODUCTION` is derived here rather
+ * than compared at each use site, so there is one definition of what
+ * "production" means.
+ */
 const env: EnvConfig = {
   ...fileValues,
   API_ROOT,

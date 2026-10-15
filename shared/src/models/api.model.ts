@@ -1,7 +1,5 @@
 /**
- * shared/src/models/api.model.ts
- * ---------------------------------------------------------------------------
- * The envelope every endpoint of the Charity Events API answers with.
+ * @file The envelope every endpoint of the Charity Events API answers with.
  *
  *   {
  *     "success": true,
@@ -96,8 +94,7 @@ export interface PagedMeta extends ApiMeta {
 }
 
 /**
- * A page of results: the rows plus the paging information needed to render a
- * "page 2 of 3" control.
+ * A page of results: the rows, plus the paging a "page 2 of 3" control needs.
  */
 export interface Paged<T> {
   readonly items: readonly T[];

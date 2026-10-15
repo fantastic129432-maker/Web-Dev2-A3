@@ -1,7 +1,22 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router, RouterLink } from '@angular/router';
+
+import { ApiError } from '@charity/shared/api/api-error';
+import { ApiService } from '@charity/shared/api/api.service';
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import { TranslationService } from '@charity/shared/i18n/translation.service';
+import type { EventInput } from '@charity/shared/models/event.model';
+import type { ReferenceData } from '@charity/shared/models/reference.model';
+
+import { banner, errorBanner, type Banner } from '../../core/feedback';
+import { usePageTitle } from '../../core/page-title';
+import { EventForm } from '../../shared/event-form/event-form';
+import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
+
 /**
- * adminside/src/app/pages/event-new/event-new.ts
- * ---------------------------------------------------------------------------
- * "Add a charity event": the create half of the write contract.
+ * The "Add a charity event" page, which is the create half of the write contract.
  *
  * ENDPOINTS
  *   GET  /api/admin/reference-data   organisations, categories and venues for the
@@ -23,23 +38,6 @@
  * nothing is missed) and the same messages are placed beside their own inputs by
  * EventForm.serverErrors (so the fix is where the person is looking).
  */
-import { Component, computed, inject, signal } from '@angular/core';
-import { DestroyRef } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-
-import { ApiError } from '@charity/shared/api/api-error';
-import { ApiService } from '@charity/shared/api/api.service';
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import { TranslationService } from '@charity/shared/i18n/translation.service';
-import type { EventInput } from '@charity/shared/models/event.model';
-import type { ReferenceData } from '@charity/shared/models/reference.model';
-
-import { banner, errorBanner, type Banner } from '../../core/feedback';
-import { usePageTitle } from '../../core/page-title';
-import { EventForm } from '../../shared/event-form/event-form';
-import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
-
 @Component({
   selector: 'admin-event-new',
   imports: [RouterLink, TranslatePipe, FeedbackBanner, EventForm],
@@ -57,9 +55,16 @@ export class EventNew {
    */
   private readonly destroyRef = inject(DestroyRef);
 
+  /** The organisations, categories and venues the three dropdowns offer. */
   protected readonly reference = signal<ReferenceData | null>(null);
+
+  /** True while the reference data is being fetched. */
   protected readonly loading = signal(true);
+
+  /** True while the POST is in flight, so the form's Save button can say so. */
   protected readonly saving = signal(false);
+
+  /** The page-level message, or null when nothing has been reported. */
   protected readonly banner = signal<Banner | null>(null);
 
   /** The API's per-field 400 messages, handed to the form to place by each input. */

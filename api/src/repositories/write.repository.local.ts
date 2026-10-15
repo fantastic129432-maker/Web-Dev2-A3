@@ -1,8 +1,7 @@
 /**
- * src/repositories/write.repository.local.ts
- * ---------------------------------------------------------------------------
- * The offline twin of write.repository.mysql.ts: insertEvent, updateEvent and
- * deleteEvent for DATA_SOURCE=local.
+ * @file The offline twin of write.repository.mysql.ts.
+ *
+ * It provides insertEvent, updateEvent and deleteEvent for DATA_SOURCE=local.
  *
  * The rules are the same, only the storage differs. In particular the delete
  * rule is implemented identically:
@@ -24,14 +23,31 @@ import store = require('./local-store');
 import type { DataRecord, EventWriteRepository } from '../types';
 import registrationStore = require('./registration.repository.local');
 
-/** Does a row exist for this id in the given seeded lookup table? */
+/**
+ * Report whether a seeded lookup table contains a row with this id.
+ *
+ * The comparison is numeric because the snapshot mixes numbers and numeric
+ * strings, which is also how the decorated rows come to compare equal.
+ *
+ * @param collection - The raw snapshot table to search.
+ * @param key - The column name to match, such as `category_id`.
+ * @param value - The id to look for.
+ * @returns `true` when a row with that id exists.
+ */
 function existsIn(collection: DataRecord[], key: string, value: unknown): boolean {
   return collection.some((row) => Number(row[key]) === Number(value));
 }
 
 /**
  * Validate referential integrity the way MySQL's foreign keys would.
- * @throws {HttpError} 400 with one entry per unknown id
+ *
+ * Offline there is no database to refuse a dangling id, so every unknown
+ * organisation, category or venue is collected and reported as one 400 with a
+ * per-field entry - the same response the MySQL half produces when it translates
+ * ER_NO_REFERENCED_ROW_2.
+ *
+ * @param values - The validated event values about to be written.
+ * @throws HttpError with status 400 listing every selected value that does not exist.
  */
 function assertReferences(values: DataRecord): void {
   const { HttpError } = require('../utils/errors') as typeof import('../utils/errors');
@@ -70,7 +86,12 @@ function assertReferences(values: DataRecord): void {
   }
 }
 
-/** The camelCase payload field for each database column. */
+/**
+ * The camelCase payload field for each database column.
+ *
+ * The same mapping as toColumns() in the MySQL half, kept explicit so the mirror
+ * stores the identical column names and a test can compare the two rows directly.
+ */
 const FIELD_TO_COLUMN: Record<string, string> = {
   organizationId: 'organization_id',
   categoryId: 'category_id',
@@ -96,7 +117,13 @@ const FIELD_TO_COLUMN: Record<string, string> = {
  *
  * `base` is the row being updated (undefined for a create). MySQL supplies its
  * own defaults for anything left out; the equivalents are applied here so both
- * data sources store the same values.
+ * data sources store the same values, and the timestamps are maintained by hand
+ * where MySQL would use CURRENT_TIMESTAMP and ON UPDATE CURRENT_TIMESTAMP.
+ *
+ * @param values - The validated values in camelCase.
+ * @param eventId - The id the row is stored under, allocated for a create and unchanged for an update.
+ * @param base - The existing raw row when updating. May be omitted, in which case a new row is built with the column defaults.
+ * @returns The raw row in the snapshot's snake_case shape.
  */
 function toRow(values: DataRecord, eventId: number, base?: DataRecord): DataRecord {
   const row = base ? { ...base } : {};
@@ -123,7 +150,11 @@ function toRow(values: DataRecord, eventId: number, base?: DataRecord): DataReco
   return row;
 }
 
-/** "YYYY-MM-DD HH:MM:SS", matching a MySQL TIMESTAMP literal. */
+/**
+ * "YYYY-MM-DD HH:MM:SS" in local time, matching a MySQL TIMESTAMP literal.
+ *
+ * @returns The current moment as the snapshot and the driver both write it.
+ */
 function nowStamp(): string {
   const now = new Date();
   const pad = (value: number): string => String(value).padStart(2, '0');
@@ -133,27 +164,67 @@ function nowStamp(): string {
   );
 }
 
-/** Read the row back through the admin view, as the MySQL version does. */
+/**
+ * Read the row back through the admin view, as the MySQL version does.
+ *
+ * The require is lazy because ./index requires this module while it is being
+ * loaded, so a top-level import here would be a cycle; by the time a write
+ * happens the merged repository exists.
+ *
+ * @param eventId - The id of the event to read back.
+ * @returns The event as the merged repository reports it, or `null` when it is gone.
+ */
 function readBack(eventId: number): Promise<DataRecord | null> {
   const index = require('./index') as typeof import('./index');
   return index.findEventById(eventId, { status: 'all' });
 }
 
-/* The two lookup helpers are not part of the repository contract; they ride
- * along on the exported object for the unit tests, as they did before. */
+/**
+ * Test whether an email is already registered for an event.
+ *
+ * Not part of the repository contract: it rides along on the exported object for
+ * the unit tests, as it did before.
+ *
+ * @param eventId - The event to test against.
+ * @param email - The normalised attendee address.
+ * @returns `true` when a registration already exists.
+ */
 async function registrationExists(eventId: number, email: string): Promise<boolean> {
   return registrationStore.existsForEventAndEmail(eventId, email);
 }
 
-/** How many registrations an event has. */
+/**
+ * Count how many registrations an event has.
+ *
+ * Also a test helper rather than part of the contract, and the same count the
+ * delete rule reads before refusing to remove an event.
+ *
+ * @param eventId - The event to count for.
+ * @returns The number of registrations for that event.
+ */
 async function countRegistrations(eventId: number): Promise<number> {
   return registrationStore.countByEventId(eventId);
 }
 
+/**
+ * The offline write half of the repository contract.
+ *
+ * It is checked against `EventWriteRepository` at compile time, and
+ * write.repository.mysql.ts exposes exactly the same four methods so the two data
+ * sources stay interchangeable.
+ */
 const writeRepository: EventWriteRepository = {
   /**
-   * POST /api/events
-   * @returns {Promise<object>} the created event, including its ticket tiers
+   * Insert one event and return it as the API will report it.
+   *
+   * References are validated first, because the mirror has no foreign keys to do
+   * it. A brand-new event with no tiers would show no price on the home page, so
+   * the tier list is stored alongside the event when the form supplies one, and
+   * the row is read back afterwards so the response carries the stored defaults.
+   *
+   * @param values - The validated event values in camelCase.
+   * @returns The created event, read back through the merged repository with its ticket tiers included.
+   * @throws HttpError with status 400 when a selected organisation, category or venue does not exist.
    */
   async insertEvent(values) {
     assertReferences(values);
@@ -174,8 +245,17 @@ const writeRepository: EventWriteRepository = {
   },
 
   /**
-   * PUT /api/events/:id - partial update.
-   * @returns {Promise<object|null>} the updated event, or null when it does not exist
+   * Update one event as a partial update.
+   *
+   * Only the fields present in the payload are changed, because toRow starts from
+   * the stored row and overwrites only what it is given. The MySQL version writes
+   * tiers only for an event that has none yet, so the offline twin does the same
+   * rather than replacing existing tiers.
+   *
+   * @param eventId - The id of the event to change.
+   * @param values - The validated fields to change, in camelCase.
+   * @returns The updated event, read back through the merged repository, or `null` when no event has that id.
+   * @throws HttpError with status 400 when a selected organisation, category or venue does not exist.
    */
   async updateEvent(eventId, values) {
     const base = store.findEventRow(eventId);
@@ -197,8 +277,18 @@ const writeRepository: EventWriteRepository = {
   },
 
   /**
-   * DELETE /api/events/:id - blocked while registrations exist.
-   * @returns {Promise<{deleted:boolean, reason?:string}>}
+   * Delete one event, refusing when it already has registrations.
+   *
+   * The rule is the one the brief states, and offline it has to be enforced
+   * explicitly: there is no ON DELETE RESTRICT foreign key to lean on, so the
+   * registration count is read here and the delete is abandoned when it is not
+   * zero. The outcome is the same object the MySQL half returns, which is what
+   * lets the service layer turn either one into the same HTTP response. Removing
+   * the row cascades in MySQL to ticket_types and donations; the mirror simply
+   * hides the row, so nothing else has to be deleted.
+   *
+   * @param eventId - The id of the event to delete.
+   * @returns The outcome: `deleted: true` with the event name, or `deleted: false` with the reason `not-found` or `has-registrations` and the blocking count.
    */
   async deleteEvent(eventId) {
     const row = store.findEventRow(eventId);
@@ -219,7 +309,12 @@ const writeRepository: EventWriteRepository = {
     return { deleted: true, eventName: row.event_name };
   },
 
-  /** Store the ticket tiers of a newly created event. */
+  /**
+   * Store the ticket tiers of a newly created event.
+   *
+   * @param eventId - The event the tiers belong to.
+   * @param ticketTypes - The validated tiers to store.
+   */
   async replaceTicketTypes(eventId, ticketTypes) {
     saveTicketTypes(eventId, ticketTypes);
   },
@@ -231,6 +326,9 @@ const writeRepository: EventWriteRepository = {
  * The seeded tier rows are never touched: a new event gets brand-new ids from
  * the store's allocator (the offline equivalent of AUTO_INCREMENT), so the demo
  * data stays exactly as the marker sees it in 02_seed.sql.
+ *
+ * @param eventId - The event the tiers belong to.
+ * @param ticketTypes - The validated tiers to add.
  */
 function saveTicketTypes(eventId: number, ticketTypes: DataRecord[]): void {
   for (const ticket of ticketTypes) {
@@ -248,8 +346,13 @@ function saveTicketTypes(eventId: number, ticketTypes: DataRecord[]): void {
   }
 }
 
-/* One export: the helpers the original attached to module.exports afterwards
- * ride along on the same object. */
+/**
+ * The write repository plus the helpers the tests exercise.
+ *
+ * One export: the helpers the original attached to module.exports afterwards ride
+ * along on the same object, so `require('./write.repository.local')` is still the
+ * object src/repositories/index.ts binds onto the read half.
+ */
 export = Object.assign(writeRepository, {
   registrationExists,
   countRegistrations,

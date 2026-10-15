@@ -68,7 +68,11 @@ interface FilterChip {
   clear: () => void;
 }
 
-/** An empty form, used both as the initial value and by "Clear filters". */
+/**
+ * An empty form, used both as the initial value and by "Clear filters".
+ *
+ * @returns A fresh form with only the default event state set.
+ */
 function emptyForm(): FilterForm {
   return {
     keyword: '',
@@ -359,6 +363,7 @@ export class SearchPage {
     return this.form().categories.includes(categoryId);
   }
 
+  /** The "free events only" toggle. */
   protected setFreeOnly(checked: boolean): void {
     this.update({ isFree: checked });
   }
@@ -368,6 +373,13 @@ export class SearchPage {
     this.update({ state });
   }
 
+  /**
+   * The sort dropdown.
+   *
+   * Narrowed back to the union the signal is typed with, exactly as the home page
+   * does: the <select> can only carry the six literals, so anything else is a bug
+   * in the template rather than user input.
+   */
   protected setSort(value: string): void {
     const allowed: readonly SortChoice[] = [
       'date-asc',

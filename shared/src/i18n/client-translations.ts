@@ -1,22 +1,34 @@
-/*
- * MIGRATED FROM the archived vanilla frontend during the Angular migration, by
- * tools/generate-i18n-data.mjs. The text was copied byte for byte so no
+/**
+ * @file The public website's interface strings, one dictionary per language.
+ *
+ * Shape: language code -> key -> string, so a lookup reads
+ * CLIENT_DICTIONARIES['zh']['nav.home']. Keys are grouped by feature prefix
+ * (a11y., about., api., card., common., contact., error., event., form., home.,
+ * nav., notFound., search., settings., state., weather.) and sorted
+ * alphabetically within each language block, which is what keeps a file of this
+ * size reviewable and a diff readable.
+ *
+ * All four languages carry IDENTICAL key sets. A key present in one block and
+ * missing from another would silently fall back to English, so
+ * tools/check-translations.mjs fails the build when the sets diverge.
+ *
+ * Generated from the archived vanilla frontend during the Angular migration by
+ * tools/generate-i18n-data.mjs, which copied the text byte for byte so no
  * translation could be corrupted on the way over.
  *
  * THIS FILE IS NOW THE SOURCE OF TRUTH. Edit the strings here.
- * Add a new key to EVERY language block, keeping the four key sets identical -
- * tools/check-translations.mjs fails the build if they diverge. Re-running the
- * generator would overwrite your edits; it exists to document and reproduce the
- * one-off migration, not to be run again.
+ * Re-running the generator would overwrite your edits; it exists to document and
+ * reproduce the one-off migration, not to be run again.
  */
 
 import type { Dictionaries } from './language.model';
 import type { LanguageCode } from './languages';
 
 /**
- * Every string the CLIENT-SIDE website shows, one flat key/value map per
- * language. Run `npm run check:translations` for the current key count, and for a
- * check that all four languages define exactly the same keys.
+ * Every string the public website shows, one flat key/value map per language.
+ *
+ * Run `npm run check:translations` for the current key count, and for a check
+ * that all four languages define exactly the same keys.
  *
  * Scope note carried over from the original file: this translates the INTERFACE
  * only. Event names, descriptions and venue names come from the database in

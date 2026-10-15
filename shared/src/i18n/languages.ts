@@ -1,6 +1,8 @@
-/*
- * MIGRATED FROM the archived vanilla frontend during the Angular migration, by
- * tools/generate-i18n-data.mjs. The text was copied byte for byte so no
+/**
+ * @file The four language codes the switchers offer, and the labels they show.
+ *
+ * Generated from the archived vanilla frontend during the Angular migration by
+ * tools/generate-i18n-data.mjs, which copied the text byte for byte so no
  * translation could be corrupted on the way over.
  *
  * THIS FILE IS NOW THE SOURCE OF TRUTH. Edit the strings here.
@@ -13,11 +15,14 @@
 import type { LanguageInfo } from './language.model';
 
 /**
- * The language codes the switchers offer, as a literal union so a typo in a
- * translation lookup is a compile error rather than a blank label.
+ * The language codes the switchers offer.
+ *
+ * Declared as a literal union so a typo in a translation lookup is a compile
+ * error rather than a blank label.
  */
 export const LANGUAGE_CODES = ["en", "zh", "vi", "ja"] as const;
 
+/** One of the four supported language codes, derived from the list above. */
 export type LanguageCode = (typeof LANGUAGE_CODES)[number];
 
 /** The languages offered, in the order the switcher lists them. */

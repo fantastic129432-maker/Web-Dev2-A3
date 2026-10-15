@@ -1,3 +1,11 @@
+/**
+ * @file Application shell: the four segments every page shares.
+ *
+ * Header (which contains Nav), Body and Footer are rendered here, once, as siblings
+ * of the routed page, so navigating never rebuilds them - which is why the language
+ * and theme state survives a navigation and why `GET /api/health` is fetched once
+ * per full page load rather than once per route.
+ */
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
@@ -7,17 +15,18 @@ import { SiteFooterComponent } from './layout/site-footer';
 import { SiteHeaderComponent } from './layout/site-header';
 
 /**
- * The root of the CLIENT-SIDE website: header, the routed page, footer.
+ * The root of the CLIENT-SIDE website: the four segments in order - Header (which
+ * contains Nav), the routed page as Body, and Footer.
  *
  * WHY THE LAYOUT LIVES HERE RATHER THAN IN A ROUTED LAYOUT COMPONENT
- *   Only four of the five routes want the site chrome. The wildcard 404 route
- *   shows the language and theme controls (a visitor who mistyped a URL still
- *   needs them) but not a menu full of links to pages, so the header and footer
- *   are hidden on that one route by inspecting the router's current URL. A
- *   layout component with child routes would be the tidier answer for a larger
- *   site, but here it would add a second `<router-outlet>`, a second level of
- *   lazy loading and a routing table that no longer reads as a flat list of the
- *   four pages the brief asks for.
+ *   Every route wants the site chrome except for one detail: the wildcard 404 route
+ *   shows the language and theme controls (a visitor who mistyped a URL still needs
+ *   them) and the footer, but not a menu full of links to pages, so only the menu is
+ *   hidden on that one route by inspecting the router's current URL. A layout
+ *   component with child routes would be the tidier answer for a larger site, but
+ *   here it would add a second `<router-outlet>`, a second level of lazy loading and
+ *   a routing table that no longer reads as a flat list of the four pages the brief
+ *   asks for.
  *
  * WHY THE ROUTE URL IS READ THROUGH toSignal
  *   Angular 22 is zoneless: template expressions are re-evaluated when a signal

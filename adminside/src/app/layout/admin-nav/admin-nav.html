@@ -1,0 +1,34 @@
+<!--
+  The NAV segment: the sticky menu, present on every page of the admin website.
+
+  The markup is the one admin-header.html used to carry, moved here unchanged:
+  `.admin-nav`, `.admin-nav__list`, `.admin-nav__link` and `.admin-nav__link--active`
+  are all defined in the global src/styles.css, so nothing was restyled - and
+  admin-nav.css only stops the new host element from adding a box of its own.
+-->
+@if (showNav()) {
+  <nav class="admin-nav" [attr.aria-label]="'admin.title' | t">
+    <ul class="admin-nav__list">
+      @for (item of navItems; track item.path) {
+        <li>
+          <!--
+            routerLink, never an href: the application is served from /admin/ in
+            production, so an absolute HTML path would leave the application.
+            Each item is matched EXACTLY, so no entry claims a page it does not
+            name ("/events" does not light up on /events/new).
+          -->
+          <a
+            class="admin-nav__link"
+            [routerLink]="item.path"
+            routerLinkActive="admin-nav__link--active"
+            #active="routerLinkActive"
+            [routerLinkActiveOptions]="{ exact: true }"
+            [attr.aria-current]="active.isActive ? 'page' : null"
+          >
+            {{ item.labelKey | t }}
+          </a>
+        </li>
+      }
+    </ul>
+  </nav>
+}

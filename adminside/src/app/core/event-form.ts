@@ -1,8 +1,16 @@
 /**
- * adminside/src/app/core/event-form.ts
- * ---------------------------------------------------------------------------
  * The event form as DATA: its controls, its validation rules, the payload it
  * produces and the "what actually changed?" comparison.
+ *
+ * @file The single definition of the admin event form.
+ *
+ * The contract mirrored here is the API's (see shared/src/models/event.model.ts):
+ * required: organizationId, categoryId, locationId, eventName (3-180),
+ * shortDescription (5-300), description (10-20000), purpose (3-300),
+ * eventDate (YYYY-MM-DD), startTime/endTime (HH:MM);
+ * optional: dateStart/dateEnd, goalAmount, isFree, capacity (null = no limit),
+ * status, imageUrl, ticketTypes[].
+ * Server-side cross-checks repeated here: dateEnd >= dateStart, endTime > startTime.
  *
  * WHY THE FORM IS DESCRIBED HERE AND NOT INSIDE A COMPONENT
  *   The archived admin site built ONE form and used it on both the "add event"
@@ -15,14 +23,6 @@
  *   rules - the length limits the API enforces, the cross-field checks the
  *   database's CHECK constraints would reject, the exact payload shape - can be
  *   read without scrolling past markup, and can be unit-tested without a DOM.
- *
- * The contract mirrored here is the API's (see shared/src/models/event.model.ts):
- * required: organizationId, categoryId, locationId, eventName (3-180),
- * shortDescription (5-300), description (10-20000), purpose (3-300),
- * eventDate (YYYY-MM-DD), startTime/endTime (HH:MM);
- * optional: dateStart/dateEnd, goalAmount, isFree, capacity (null = no limit),
- * status, imageUrl, ticketTypes[].
- * Server-side cross-checks repeated here: dateEnd >= dateStart, endTime > startTime.
  */
 import {
   AbstractControl,
@@ -80,12 +80,22 @@ function optionalNumber(value: number | null | undefined): number | null {
 
 /** The value of one ticket-tier row. */
 export interface TicketTierValue {
+  /** The tier's name, as it appears on the public pages. */
   ticketName: string;
+  /** The price per ticket, or null while the box is empty. */
   price: number | null;
+  /** How many of this tier exist, or null for "no allocation published". */
   quantityAvailable: number | null;
+  /** The optional line of extra detail shown beside the tier name. */
   description: string;
 }
 
+/**
+ * One ticket-tier row as a reactive form group.
+ *
+ * Named here so a function signature can say "a group of tier controls" without
+ * repeating the four-control shape, which is the only place that shape is written.
+ */
 export type TicketTierGroup = FormGroup<{
   ticketName: FormControl<string>;
   price: FormControl<number | null>;
@@ -125,7 +135,13 @@ const ticketTierValidator: ValidatorFn = (control: AbstractControl): ValidationE
   return Object.keys(errors).length > 0 ? errors : null;
 };
 
-/** One ticket-tier row, optionally pre-filled from an event being edited. */
+/**
+ * One ticket-tier row, optionally pre-filled from an event being edited.
+ *
+ * @param initial - The stored tier to fill the row from, or null/undefined for a
+ *   blank row.
+ * @returns The new row's form group, validated as a whole by `ticketTierValidator`.
+ */
 export function createTicketTier(initial?: TicketType | null): TicketTierGroup {
   return new FormGroup(
     {
@@ -198,9 +214,12 @@ const eventWindowValidator: ValidatorFn = (control: AbstractControl): Validation
 /**
  * Build the whole event form.
  *
- * @param initial the event being updated, or null/undefined for a new one. The
- *        same function serves both pages, so "add" is simply the edit form with
- *        nothing in it - the archived admin site made the same choice.
+ * The same function serves both pages, so "add" is simply the edit form with
+ * nothing in it - the archived admin site made the same choice.
+ *
+ * @param initial - The event being updated, or null/undefined for a new one.
+ * @returns The empty or pre-filled form group, with the cross-field window rule
+ *   attached to the group itself.
  */
 export function createEventForm(initial?: EventDetail | null) {
   return new FormGroup(
@@ -280,7 +299,16 @@ export type EventFormGroup = ReturnType<typeof createEventForm>;
  */
 export type EventFormValue = EventFormGroup['value'];
 
-/** Put the form back to the values it was built with ("Clear the form"). */
+/**
+ * Put the form back to the values it was built with ("Clear the form").
+ *
+ * The tier rows are replaced rather than reset, because they are controls and not
+ * values: a fresh row also starts untouched, with no stale error message.
+ *
+ * @param form - The form group to reset in place.
+ * @param initial - The event to reset to, or null/undefined to reset to a blank
+ *   form.
+ */
 export function resetEventForm(form: EventFormGroup, initial?: EventDetail | null): void {
   const fresh = createEventForm(initial);
 
@@ -333,6 +361,10 @@ function ticketTierInputs(tiers: FormArray<TicketTierGroup>): TicketTypeInput[] 
  * is sent as 0 ("no target") and an empty capacity box as null ("no limit").
  * Omitting them would make the API apply its own default and quietly disagree
  * with what the administrator sees on screen.
+ *
+ * @param form - The complete form group to read.
+ * @returns The request body for POST /api/events or a full PUT, with an empty
+ *   goal sent as 0 and an empty capacity sent as null.
  */
 export function toEventInput(form: EventFormGroup): EventInput {
   const value = form.getRawValue();
@@ -418,6 +450,12 @@ function isSameValue(left: unknown, right: unknown): boolean {
  * Ticket tiers are included only when the event has none yet: the API adds tiers
  * to an event that has no tiers and ignores them otherwise (the update form says
  * so in words), so claiming a tier change was saved would be a lie.
+ *
+ * @param next - The full payload built from the form.
+ * @param original - The event as the API returned it, or null when there is no
+ *   stored event to compare against.
+ * @returns Only the fields that differ, ready to PUT; an empty object when
+ *   nothing changed.
  */
 export function changedFields(next: EventInput, original: EventDetail | null): Partial<EventInput> {
   const changes: Record<string, unknown> = {};

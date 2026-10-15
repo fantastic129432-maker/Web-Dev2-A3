@@ -1,8 +1,7 @@
 /**
- * shared/src/weather/weather.model.ts
- * ---------------------------------------------------------------------------
- * The shape of a forecast, and the translation of Open-Meteo's WMO weather
- * codes into something a visitor can read.
+ * @file The shape of a forecast, and the translation of Open-Meteo's WMO codes.
+ *
+ * The numeric codes are turned into something a visitor can read.
  *
  * Background: the optional external API in Assessment 3. Open-Meteo returns a
  * numeric `weather_code` (the WMO 4677 code table) rather than a description, so
@@ -31,7 +30,8 @@ export interface WeatherTarget {
 }
 
 /** A resolved forecast for one day at one venue. */
-export interface WeatherForecast {  /** The day the forecast is for, YYYY-MM-DD. */
+export interface WeatherForecast {
+  /** The day the forecast is for, YYYY-MM-DD. */
   date: string;
   /** The raw WMO code, kept so the UI can pick a glyph. */
   weatherCode: number;
@@ -81,15 +81,26 @@ const WMO_KEYS: Readonly<Record<number, string>> = {
   99: 'weather.code99',
 };
 
-/** The translation key for a WMO code, falling back to "overcast". */
+/**
+ * The translation key for a WMO code.
+ *
+ * @param code - The numeric `weather_code` Open-Meteo returned.
+ * @returns The key for that code's label, and 'weather.code3' (overcast) for a code the
+ *   map does not list, so the panel never shows a blank condition.
+ */
 export function weatherCodeKey(code: number): string {
   return WMO_KEYS[code] ?? 'weather.code3';
 }
 
 /**
- * A glyph for the forecast so the panel reads at a glance. Deliberately plain
- * characters rather than an image: nothing extra to download, and it cannot
- * break when an asset path changes.
+ * A glyph for the forecast, so the panel reads at a glance.
+ *
+ * Deliberately plain characters rather than an image: nothing extra to download,
+ * and it cannot break when an asset path changes.
+ *
+ * @param code - The numeric `weather_code` Open-Meteo returned.
+ * @returns A single weather symbol, or the thermometer character used for a code with no
+ *   glyph of its own.
  */
 export function weatherGlyph(code: number): string {
   if (code === 0) return '\u2600'; // clear
@@ -104,18 +115,41 @@ export function weatherGlyph(code: number): string {
   return '\u{1F321}'; // unknown
 }
 
-/** True when the code means rain, so the page can add a "bring a coat" hint. */
+/**
+ * Whether a WMO code means rain or worse.
+ *
+ * The event page uses this to add a "bring a coat" hint, so it deliberately
+ * covers every wet code the map knows, not only the ones the brief lists.
+ *
+ * @param code - The numeric `weather_code` Open-Meteo returned.
+ * @returns True for drizzle, rain, rain showers and thunderstorms.
+ */
 export function isWetWeather(code: number): boolean {
   return (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95;
 }
 
-/** Today in the visitor's own timezone, as YYYY-MM-DD. */
+/**
+ * Today's date in the visitor's own timezone.
+ *
+ * @param now - The instant to read the date from. May be omitted, in which case the
+ *   current time is used; a test passes a fixed instant so the result is stable.
+ * @returns The date as `YYYY-MM-DD`, built from the local date parts so the day does not
+ *   shift for a visitor east or west of the server.
+ */
 export function todayIso(now: Date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** Whole days from today (inclusive) to `isoDate`, or null when unparseable. */
+/**
+ * Whole days from today to a date, counting today as day zero.
+ *
+ * @param isoDate - A `YYYY-MM-DD` date, for example an event's `eventDate`.
+ * @param now - The instant to compare against. May be omitted, in which case the current
+ *   time is used.
+ * @returns The day offset, negative for a date that has passed, or null when the input is
+ *   missing or cannot be read as a calendar date.
+ */
 export function daysUntil(isoDate: string | null | undefined, now: Date = new Date()): number | null {
   if (typeof isoDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
   const today = Date.parse(`${todayIso(now)}T00:00:00Z`);

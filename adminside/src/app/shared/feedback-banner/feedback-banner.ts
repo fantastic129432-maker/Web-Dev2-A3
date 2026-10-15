@@ -1,6 +1,8 @@
+import { Component, computed, input } from '@angular/core';
+
+import type { Banner } from '../../core/feedback';
+
 /**
- * adminside/src/app/shared/feedback-banner/feedback-banner.ts
- * ---------------------------------------------------------------------------
  * One message at the top of a page: the success confirmation after a save, the
  * warning that explains a refused delete, the list of fields the API rejected.
  *
@@ -13,10 +15,6 @@
  *   (app/core/feedback.ts). The tone classes (.banner--success, --warning,
  *   --error, --info) come from the admin stylesheet.
  */
-import { Component, computed, input } from '@angular/core';
-
-import type { Banner } from '../../core/feedback';
-
 @Component({
   selector: 'admin-feedback-banner',
   styleUrl: './feedback-banner.css',
@@ -31,6 +29,9 @@ export class FeedbackBanner {
    * is announced politely when the screen reader next pauses - the difference
    * between "you must know this now" and "here is a confirmation".
    */
+  /** The ARIA role for the current tone: an error interrupts, anything else waits. */
   protected readonly role = computed(() => (this.message().tone === 'error' ? 'alert' : 'status'));
+
+  /** The matching aria-live politeness, so the two announcements cannot disagree. */
   protected readonly live = computed(() => (this.message().tone === 'error' ? 'assertive' : 'polite'));
 }

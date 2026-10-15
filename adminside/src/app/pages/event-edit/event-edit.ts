@@ -1,8 +1,28 @@
+import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
+
+import { ApiError } from '@charity/shared/api/api-error';
+import { ApiService } from '@charity/shared/api/api.service';
+import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
+import { TranslationService } from '@charity/shared/i18n/translation.service';
+import type { EventDetail, EventInput } from '@charity/shared/models/event.model';
+import type { ReferenceData } from '@charity/shared/models/reference.model';
+import type { Registration } from '@charity/shared/models/registration.model';
+import { formatCurrency, formatDateTime } from '@charity/shared/util/format';
+
+import { changedFields } from '../../core/event-form';
+import { banner, errorBanner, type Banner } from '../../core/feedback';
+import { usePageTitle } from '../../core/page-title';
+import { ConfirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
+import { EventForm } from '../../shared/event-form/event-form';
+import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
+
 /**
- * adminside/src/app/pages/event-edit/event-edit.ts
- * ---------------------------------------------------------------------------
- * "Update a charity event": the edit half of the write contract, reached from the
- * list's Edit link, from the dashboard and after a successful create.
+ * The "Update a charity event" page, which is the edit half of the write
+ * contract, reached from the list's Edit link, from the dashboard and after a
+ * successful create.
  *
  * ENDPOINTS
  *   GET  /api/admin/events/:id       the event, whatever its publishing status
@@ -27,27 +47,6 @@
  *   instant ("18:30" vs "18:30:00") so that saving an untouched form is reported
  *   as "nothing changed" instead of sending a pointless request.
  */
-import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
-
-import { ApiError } from '@charity/shared/api/api-error';
-import { ApiService } from '@charity/shared/api/api.service';
-import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
-import { TranslationService } from '@charity/shared/i18n/translation.service';
-import type { EventDetail, EventInput } from '@charity/shared/models/event.model';
-import type { ReferenceData } from '@charity/shared/models/reference.model';
-import type { Registration } from '@charity/shared/models/registration.model';
-import { formatCurrency, formatDateTime } from '@charity/shared/util/format';
-
-import { changedFields } from '../../core/event-form';
-import { banner, errorBanner, type Banner } from '../../core/feedback';
-import { usePageTitle } from '../../core/page-title';
-import { ConfirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
-import { EventForm } from '../../shared/event-form/event-form';
-import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
-
 @Component({
   selector: 'admin-event-edit',
   imports: [RouterLink, TranslatePipe, FeedbackBanner, EventForm, ConfirmDialog],
@@ -72,11 +71,22 @@ export class EventEdit {
    */
   private readonly formRef = viewChild(EventForm);
 
+  /** The id from the route, or an empty string when the route carried none. */
   protected readonly eventId = signal('');
+
+  /** The event being edited, as the admin endpoint returns it. */
   protected readonly event = signal<EventDetail | null>(null);
+
+  /** The organisations, categories and venues the three dropdowns offer. */
   protected readonly reference = signal<ReferenceData | null>(null);
+
+  /** True until the event and the reference data have both arrived. */
   protected readonly loading = signal(true);
+
+  /** True while the PUT is in flight, so the form's Save button can say so. */
   protected readonly saving = signal(false);
+
+  /** The page-level message, or null when nothing has been reported. */
   protected readonly banner = signal<Banner | null>(null);
 
   /** The API's per-field 400 messages, placed beside their own inputs by the form. */
@@ -87,7 +97,10 @@ export class EventEdit {
     () => this.event()?.registrations ?? []
   );
 
+  /** The registration awaiting confirmation, or null when no dialog is open. */
   protected readonly pendingDelete = signal<Registration | null>(null);
+
+  /** True while the DELETE is in flight, so the dialog's button cannot repeat it. */
   protected readonly deleting = signal(false);
 
   /** Exposed to the template: money and timestamps are formatted everywhere the same. */
