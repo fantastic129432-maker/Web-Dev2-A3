@@ -119,10 +119,15 @@ your own contribution clearly.
 > for a second event. On the pair, the same email twice for event one is a
 > duplicate, and the same email for event one and event two is fine.
 
-> Second, the ticket tier. The foreign key guarantees the tier exists,
-> `(event_id, ticket_type_id)` pointing at `ticket_types`. A single-column key
-> would only prove that the tier exists somewhere; this one proves the tier
-> belongs to the same event as the registration.
+> Second, the ticket tier. `ticket_type_id` is nullable - so "general entry" is
+> allowed - and its foreign key guarantees that the chosen tier **exists**. The
+> stronger rule, that the tier belongs to the *same* event as the registration, is
+> enforced by the API instead: the natural composite key on
+> `(event_id, ticket_type_id)` is refused by MySQL here (`ERROR 6125`, because
+> `ticket_types` already has a unique index sharing that leading column, and
+> `ERROR 3109`, which rules out the generated-column workaround). The reasoning is
+> recorded as a comment beside the constraint, and question 9 below is the answer
+> to give if you are asked.
 
 > Third, `event_id` is `ON DELETE RESTRICT`. That is the database-level half of
 > the rule 'an event can only be deleted when it has not yet received any
@@ -448,7 +453,10 @@ status 201, the `Location` response header, and the JSON body.
 > A failure takes the other branch: `ApiError` carries the status and the details
 > array, `fieldErrorMap` puts each message on the control that produced it, and a
 > 409 - this email already registered for this event - is shown beside the email
-> field with the API's own message.
+> field using our **own translated** sentence, so a visitor reading the site in
+> Chinese, Vietnamese or Japanese is not handed an English sentence by the server.
+> (The API's message for this conflict is always English, which is why the
+> dictionary key exists in all four languages.)
 
 > The read path is the same shape in reverse and A2 demonstrated it: the search
 > page turns its filter form into the API's query parameters and calls the same
@@ -519,11 +527,13 @@ SELECT registration_id, attendee_name, registered_at
 > the wind. The WMO weather codes are mapped to translation keys in
 > `weather.model.ts`, so the panel follows the language switcher.
 
-> It degrades silently, and that is deliberate: no coordinates - like the online
-> venue - a date more than sixteen days away, a past event, or a network failure
-> all mean the panel is simply not shown. The service resolves `null` instead of
-> raising an error, so a bonus feature can never break the page it decorates. Let
-> me prove it."
+> It degrades by design, because it is a bonus feature and must never break the
+> page it decorates. No coordinates - like the online venue - a date beyond the
+> sixteen-day forecast window, or a past event, and the panel is **not shown at
+> all**. If the panel is shown and the request then fails, it says in one line that
+> no forecast is available instead of claiming to be loading forever: the service
+> resolves `null` rather than raising an error, and the component distinguishes
+> "still loading" from "there is nothing to show". Let me prove the hidden cases."
 
 **Do:** open `/events/9` (a past event) and then `/events/8` (the online venue,
 which has no coordinates).
@@ -684,7 +694,7 @@ button on that row.
 > repositories are shown to behave the same.
 
 > The Angular applications are covered separately by `npm run test:e2e`, which
-> drives a headless browser through both sites against the compiled API - 33
+> drives a headless browser through both sites against the compiled API - 38
 > checks - and by `npm run check:angular`, 16 checks that fail if the required
 > architecture changes: no NgModule anywhere, zoneless, every component with an
 > HTML template and a doc comment, both applications importing the shared

@@ -413,7 +413,9 @@ Run everything from the project root.
 - [ ] The video is uploaded to SCU OneDrive, the link is shareable and you have
       tested it in a private browser window
 - [ ] **The video is at most 15 minutes, focuses on your own contribution, and
-      still answers the three required questions** (see `docs/video-script.md`)
+      still answers the three required questions** (see `docs/video-script.md`, or
+      the two role-focused scripts `docs/video-script-frontend.md` and
+      `docs/video-script-backend.md`)
 - [ ] The video shows a **blocked** delete (409) **and** a **successful** one (204)
 - [ ] The submission link on Blackboard has been completed
 
