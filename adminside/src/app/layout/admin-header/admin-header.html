@@ -34,6 +34,14 @@
         (中文, Tiếng Việt, 日本語) rather than its name in the current interface
         language, because the one person who cannot read the current language is
         exactly the person looking for this control.
+
+        [selected] matters, and is not a duplicate of the [value] on the select.
+        The options are created by the loop below, so on the FIRST render the
+        select's value is assigned before any option exists and the assignment is
+        dropped: the browser then displays the first option, so a staff member
+        whose browser asks for Chinese saw the interface in Chinese with the
+        picker reading "English". Marking the option itself selected fixes the
+        first paint; [value] keeps the element's value correct afterwards.
       -->
       <select
         class="admin-lang-select"
@@ -42,7 +50,9 @@
         (change)="selectLanguage($event)"
       >
         @for (option of languages; track option.code) {
-          <option [value]="option.code">{{ option.nativeLabel }}</option>
+          <option [value]="option.code" [selected]="option.code === language()">
+            {{ option.nativeLabel }}
+          </option>
         }
       </select>
 

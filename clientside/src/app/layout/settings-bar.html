@@ -20,7 +20,18 @@
       (change)="setLanguage(languageSelect.value)"
     >
       @for (entry of languages; track entry.code) {
-        <option [value]="entry.code">{{ entry.nativeLabel }}</option>
+        <!--
+          [selected] matters, and is not a duplicate of the [value] above.
+          The options are created by this loop, so on the FIRST render the select's
+          value is assigned before any option exists and the assignment is dropped:
+          the browser then displays the first option, so a visitor whose browser
+          asks for Chinese saw the interface in Chinese with the picker reading
+          "English". Marking the option itself selected fixes the first paint;
+          [value] on the select keeps the element's value correct afterwards.
+        -->
+        <option [value]="entry.code" [selected]="entry.code === language()">
+          {{ entry.nativeLabel }}
+        </option>
       }
     </select>
   </div>

@@ -217,7 +217,28 @@ async function main() {
     const consoleErrors = [];
     page.on('pageerror', (error) => errors.push(String(error)));
     page.on('console', (message) => {
-      if (message.type() === 'error') consoleErrors.push(message.text());
+      if (message.type() !== 'error') return;
+
+      const text = message.text();
+      const resource = message.location()?.url ?? '';
+
+      /*
+       * A blocked request to a THIRD-PARTY origin is an environment condition,
+       * not an application error. The event page and the admin event form both
+       * call Open-Meteo, and when this machine has no working internet (or its
+       * system proxy is down, which is common here) the browser logs
+       * "Failed to load resource: net::ERR_PROXY_CONNECTION_FAILED".
+       *
+       * The forecast is a bonus by design: it degrades to showing nothing, without
+       * an uncaught error. Counting that console line as a failure made the whole
+       * suite depend on the machine's connectivity - it failed three unrelated
+       * checks the moment the proxy went away. Only a failed GET for a non-local
+       * resource is ignored; every other console error still counts.
+       */
+      const isThirdParty = resource !== '' && !resource.startsWith(CLIENT) && !resource.startsWith(ADMIN);
+      if (isThirdParty && /Failed to load resource/i.test(text)) return;
+
+      consoleErrors.push(resource ? `${text} (${resource})` : text);
     });
 
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45_000 });
@@ -355,28 +376,48 @@ async function main() {
     );
 
     // ---- weather (the optional external API)
-    // Ask Open-Meteo directly first, so a lack of internet access is reported as
-    // such instead of looking like a broken page.
-    const weatherReachable = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${eventDetail.latitude}` +
-        `&longitude=${eventDetail.longitude}&daily=weather_code&timezone=Australia%2FSydney` +
-        `&start_date=${eventDetail.eventDate}&end_date=${eventDetail.eventDate}`
-    )
-      .then((response) => response.ok)
-      .catch(() => false);
+    /*
+     * Reachability is asked of the BROWSER, not of this script.
+     *
+     * A Node-side fetch can succeed down a different path - Node ignores the
+     * Windows system proxy that Edge obeys - so pre-flighting from here said
+     * "reachable" while every browser request was refused by a dead proxy at
+     * 127.0.0.1:7890. This check then demanded a forecast panel that could not
+     * possibly appear. Asking the page is asking the same network path the
+     * application itself uses.
+     */
+    const browserReachesOpenMeteo = await detail.page.evaluate(async () => {
+      try {
+        const response = await fetch(
+          'https://api.open-meteo.com/v1/forecast?latitude=-30.306&longitude=153.149&daily=weather_code&timezone=UTC',
+          { cache: 'no-store' }
+        );
+        return response.ok;
+      } catch {
+        return false;
+      }
+    });
 
     // The forecast comes from a third-party API AFTER the event itself resolves, so
-    // it is waited for rather than read the moment the event appears.
-    const forecastPanelAppeared = await waitForText(detail.page, 'Open-Meteo', 15_000);
+    // it is waited for rather than read the moment the event appears. When the
+    // network is known to work, the page is loaded once more, so the application's
+    // own request is not judged on a transient failure that happened before this
+    // reachability check.
+    let forecastPanelAppeared = await waitForText(detail.page, 'Open-Meteo', 15_000);
+    if (browserReachesOpenMeteo && !forecastPanelAppeared) {
+      await detail.page.reload({ waitUntil: 'networkidle2' });
+      forecastPanelAppeared = await waitForText(detail.page, 'Open-Meteo', 20_000);
+    }
+
     const detailText = await detail.page.evaluate(() => document.body.innerText);
     const temperatureShown = /\d+\s*°C/.test(detailText);
 
     record(
-      weatherReachable
+      browserReachesOpenMeteo
         ? 'the Open-Meteo forecast renders on the event detail page'
-        : 'Open-Meteo is unreachable, so the event page must degrade quietly (no error)',
-      weatherReachable ? forecastPanelAppeared && temperatureShown : detail.errors.length === 0,
-      weatherReachable
+        : 'Open-Meteo is unreachable from the browser, so the event page must degrade quietly',
+      browserReachesOpenMeteo ? forecastPanelAppeared && temperatureShown : detail.errors.length === 0,
+      browserReachesOpenMeteo
         ? `panel: ${forecastPanelAppeared}, temperature: ${temperatureShown}`
         : 'skipped the render assertion; the page must not error'
     );
@@ -418,6 +459,55 @@ async function main() {
       `html lang = ${langAttribute}`
     );
     await chinese.close();
+
+    /**
+     * The picker must SHOW the language that is actually in effect.
+     *
+     * This is not cosmetic. The options are created by an `@for`, so a selected
+     * value assigned before the options exist is dropped and the browser displays
+     * the first option - which meant a visitor whose browser asks for Chinese (this
+     * machine reports zh-CN) saw a Chinese interface with the picker reading
+     * "English". Asserted on a FIRST load with nothing stored, and again after
+     * switching, because the two paths failed differently.
+     *
+     * The invariant is locale-independent: TranslationService writes the active
+     * language's htmlLang to <html lang> ('en-AU', 'zh-CN', 'vi-VN', 'ja-JP'), so
+     * the picker's value must always be a prefix of it.
+     */
+    async function pickerState(url, selector) {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1400, height: 1000 });
+      const read = async () => {
+        await new Promise((done) => setTimeout(done, 1200));
+        return page.evaluate((sel) => {
+          const select = document.querySelector(sel);
+          return { lang: document.documentElement.lang, value: select?.value ?? '' };
+        }, selector);
+      };
+
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 45_000 });
+      const firstLoad = await read();
+      await page.evaluate(() => localStorage.setItem('charity-events:language', 'ja'));
+      await page.reload({ waitUntil: 'networkidle2' });
+      const afterSwitch = await read();
+      await page.close();
+      return { firstLoad, afterSwitch };
+    }
+
+    for (const [label, url, selector] of [
+      ['public site', `${CLIENT}/`, '#language-select'],
+      ['admin site', `${ADMIN}/`, 'select'],
+    ]) {
+      const { firstLoad, afterSwitch } = await pickerState(url, selector);
+      record(
+        `the language picker on the ${label} shows the language actually in effect`,
+        firstLoad.value !== '' &&
+          firstLoad.lang.startsWith(firstLoad.value) &&
+          afterSwitch.value === 'ja',
+        `first load: picker=${firstLoad.value}, html lang=${firstLoad.lang}; ` +
+          `after choosing Japanese: picker=${afterSwitch.value}`
+      );
+    }
 
     // ---- theme
     const themed = await browser.newPage();
