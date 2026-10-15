@@ -78,10 +78,25 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The wet-weather hint.
+ *
+ * --chip-bg, not --accent-600. --accent-600 is the wet card's BORDER colour
+ * (above, and in the public stylesheet), and as 0.86rem text on the white card
+ * it measured 3.11:1 - below the 4.5:1 WCAG AA asks of text this size. --chip-bg
+ * is the same warm amber taken to a depth the design already treats as legible:
+ * it measures 5.08:1 on the light card and 7.74:1 on the dark one, so the note
+ * keeps the "plan around the weather" colour cue in both themes.
+ *
+ * Recolouring --accent-600 itself was rejected: it is shared with the wet card's
+ * border in both applications, so darkening it would repaint them as well. The
+ * token this rule now reads is untouched - it is also the secondary button's
+ * fill - and only this one paragraph changes colour.
+ */
 .weather-preview__wet-note {
   margin: var(--space-3) 0 0;
   font-size: 0.86rem;
-  color: var(--accent-600);
+  color: var(--chip-bg);
 }
 
 /* The "loading" and "not available" states share one quiet style: neither is a

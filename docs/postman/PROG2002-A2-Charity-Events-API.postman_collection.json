@@ -1999,7 +1999,7 @@
                     {
                       "key": "keyword",
                       "value": "suspended",
-                      "description": "Matches the event name, so the suspended row is the result."
+                      "description": "Matches the event's short description (\"Suspended pending a fundraising compliance review.\"), so the suspended row is the result. The keyword is tested against the name, the short description, the city, the venue and the organisation, and this seed's name no longer carries the word."
                     },
                     {
                       "key": "limit",

@@ -421,9 +421,27 @@ html body.admin-body .admin-page-header p {
 /* --------------------------------------------------------------------------
    4. Tables
    -------------------------------------------------------------------------- */
-/* The public .data-table rules are reused; the admin table is denser and its
-   last column holds a row of buttons. */
-.data-table--admin { min-width: 900px; font-size: 0.88rem; }
+/*
+ * The public .data-table rules are reused; the admin table is denser and its
+ * last column holds a row of buttons.
+ *
+ * The 1250px floor is a measured number rather than a round one. `width: 100%`
+ * lets the browser shrink every column to whatever box the table is in, and
+ * below about 1250px it takes that room out of the name and venue cells: at a
+ * 1100px viewport the table was 1035px wide, the name column 168px, and the rows
+ * ran 112px instead of their natural 69.5px because those two cells wrapped onto
+ * a third line. Raising the floor stops the squeeze, so the wrapper
+ * (`.table-wrap`, base.css) scrolls instead and the rows keep the rhythm they
+ * have at 1366px.
+ *
+ * 1250px rather than the 1300-1340px that would leave no row wrapping at all:
+ * the narrowest table that fits its wrapper at 1366px today is the event form's
+ * registrations table at 1251px, so a larger floor would hand that table - and
+ * the dashboard's recent-events table at 1253px - a horizontal scrollbar at
+ * 1366px, where both currently fit. 1250px therefore fixes the squeezed widths
+ * without changing 1366px or 1440px anywhere in the admin site.
+ */
+.data-table--admin { min-width: 1250px; font-size: 0.88rem; }
 
 .data-table--admin th,
 .data-table--admin td { padding: var(--space-3); }
@@ -446,6 +464,23 @@ html body.admin-body .admin-page-header p {
 .cell-stack { display: grid; gap: 2px; }
 .cell-stack__primary { font-weight: bold; color: var(--ink-900); }
 .cell-stack__secondary { font-weight: normal; font-size: 0.78rem; color: var(--ink-500); }
+
+/*
+ * The secondary line inside a TOTALS row needs the darker ink.
+ *
+ * A tfoot cell is painted with --surface-100 (base.css), one step darker than the
+ * panel the data rows sit on, and --ink-500 on that tint measures 4.46:1 - just
+ * under the 4.5:1 that 12.48px text is held to, which is how the events list's
+ * "Goal: $300,000" total failed the site-wide contrast check while the same line
+ * passed in the rows above it. --ink-700 is the same muted ink one step darker
+ * and measures 8.59:1 on that tint.
+ *
+ * Scoped to the totals row on purpose: the rule above is shared by every stacked
+ * cell in the admin site, and those sit on --surface-0 or --surface-50, where
+ * --ink-500 already passes (4.94:1 and 4.69:1) - recolouring the shared rule
+ * would darken every secondary line in every admin table to fix one.
+ */
+.data-table tfoot .cell-stack__secondary { color: var(--ink-700); }
 
 /* The publishing status and the derived time state, side by side in one cell. */
 .cell-badges { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
