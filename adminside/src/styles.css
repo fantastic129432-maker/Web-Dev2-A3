@@ -154,7 +154,18 @@
   flex-wrap: wrap;
 }
 
+/*
+ * The link back to the public website.
+ *
+ * `display: inline-flex` so the trailing external-link arrow sits on the text's
+ * centre line rather than on its baseline, and the arrow itself is a shape
+ * instead of a colour, which is what keeps the "this leaves the application"
+ * affordance readable in both themes.
+ */
 .admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--brand-100);
   font-size: 0.88rem;
   text-decoration: none;
@@ -163,6 +174,16 @@
 .admin-link:hover, .admin-link:focus-visible {
   color: var(--on-brand);
   border-bottom-color: currentColor;
+}
+
+.admin-link__external {
+  display: inline-grid;
+  place-items: center;
+  transition: transform 0.18s ease;
+}
+.admin-link:hover .admin-link__external,
+.admin-link:focus-visible .admin-link__external {
+  transform: translate(2px, -2px);
 }
 
 /*
@@ -291,30 +312,44 @@ html body.admin-body .admin-page-header p {
 /* --------------------------------------------------------------------------
    2. Statistic tiles (dashboard)
    -------------------------------------------------------------------------- */
+/*
+ * THREE COLUMNS, NOT SIX.
+ *
+ * `repeat(auto-fit, minmax(190px, 1fr))` fitted all six tiles into one row and
+ * left each of them 219px wide at 1440px, so the first value that is not a small
+ * integer ("$99,290") had under 190px of line to sit in and wrapped as soon as
+ * the window or the zoom narrowed it. Three columns leave a value about 450px at
+ * 1440px and about 340px at 1100px, and the two rows also separate the six
+ * figures the way the brief describes them: row one is what is coming up, row two
+ * is what it has produced.
+ */
 .admin-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
   margin-bottom: var(--space-4);
 }
 
 .admin-stats--secondary { margin-bottom: var(--space-6); }
 
+/*
+ * No coloured left bar.
+ *
+ * It drew one of four accents - green for money, amber for tickets sold, teal
+ * for two unrelated counts, grey for the rest - and none of those colours named
+ * anything a reader could say out loud. Tiles that are distinguished only by a
+ * colour that carries no meaning are what the review objected to, so the bar is
+ * gone and the label does the work.
+ */
 .admin-stat {
   display: grid;
   gap: var(--space-1);
   padding: var(--space-4);
   border: 1px solid var(--line);
-  border-left: 4px solid var(--ink-300);
   border-radius: var(--radius);
   background: var(--surface-0);
   box-shadow: var(--shadow-sm);
 }
-
-.admin-stat--brand { border-left-color: var(--brand-500); }
-.admin-stat--ok { border-left-color: var(--success); }
-.admin-stat--warn { border-left-color: var(--warning); }
-.admin-stat--muted { border-left-color: var(--ink-300); }
 
 .admin-stat__value {
   font-size: 1.75rem;
@@ -336,30 +371,6 @@ html body.admin-body .admin-page-header p {
   color: var(--ink-500);
   font-style: italic;
 }
-
-.admin-quick { margin-top: var(--space-5); }
-
-.admin-quick__links {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-4);
-}
-
-.admin-quick__card {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-50);
-  color: var(--ink-900);
-  text-decoration: none;
-}
-.admin-quick__card:hover, .admin-quick__card:focus-visible {
-  border-color: var(--brand-500);
-  background: var(--surface-100);
-}
-.admin-quick__card span { color: var(--ink-700); font-size: 0.88rem; }
 
 /* --------------------------------------------------------------------------
    3. Filter bar
@@ -399,6 +410,21 @@ html body.admin-body .admin-page-header p {
 
 .data-table--admin th,
 .data-table--admin td { padding: var(--space-3); }
+
+/*
+ * Alternating rows, for a table wide enough that the eye loses the line between
+ * one record and the next.
+ *
+ * The stripe is a surface tint rather than a new colour, so it is a real
+ * difference in both themes: --surface-100 is darker than the panel in the light
+ * theme and lighter than it in the dark one. The hover that comes with it has to
+ * be the STRONGER of the two, or hovering a striped row would repaint it as a
+ * plainer one than its neighbours - which is why this table does not use the
+ * base `.data-table tbody tr:hover` tint, since that is the colour of the stripe.
+ */
+.data-table--zebra tbody tr:nth-child(even) { background: var(--surface-100); }
+
+.data-table--zebra tbody tr:hover { background: var(--brand-100); }
 
 .cell-stack { display: grid; gap: 2px; }
 .cell-stack__primary { font-weight: bold; color: var(--ink-900); }
@@ -586,6 +612,10 @@ html body.admin-body .admin-page-header p {
 
   .admin-header__inner { padding: var(--space-2) 0; }
   .admin-nav__link { padding: 0.7rem var(--space-3); font-size: 0.86rem; }
+
+  /* Three tiles side by side stop being roomy before this width, so the grid
+     becomes two columns (and the dashboard's two-column row becomes one). */
+  .admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 600px) {
@@ -594,7 +624,9 @@ html body.admin-body .admin-page-header p {
   .admin-nav__list { width: min(1440px, 100% - 1.5rem); }
 
   .admin-filters { grid-template-columns: 1fr; }
-  .admin-stats { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  /* Two columns will not fit a phone, so every tile takes the full width and the
+     long values keep the room the 3x2 grid gave them. */
+  .admin-stats { grid-template-columns: minmax(0, 1fr); }
   .admin-stat__value { font-size: 1.4rem; }
   .row-actions { justify-content: flex-start; }
   .confirm-panel__actions { flex-direction: column-reverse; }

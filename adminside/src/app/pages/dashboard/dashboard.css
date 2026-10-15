@@ -1,19 +1,310 @@
 /*
- * The dashboard's own layout needs one rule; the tiles (.admin-stats,
- * .admin-stat), the panels, the tables and the quick-link cards are all in the
- * admin stylesheet (src/styles.css).
+ * The dashboard's own layout.
+ *
+ * What is here is only what is particular to this page: the two-column row that
+ * replaced the quick-action block and the full-width health table, the
+ * needs-attention cards, the compact health card, and the column distribution of
+ * the recent-registrations table. The tiles (.admin-stats, .admin-stat), the
+ * panels, the buttons, the banners and the tables themselves are still in the
+ * admin stylesheet (src/styles.css), which is where the shared pieces live.
  */
 :host {
   display: block;
 }
 
-/* The health panel sits between the tiles and the quick links, and a table inside
-   a panel should not have a second border drawn around it by .table-wrap. */
+/* A table inside a panel should not have a second border drawn around it by
+   .table-wrap: the row rules already separate the rows. */
 .panel .table-wrap {
   border: 0;
 }
 
-.panel .data-table tbody th {
+/* --------------------------------------------------------------------------
+   The two-column row
+   -------------------------------------------------------------------------- */
+/*
+ * The row the deleted quick-action block and the full-width health table were
+ * replaced by. Both cards are the same width, which is what makes the health
+ * card compact: it no longer has half a screen of empty space to the right of a
+ * five-row table whose values stopped around 45%.
+ */
+.admin-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+/* --------------------------------------------------------------------------
+   Needs attention
+   -------------------------------------------------------------------------- */
+.admin-attention__clear {
+  margin: 0;
+  color: var(--ink-700);
+}
+
+.attention-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A clickable card, so it has to look like one: an icon, a trailing arrow, and a
+ * hover/focus state that lifts it. The lift is a transform plus a shadow, which
+ * is the affordance; the border and the background change with it, because in the
+ * dark theme a shadow has almost nothing to fall on and the movement alone is
+ * easy to miss. The arrow is a shape rather than a colour, so the affordance
+ * survives both themes and a colour-blind reader.
+ */
+.attention-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-0);
+  color: var(--ink-900);
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease,
+    background 0.18s ease;
+}
+.attention-card:hover,
+.attention-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--brand-500);
+  background: var(--surface-100);
+  box-shadow: var(--shadow);
+}
+.attention-card:hover {
+  text-decoration: none;
+}
+
+/* The icon chip is neutral on purpose: the colour a reason was drawn in would be
+   one more colour that means nothing. The glyph carries the meaning. */
+.attention-card__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-100);
+  color: var(--brand-700);
+}
+
+.attention-card__body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.attention-card__name {
+  font-weight: bold;
+  color: var(--ink-900);
+}
+
+.attention-card__reason {
+  justify-self: start;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-50);
+  color: var(--ink-700);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.attention-card__detail {
+  color: var(--ink-500);
+  font-size: 0.82rem;
+}
+
+.attention-card__arrow {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--brand-700);
+}
+
+.admin-attention__more {
+  margin: var(--space-3) 0 0;
+  font-size: 0.86rem;
+}
+
+/* --------------------------------------------------------------------------
+   The compact health card
+   -------------------------------------------------------------------------- */
+/*
+ * The status line is a dot AND a sentence. The dot alone would make the state a
+ * colour; the sentence alone would make it a paragraph. Together the state
+ * survives a colour-blind reader, a greyscale print and both themes.
+ */
+.health-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-weight: bold;
+  color: var(--ink-900);
+}
+
+.health-status__dot {
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--ink-300);
+  box-shadow: 0 0 0 3px var(--surface-100);
+}
+.health-status--ok .health-status__dot {
+  background: var(--success);
+}
+.health-status--degraded .health-status__dot {
+  background: var(--warning);
+}
+.health-status--down .health-status__dot {
+  background: var(--danger);
+}
+
+.health-facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.health-facts__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px dashed var(--line);
+}
+.health-facts__row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.health-facts dt {
+  color: var(--ink-500);
+  font-size: 0.82rem;
+}
+
+.health-facts dd {
+  margin: 0;
+  font-weight: bold;
+  text-align: right;
+}
+
+/*
+ * The disclosure that keeps the complete report on the page. The reviewer
+ * objected to the priority and the width of the health table, not to its
+ * existence, so every fact is still one click away and nothing was dropped.
+ */
+.health-report {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.health-report summary {
+  color: var(--brand-700);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+.health-report summary:hover {
+  text-decoration: underline;
+}
+
+.health-report .table-wrap {
+  margin-top: var(--space-3);
+}
+
+/* The report's labels are sentences ("Registrations table present"), so the cell
+   has to wrap them; 45% keeps the two columns visually paired in a half-width
+   card. Scoped to this table: the same 45% used to apply to the recent list's
+   row header as well, which is what made its attendee column 604px wide. */
+.health-report__table tbody th {
   width: 45%;
   white-space: normal;
+}
+
+/* --------------------------------------------------------------------------
+   The recent registrations table
+   -------------------------------------------------------------------------- */
+/*
+ * Column distribution for this table only.
+ *
+ * Its own auto layout gave the attendee column 604px of the 1342px available,
+ * which left roughly 400px of white space between the event name and the ticket
+ * count and made a row impossible to follow across. These widths are a
+ * distribution, not a fixed grid: every column still grows when the language or
+ * the data needs the room, and the five data columns are sized so that nothing
+ * has to wrap even at 1100px, which leaves the rest of the width on the actions
+ * at the end of the row rather than in the middle of it.
+ */
+.data-table--recent .col-attendee {
+  width: 19.5%;
+}
+.data-table--recent .col-event {
+  width: 23.5%;
+}
+.data-table--recent .col-narrow {
+  width: 7.4%;
+}
+.data-table--recent .col-value {
+  width: 6.2%;
+}
+.data-table--recent .col-when {
+  width: 16%;
+}
+.data-table--recent .col-actions {
+  width: 27.4%;
+}
+
+/*
+ * This table is denser than the registrations page's, because six columns have to
+ * fit where that page has seven and this one adds two actions per row. The
+ * horizontal padding is halved (8px rather than 12px), which is what buys the
+ * room for the two action buttons to stay on ONE line at 1100px - a row that
+ * wraps its controls is the thing the review objected to.
+ */
+.data-table--recent th,
+.data-table--recent td {
+  padding: var(--space-3) var(--space-2);
+}
+
+.data-table--recent .button--small {
+  padding: 0.4rem 0.75rem;
+}
+
+/* The View action is a link to another page, so it carries the same trailing
+   arrow as every other clickable card on this dashboard. */
+.action-view__icon,
+.action-view__arrow {
+  display: grid;
+  place-items: center;
+}
+.action-view__arrow {
+  transition: transform 0.18s ease;
+}
+.action-view:hover .action-view__arrow {
+  transform: translateX(2px);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+/* Below this width two cards side by side are narrower than the event names they
+   hold, so the row becomes a column and the needs-attention card keeps the top. */
+@media (max-width: 900px) {
+  .admin-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
