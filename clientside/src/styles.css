@@ -395,10 +395,6 @@ textarea {
   grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
 }
 
-.grid--stats {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
 /* ==========================================================================
    3b. First screen: the impact section above the fold
    --------------------------------------------------------------------------
@@ -1230,7 +1226,6 @@ textarea {
 .filter-panel {
   position: sticky;
   top: 96px;
-  background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
@@ -1249,8 +1244,7 @@ fieldset {
 fieldset:last-of-type { margin-bottom: var(--space-4); }
 
 legend,
-.field > label,
-.field-label {
+.field > label {
   display: block;
   font-weight: bold;
   font-size: 0.9rem;
@@ -1328,8 +1322,6 @@ textarea:focus { border-color: var(--brand-500); }
 
 .field-message { display: block; margin-top: var(--space-2); font-size: 0.85rem; min-height: 1.1rem; }
 .field-message--error { color: var(--danger); }
-.field-message--info { color: var(--ink-500); }
-.field-message--success { color: var(--success); }
 
 .filter-actions { display: grid; gap: var(--space-2); }
 
@@ -1935,15 +1927,6 @@ textarea:focus { border-color: var(--brand-500); }
 }
 
 .data-table__primary { display: block; }
-
-.data-table__secondary {
-  display: block;
-  margin-top: var(--space-1);
-  font-weight: normal;
-  font-size: 0.82rem;
-  color: var(--ink-500);
-  word-break: break-word;
-}
 
 /* Numbers line up on the right, which is what makes a column of money
    readable. font-variant-numeric keeps the digits the same width. */

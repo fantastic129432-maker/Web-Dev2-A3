@@ -41,38 +41,16 @@ const q = db;
 type TransactionConnection = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
- * The columns an administrator may set, in table order.
- *
- * Nothing outside this list can be written, so a request cannot set a column the
- * form does not offer - an id, a timestamp or a computed column.
- */
-const WRITABLE_COLUMNS = [
-  'organization_id',
-  'category_id',
-  'location_id',
-  'event_name',
-  'short_description',
-  'description',
-  'purpose',
-  'event_date',
-  'start_time',
-  'end_time',
-  'date_start',
-  'date_end',
-  'goal_amount',
-  'is_free',
-  'capacity',
-  'status',
-  'image_url',
-];
-
-/**
  * Map the camelCase keys of a validated payload onto database columns.
  *
  * Only the keys that are actually present are emitted, which is what makes an
  * update partial: an absent key means "leave this column alone" rather than
  * "write its default". The mapping is explicit rather than derived from the key
  * name so that the API's vocabulary and the schema's cannot drift apart silently.
+ *
+ * The mapping is also the whole list of columns an administrator may set, in
+ * table order: nothing outside it can be written, so a request cannot set a
+ * column the form does not offer - an id, a timestamp or a computed column.
  *
  * @param values - The validated values from the write service.
  * @returns The column names to write and the values to bind to them, in matching order.
@@ -191,33 +169,6 @@ function translateMysqlError(error: any, context: DataRecord = {}) {
  */
 async function readBack(eventId: number) {
   return mysqlRepository.findEventById(eventId, { status: 'all' });
-}
-
-/**
- * Test whether an email is already registered for an event.
- *
- * Not part of the repository contract: it rides along on the exported object for
- * the unit tests, as it did before.
- *
- * @param eventId - The event to test against.
- * @param email - The normalised attendee address.
- * @returns `true` when a registration already exists.
- */
-async function registrationExists(eventId: number, email: string): Promise<boolean> {
-  return mysqlRepository.registrationQueries.existsForEventAndEmail(eventId, email);
-}
-
-/**
- * Count how many registrations an event has.
- *
- * Also a test helper rather than part of the contract, and the same count the
- * delete rule takes inside its transaction.
- *
- * @param eventId - The event to count for.
- * @returns The number of registrations for that event.
- */
-async function countRegistrations(eventId: number): Promise<number> {
-  return mysqlRepository.registrationQueries.countByEventId(eventId);
 }
 
 /**
@@ -493,7 +444,4 @@ export = Object.assign(writeRepository, {
   toColumns,
   replaceTicketTypes,
   insertTicketTypes,
-  WRITABLE_COLUMNS,
-  registrationExists,
-  countRegistrations,
 });

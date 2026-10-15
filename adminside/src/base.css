@@ -153,7 +153,6 @@
 [data-theme='dark'] input[type='date'],
 [data-theme='dark'] input[type='time'],
 [data-theme='dark'] input[type='number'],
-[data-theme='dark'] input[type='email'],
 [data-theme='dark'] textarea,
 [data-theme='dark'] .button--outline {
   background: var(--surface-100);
@@ -277,12 +276,6 @@ textarea {
 
 .button:active { transform: translateY(0); }
 
-.button--secondary {
-  background: var(--chip-bg);
-  color: var(--on-brand);
-}
-.button--secondary:hover { background: var(--ink-700); color: var(--surface-0); }
-
 .button--ghost {
   background: transparent;
   color: var(--brand-700);
@@ -307,8 +300,6 @@ textarea {
   padding: 0.45rem 0.95rem;
   font-size: 0.85rem;
 }
-
-.button--block { width: 100%; }
 
 .button[disabled],
 .button[aria-disabled='true'] {
@@ -342,16 +333,12 @@ textarea {
 /* ==========================================================================
    5. Forms
    ========================================================================== */
-fieldset {
-  border: 0;
-  padding: 0;
-  margin: 0 0 var(--space-5);
-}
-fieldset:last-of-type { margin-bottom: var(--space-4); }
-
-legend,
-.field > label,
-.field-label {
+/* `fieldset`, `legend` and `.field-label` were copied in with the design-system
+   layer and no admin template can produce them: the admin forms are
+   `<div class="field">` blocks whose controls each carry a bare
+   `<label for="...">`. `.field > label` is the selector every one of those
+   labels matches, so it is the only one of the four this layer needs. */
+.field > label {
   display: block;
   font-weight: bold;
   font-size: 0.9rem;
@@ -368,7 +355,6 @@ input[type='search'],
 input[type='date'],
 input[type='time'],
 input[type='number'],
-input[type='email'],
 select,
 textarea {
   width: 100%;
@@ -395,21 +381,8 @@ textarea[aria-invalid='true'] {
   border-color: var(--danger);
 }
 
-.checkbox {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0.35rem 0.5rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-.checkbox input { width: auto; margin: 0; }
-
 .field-message { display: block; margin-top: var(--space-2); font-size: 0.85rem; min-height: 1.1rem; }
 .field-message--error { color: var(--danger); }
-.field-message--info { color: var(--ink-500); }
-.field-message--success { color: var(--success); }
 
 /*
  * Two side-by-side fields (the goal/capacity pair and the start/end time pair).
@@ -437,8 +410,6 @@ textarea[aria-invalid='true'] {
   padding: var(--space-5);
 }
 .panel h2, .panel h3 { margin-top: 0; font-size: 1.1rem; }
-.panel--accent { border-top: 4px solid var(--accent-500); }
-.panel--brand { border-top: 4px solid var(--brand-700); }
 
 /* ==========================================================================
    7. Loading / empty / error states
@@ -453,10 +424,6 @@ textarea[aria-invalid='true'] {
 }
 .state h3 { margin-bottom: var(--space-2); }
 .state p { color: var(--ink-500); margin: 0; }
-.state--error { border-color: #f0c3bf; background: var(--danger-bg); }
-.state--error h3 { color: var(--danger); }
-.state--error p { color: #7c2d28; }
-.state__details { text-align: left; max-width: 520px; margin: var(--space-3) auto 0; color: #7c2d28; }
 
 .spinner {
   width: 34px;

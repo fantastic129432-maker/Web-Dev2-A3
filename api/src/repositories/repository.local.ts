@@ -336,30 +336,6 @@ function sortEvents(events: DataRecord[], sort: string, direction: string, defau
 }
 
 /**
- * Map submitted ticket tiers onto the columns the ticket_types table uses.
- *
- * The mirror numbers the tiers from 1 for each event, which is what stands in for
- * the table's AUTO_INCREMENT on a set of rows that is being replaced as a unit.
- *
- * @param eventId - The event the tiers belong to.
- * @param ticketTypes - The validated tiers from the write service.
- * @returns The rows to store in the mirror's ticket_types shape.
- */
-function normaliseTicketTypes(eventId: number, ticketTypes: DataRecord[]): DataRecord[] {
-  return ticketTypes.map((ticket, index) => ({
-    ticket_type_id: index + 1,
-    event_id: eventId,
-    ticket_name: ticket.ticketName,
-    price: Number(ticket.price || 0),
-    quantity_available:
-      ticket.quantityAvailable === undefined || ticket.quantityAvailable === null
-        ? null
-        : Number(ticket.quantityAvailable),
-    description: ticket.description === undefined ? null : ticket.description,
-  }));
-}
-
-/**
  * The offline read half of the repository contract.
  *
  * It is the same object shape as the MySQL half, which is what lets
@@ -605,7 +581,6 @@ export = Object.assign(repository, {
   today,
   publicEvents,
   allEvents,
-  normaliseTicketTypes,
   matches,
   sortEvents,
 });

@@ -39,7 +39,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const LEGACY = path.join(ROOT, 'legacy', 'clientside');
-const OUT_DIR = path.join(ROOT, 'shared', 'src', 'i18n');
 const CHECK_ONLY = process.argv.includes('--check');
 const FORCE = process.argv.includes('--force');
 

@@ -330,8 +330,6 @@ html body.admin-body .admin-page-header p {
   margin-bottom: var(--space-4);
 }
 
-.admin-stats--secondary { margin-bottom: var(--space-6); }
-
 /*
  * No coloured left bar.
  *
@@ -364,12 +362,6 @@ html body.admin-body .admin-page-header p {
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--ink-500);
-}
-
-.admin-stat__note {
-  font-size: 0.72rem;
-  color: var(--ink-500);
-  font-style: italic;
 }
 
 /* --------------------------------------------------------------------------
@@ -745,24 +737,27 @@ html body.admin-body .admin-page-header p {
   border-top: 1px solid var(--line);
 }
 
-/* The repeating ticket-tier block. */
-.ticket-rows { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
-
-.ticket-row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-  gap: var(--space-2);
-  align-items: start;
-}
-
-.ticket-row .field-message { grid-column: 1 / -1; }
+/*
+ * The repeating ticket-tier block has no rules here.
+ *
+ * `.ticket-rows`, `.ticket-row`, `.ticket-row .field-message` and the block's
+ * narrow-window shape are declared by the event-form component's own stylesheet
+ * (shared/event-form/event-form.css). Angular's emulated encapsulation scopes
+ * those selectors to the component's elements - they compile to
+ * `.ticket-row[_ngcontent-...]` - which outranks a plain global `.ticket-row`
+ * however the two files are ordered. The copies that used to sit here (and the
+ * `.ticket-row .button { grid-column ... }` line in the 900px block below)
+ * therefore duplicated, and could never take effect on, rules the component
+ * already owns.
+ */
 
 /* --------------------------------------------------------------------------
    7. Update page
    -------------------------------------------------------------------------- */
-.admin-picker { margin-bottom: var(--space-5); padding: var(--space-4) var(--space-5); }
-.admin-picker .form-row { margin-bottom: 0; }
-
+/* The picker this section used to open with (.admin-picker, the card that chose
+   which event to edit) is gone: the page is reached by route now, so there is
+   nothing left for the card to choose. What remains is the "what is being
+   edited" header, which the edit page still renders. */
 .admin-edit__header h2 { margin-bottom: var(--space-1); }
 .admin-edit__header p { color: var(--ink-500); margin: 0; font-size: 0.9rem; }
 
@@ -824,8 +819,10 @@ html body.admin-body .admin-page-header p {
   .admin-header__inner,
   .admin-nav__list { width: min(1440px, 100% - 2rem); }
 
-  .ticket-row { grid-template-columns: 1fr 1fr; }
-  .ticket-row .button { grid-column: 1 / -1; justify-self: start; }
+  /* The ticket row's two-column shape at this width is the event-form
+     component's own 900px rule; see the note in section 6. The button it used to
+     place here is a flex item of .ticket-row__actions, so `grid-column` and
+     `justify-self` could not have applied to it. */
 
   .admin-header__inner { padding: var(--space-2) 0; }
   .admin-nav__link { padding: 0.7rem var(--space-3); font-size: 0.86rem; }

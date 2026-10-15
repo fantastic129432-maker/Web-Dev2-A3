@@ -748,18 +748,6 @@ const REGISTRATION_COLUMNS_PUBLIC = `
   (r.tickets_purchased * COALESCE(t.price, 0)) AS totalAmount,
   e.event_name           AS eventName`;
 
-/** Unqualified version of the staff projection, for statements without a join. */
-const REGISTRATION_COLUMNS_BARE = `
-  r.registration_id      AS registrationId,
-  r.event_id             AS eventId,
-  r.ticket_type_id       AS ticketTypeId,
-  r.attendee_name        AS attendeeName,
-  r.attendee_email       AS attendeeEmail,
-  r.attendee_phone       AS attendeePhone,
-  r.tickets_purchased    AS ticketsPurchased,
-  r.registered_at        AS registeredAt,
-  r.notes                AS notes`;
-
 /**
  * Normalise a registration row so both repositories emit the same types.
  *
@@ -968,21 +956,6 @@ const registrationQueries: RegistrationQueries = {
 };
 
 /**
- * Return the first row of a query, or null.
- *
- * A small convenience for the statements that are known to match at most one row,
- * so the caller does not have to index the result array.
- *
- * @param sql - The SQL text to run.
- * @param params - The values to bind. May be omitted for a statement that takes none.
- * @returns The first row, or `null` when the statement returned nothing.
- */
-async function queryOne(sql: string, params: any[] = []): Promise<any> {
-  const rows = await q.query(sql, params);
-  return rows.length > 0 ? rows[0] : null;
-}
-
-/**
  * The read repository plus the SQL helpers the tests exercise.
  *
  * One export: the helpers and column lists the original attached to
@@ -999,12 +972,10 @@ export = Object.assign(repository, {
   EVENT_COLUMNS,
   REGISTRATION_COLUMNS,
   REGISTRATION_COLUMNS_PUBLIC,
-  REGISTRATION_COLUMNS_BARE,
   PRIMARY_PRICE,
   LIKE_ESCAPE,
   escapeLike,
   containsPattern,
   decorateEventDetail,
-  queryOne,
   registrationQueries,
 });

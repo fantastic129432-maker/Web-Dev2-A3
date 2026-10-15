@@ -217,33 +217,6 @@ function readBack(eventId: number): Promise<DataRecord | null> {
 }
 
 /**
- * Test whether an email is already registered for an event.
- *
- * Not part of the repository contract: it rides along on the exported object for
- * the unit tests, as it did before.
- *
- * @param eventId - The event to test against.
- * @param email - The normalised attendee address.
- * @returns `true` when a registration already exists.
- */
-async function registrationExists(eventId: number, email: string): Promise<boolean> {
-  return registrationStore.existsForEventAndEmail(eventId, email);
-}
-
-/**
- * Count how many registrations an event has.
- *
- * Also a test helper rather than part of the contract, and the same count the
- * delete rule reads before refusing to remove an event.
- *
- * @param eventId - The event to count for.
- * @returns The number of registrations for that event.
- */
-async function countRegistrations(eventId: number): Promise<number> {
-  return registrationStore.countByEventId(eventId);
-}
-
-/**
  * The offline write half of the repository contract.
  *
  * It is checked against `EventWriteRepository` at compile time, and
@@ -414,8 +387,6 @@ function saveTicketTypes(eventId: number, ticketTypes: DataRecord[]): void {
  * object src/repositories/index.ts binds onto the read half.
  */
 export = Object.assign(writeRepository, {
-  registrationExists,
-  countRegistrations,
   toRow,
   assertReferences,
   assertUniqueTicketTypeNames,

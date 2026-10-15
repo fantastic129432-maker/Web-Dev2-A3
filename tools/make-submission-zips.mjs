@@ -253,7 +253,7 @@ function submissionReadme({
     '## What is in this archive',
     '',
     '```',
-    frontend ? 'README-SUBMISSION.md   this file' : 'README-SUBMISSION.md   this file',
+    'README-SUBMISSION.md   this file',
     frontend ? 'site/                  the BUILT application, ready to upload as-is' : 'api/dist/              the compiled JavaScript that actually runs',
     sourceSummary,
     '```',

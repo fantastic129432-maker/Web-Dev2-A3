@@ -12,9 +12,9 @@
  *      (a pool is used instead of a single connection so that concurrent
  *      HTTP requests do not have to wait for each other, and so that a
  *      dropped connection is replaced automatically).
- *   2. Expose a tiny promise-based API (`query`, `getConnection`,
- *      `transaction`, `ping`, `close`) built on mysql2/promise, so the rest
- *      of the code can use async/await instead of nested callbacks.
+ *   2. Expose a tiny promise-based API (`query`, `transaction`, `ping`,
+ *      `close`) built on mysql2/promise, so the rest of the code can use
+ *      async/await instead of nested callbacks.
  *   3. Fail with a clear, actionable message when the database is not
  *      reachable, instead of an unhandled exception.
  *
@@ -114,18 +114,6 @@ function getPool(): mysql.Pool {
 async function query(sql: string, params: any[] = []): Promise<any> {
   const [rows] = await getPool().execute(sql, params);
   return rows;
-}
-
-/**
- * Borrow a connection for a manual transaction.
- *
- * Callers must release it themselves; `transaction()` below does that for the
- * code that does not need the raw handle.
- *
- * @returns A pooled connection that stays checked out until it is released.
- */
-async function getConnection(): Promise<mysql.PoolConnection> {
-  return getPool().getConnection();
 }
 
 /**
