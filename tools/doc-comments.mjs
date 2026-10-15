@@ -254,6 +254,44 @@ function checkFile(file) {
 
     checkBlock(file, lines, blockAbove(lines, index, decorators), index, { kind, name, params, returns });
   }
+
+  /*
+   * Second pass: the names this file publishes on its own module object.
+   *
+   * Most of the API is CommonJS-shaped - `export = { listEvents, createEvent, ... }`
+   * or `Object.assign(...)` - so its functions are declared with a plain `function`
+   * and are only "exported" through that object. A collector that matched just
+   * `export <decl>` therefore saw 36 of roughly 160 public API members: the comments
+   * were all there (396 blocks in api/ alone) but `npm run docs` silently published
+   * a fraction of them, which defeats the point of documenting in autodoc style.
+   *
+   * Only names that are DECLARED IN THIS FILE are considered, so a re-export from
+   * another module is never demanded a block it should not have here.
+   */
+  const published = new Set();
+  const addNames = (text) => {
+    for (const entry of text.split(',')) {
+      const cleaned = entry.replace(/\/\/.*$/gm, '').trim();
+      if (!cleaned) continue;
+      const local = /\bas\s+([A-Za-z_$][\w$]*)\s*$/.exec(cleaned);
+      const name = local ? local[1] : /^([A-Za-z_$][\w$]*)/.exec(cleaned)?.[1];
+      if (name && name !== 'exports') published.add(name);
+    }
+  };
+  for (const match of source.matchAll(/export\s*=\s*\{([\s\S]*?)\n\}/g)) addNames(match[1]);
+  for (const match of source.matchAll(/Object\.assign\([^,]+,\s*\{([\s\S]*?)\n\}\)/g)) addNames(match[1]);
+  for (const match of source.matchAll(/export\s*\{([^}]*)\}/g)) addNames(match[1]);
+
+  const alreadyDocumented = new Set(documented.filter((entry) => entry.file === path.relative(ROOT, file).replace(/\\/g, '/')).map((entry) => entry.name));
+  for (const name of published) {
+    if (alreadyDocumented.has(name)) continue;
+    const declared = lines.findIndex((line) =>
+      new RegExp(`^\\s*(?:export\\s+)?(?:async\\s+)?(?:function|const|let|class|interface|type|enum)\\s+${name}\\b`).test(line)
+    );
+    if (declared === -1) continue;
+    const kind = /\bclass\b/.test(lines[declared]) ? 'class' : /\b(interface|type|enum)\b/.test(lines[declared]) ? 'interface' : 'function';
+    checkBlock(file, lines, blockAbove(lines, declared, decorators), declared, { kind, name });
+  }
 }
 
 /* ------------------------------------------------------------------- modes */
