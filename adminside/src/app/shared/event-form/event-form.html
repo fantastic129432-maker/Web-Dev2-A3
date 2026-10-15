@@ -145,39 +145,62 @@
   <!-- ================================================================= when === -->
   <h2 class="admin-form__heading">{{ 'form.sectionWhen' | t }}</h2>
 
-  <div class="field">
-    <label for="eventDate">{{ 'field.eventDate' | t }} <span class="field__required" aria-hidden="true">*</span></label>
-    <input
-      id="eventDate"
-      type="date"
-      formControlName="eventDate"
-      aria-required="true"
-      aria-describedby="eventDate-hint eventDate-message"
-      [attr.aria-invalid]="messageFor('eventDate') ? 'true' : null"
-    />
-    <p class="field__hint" id="eventDate-hint">{{ 'field.eventDateHint' | t }}</p>
-    <p class="field-message field-message--error" id="eventDate-message" role="status">{{ messageFor('eventDate') }}</p>
+  <!--
+    ONE DATE, ASKED FOR ONCE.
+
+    This block used to open with an "Event date" box plus a hint saying that a
+    single-day event filled in the start and end dates too, and then ask for a
+    Start date and an End date as well - the same fact requested twice, with no way
+    to tell which of the three the event would actually be saved with. The box is
+    gone. "Start date" is now the event's date and the only required one; an
+    optional End date turns it into a run of days, and the switch below says which
+    of the two the administrator means. core/event-form.ts derives the API's
+    `eventDate` from the start date when it builds the payload, so the contract
+    still receives everything it requires.
+  -->
+  <div class="field field--inline free-toggle">
+    <input id="singleDay" type="checkbox" formControlName="singleDay" aria-describedby="singleDay-hint" />
+    <label for="singleDay">{{ 'field.singleDay' | t }}</label>
+    <!-- aria-live: switching the box on removes the End date control, and this is
+         what tells a screen reader that it has gone and what that means. -->
+    <p class="field__hint" id="singleDay-hint" aria-live="polite">{{ 'field.singleDayHint' | t }}</p>
   </div>
 
   <div class="form-row">
     <div class="field">
-      <label for="dateStart">{{ 'field.dateStart' | t }}</label>
-      <input id="dateStart" type="date" formControlName="dateStart" />
+      <label for="dateStart">
+        {{ 'field.dateStart' | t }} <span class="field__required" aria-hidden="true">*</span>
+      </label>
+      <input
+        id="dateStart"
+        type="date"
+        formControlName="dateStart"
+        aria-required="true"
+        aria-describedby="dateStart-message"
+        [attr.aria-invalid]="messageFor('dateStart') ? 'true' : null"
+      />
+      <p class="field-message field-message--error" id="dateStart-message" role="status">
+        {{ messageFor('dateStart') }}
+      </p>
     </div>
 
-    <div class="field">
-      <label for="dateEnd">{{ 'field.dateEnd' | t }}</label>
-      <input
-        id="dateEnd"
-        type="date"
-        formControlName="dateEnd"
-        aria-describedby="dateEnd-message"
-        [attr.aria-invalid]="windowMessage('dateOrder') ? 'true' : null"
-      />
-      <!-- The cross-field rule is validated on the GROUP (see core/event-form.ts)
-           and its message is placed here, beside the box that has to change. -->
-      <p class="field-message field-message--error" id="dateEnd-message" role="status">{{ windowMessage('dateOrder') }}</p>
-    </div>
+    <!-- @if, not [hidden]: a hidden input is still focusable and still submitted,
+         and the point of the switch is that a single-day event HAS no end date. -->
+    @if (!singleDay.value) {
+      <div class="field">
+        <label for="dateEnd">{{ 'field.dateEnd' | t }}</label>
+        <input
+          id="dateEnd"
+          type="date"
+          formControlName="dateEnd"
+          aria-describedby="dateEnd-message"
+          [attr.aria-invalid]="windowMessage('dateOrder') ? 'true' : null"
+        />
+        <!-- The cross-field rule is validated on the GROUP (see core/event-form.ts)
+             and its message is placed here, beside the box that has to change. -->
+        <p class="field-message field-message--error" id="dateEnd-message" role="status">{{ windowMessage('dateOrder') }}</p>
+      </div>
+    }
   </div>
 
   <div class="form-row">
@@ -223,14 +246,26 @@
   <div class="form-row">
     <div class="field">
       <label for="goalAmount">{{ 'field.goalAmount' | t }}</label>
+      <!--
+        The disabled state is bound as well as held on the control.
+
+        Angular warns when a formControlName is combined with a static `disabled`
+        attribute, because the directive - not the attribute - owns whether a
+        control is enabled; a BINDING keeps the DOM attribute and the control in
+        step, so the greyed box a person sees is the one the payload builder reads.
+        When the event is free the control is disabled AND set to 0 (see
+        applyFreeState), so the number shown is the number sent.
+      -->
       <input
         id="goalAmount"
         type="number"
         formControlName="goalAmount"
         min="0"
         step="0.01"
-        aria-describedby="goalAmount-message"
+        aria-describedby="goalAmount-message freeEventHint"
         [attr.aria-invalid]="messageFor('goalAmount') ? 'true' : null"
+        [attr.disabled]="isFree() ? true : null"
+        [class.field--locked]="isFree()"
       />
       <p class="field-message field-message--error" id="goalAmount-message" role="status">{{ messageFor('goalAmount') }}</p>
     </div>
@@ -277,9 +312,23 @@
     </div>
   </div>
 
-  <div class="field field--inline">
-    <input id="isFree" type="checkbox" formControlName="isFree" />
+  <div class="field field--inline free-toggle">
+    <input
+      id="isFree"
+      type="checkbox"
+      formControlName="isFree"
+      aria-describedby="freeEventHint"
+    />
     <label for="isFree">{{ 'field.isFree' | t }}</label>
+    <!--
+      The sentence that links the box to the money it governs, and the reason it is
+      its own element with an id: the same text is named by the disabled price and
+      goal inputs through aria-describedby, so a screen reader hears WHY the box it
+      just tabbed into is locked instead of meeting a dead control.
+    -->
+    <p class="field__hint free-toggle__hint" id="freeEventHint" aria-live="polite">
+      {{ 'field.isFreeHint' | t }}
+    </p>
   </div>
 
   <!-- ================================================================ tickets === -->
@@ -287,7 +336,21 @@
   <p class="field__hint">{{ 'form.sectionTicketsHint' | t }}</p>
 
   @if (tiersEditable()) {
+    <!-- Shown only while the price column is locked, so it explains a state the
+         reader can see rather than describing one that is not on screen. -->
+    @if (isFree()) {
+      <p class="banner banner--info banner--inline" role="status">{{ 'form.freeTiersHint' | t }}</p>
+    }
     <div class="ticket-rows" formArrayName="ticketTypes">
+      <!-- The five columns are named once, as the row's table-like header. The
+           inputs carry their own accessible names (see below), so this is a caption
+           rather than a heading row: it says what the block IS without adding five
+           more elements between the fields and their labels. -->
+      <p class="ticket-rows__caption sr-only">
+        {{ 'form.sectionTickets' | t }} &middot; {{ 'field.ticketName' | t }} &middot;
+        {{ 'field.ticketPrice' | t }} &middot; {{ 'field.ticketQuantity' | t }} &middot;
+        {{ 'field.ticketDescription' | t }} &middot; {{ 'field.rowActions' | t }}
+      </p>
       @for (tier of tiers.controls; track tier; let index = $index) {
         <div class="ticket-row" [formGroupName]="index">
           <input
@@ -304,6 +367,9 @@
             step="0.01"
             [placeholder]="'field.ticketPrice' | t"
             [attr.aria-label]="('field.ticketPrice' | t) + ' ' + (index + 1)"
+            [attr.aria-describedby]="isFree() ? 'freeEventHint' : null"
+            [attr.disabled]="isFree() ? true : null"
+            [class.field--locked]="isFree()"
           />
           <input
             type="number"
@@ -319,9 +385,16 @@
             [placeholder]="'field.ticketDescription' | t"
             [attr.aria-label]="('field.ticketDescription' | t) + ' ' + (index + 1)"
           />
-          <button class="button button--small button--ghost" type="button" (click)="removeTier(index)">
-            {{ 'field.removeTier' | t }}
-          </button>
+          <div class="ticket-row__actions">
+            <button
+              class="button button--small button--ghost"
+              type="button"
+              (click)="removeTier(index)"
+              [attr.aria-label]="('field.removeTier' | t) + ' ' + (index + 1)"
+            >
+              {{ 'field.removeTier' | t }}
+            </button>
+          </div>
           <p class="field-message field-message--error" role="status">{{ tierMessage(index) }}</p>
         </div>
       }

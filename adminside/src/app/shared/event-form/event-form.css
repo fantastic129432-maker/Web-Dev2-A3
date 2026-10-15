@@ -1,12 +1,17 @@
 /*
- * Two things this component needs that the admin stylesheet does not already
- * provide. Everything else about the form's appearance (.admin-form, .field,
- * .form-row, .field-message, .ticket-row, .admin-form__actions) is in
- * src/styles.css.
+ * What this component needs that the admin stylesheet does not already provide.
+ *
+ * Everything about the form's appearance that is SHARED (.admin-form, .field,
+ * .form-row, .field-message, .admin-form__actions) stays in src/styles.css. This
+ * file adds the four things that are specific to the event form, and each of them
+ * is a measurement decision rather than decoration - hence the numbers in the
+ * comments:
+ *
+ *   1. the width of the form column and of the fields that hold little text,
+ *   2. the five-column ticket-tier row,
+ *   3. the free-event lock state,
+ *   4. the artwork picker's alignment.
  */
-:host {
-  display: block;
-}
 
 /* The required marker. It is aria-hidden in the markup because the asterisk is
    explained by the page's lead text ("Fields marked with an asterisk are
@@ -16,46 +21,291 @@
   color: var(--danger);
 }
 
+/* ==========================================================================
+   1. The form column, and the fields that do not need the whole of it
+   ==========================================================================
+   WHY A MAXIMUM WIDTH AT ALL
+     The admin shell is a 1440px-wide band (styles.css .admin-container), and the
+     form used to fill it: at a 1440px viewport the Event name box measured 1392px,
+     the date fields 690px each and the number fields 690px. A date input needs
+     about ten characters, so the calendar icon sat ~640px away from the label the
+     eye had just read, and the ticket-description column - the one field that
+     holds sentences - was the same width as the price box beside it.
+
+   61rem = 976px is the OUTER width of the form's content column at the 17px root
+   size the admin site sets; with the panel's own padding removed the fields
+   themselves measure ~820px, inside the 760-840px the review asked for. It is
+   expressed in rem so the column follows the reader's font size rather than
+   pinning a pixel count, and it is capped by 100% so it can never exceed the
+   space the shell gives it.
+
+   Centre it with margin-inline: a 976px column left-aligned in a 1440px band
+   would leave a 440px gutter on one side and read as a layout accident. */
+:host {
+  display: block;
+  width: min(100%, 61rem);
+  margin-inline: auto;
+}
+
 /*
- * The artwork picker: the dropdown and a preview of what it selects.
+ * The short fields take the width of what they hold.
  *
- * The archived form offered the same filenames with no preview at all, which
- * makes "fun-run.svg" a guess. The thumbnail is decorative (alt="") because the
- * select already names the image for a screen reader.
+ * Applied only from 601px up: below that every field goes back to the full column
+ * width (the rules above do not match at all there), so a phone never gets a
+ * cramped 180px date box. The breakpoint is base.css's own narrow-width one, which
+ * is where .form-row collapses to a single column as well.
+ *
+ * The values are deliberately three sizes, not eleven: a date, a time or a money
+ * amount needs 180-240px, a name needs a readable line, and a sentence gets the
+ * rest. -webkit/-moz max-width is not needed: the emulated encapsulation gives
+ * these rules a higher specificity than base.css's `input { width: 100% }`.
  */
+@media (min-width: 601px) {
+  /* Date, time and money. A date input renders its own picker icon, the time
+     input its own spinner, so the box is sized for ten characters plus the
+     control's own chrome rather than for the label above it. */
+  .admin-form input[type='date'],
+  .admin-form input[type='time'],
+  .admin-form input[type='number'] {
+    max-width: 13rem;
+  }
+
+  /* Money is read in a column, so it gets a slightly wider box than a date:
+     9,999,999.99 is the largest value the goal column can hold. */
+  .admin-form input[type='number'] {
+    max-width: 14rem;
+  }
+
+  /* One line of a name or a venue. 26rem is about 40 characters at this size,
+     which is where "Riverside Rainbow Fun Run 2026" stops wrapping in any of the
+     four languages. */
+  .admin-form input[type='text'] {
+    max-width: 26rem;
+  }
+
+  /* The description fields hold sentences, so they keep the whole column. */
+  .admin-form textarea {
+    max-width: none;
+  }
+
+  /* A select is sized by its longest option; constraining it would clip the
+     label, so only the two that sit beside a short field are capped. The venue
+     list is the long one ("Coffs Harbour Showground - Coffs Harbour, NSW"), and
+     it keeps the full column. */
+  .admin-form .form-row select {
+    max-width: 24rem;
+  }
+}
+
+/* ==========================================================================
+   2. The ticket-tier row
+   ==========================================================================
+   THE REVIEW'S RATIO, IN fr UNITS RATHER THAN PERCENTAGES
+     The row used to be `minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)
+     auto`, which at 1440px gave name and description 425px each and the two
+     numeric columns 212px each - twice what a price needs, at the expense of the
+     column that holds sentences. The requested 30/15/15/30/10 split is expressed
+     as 6fr/3fr/3fr/6fr/2fr, which is the same ratio.
+
+     WHY fr AND NOT `30% 15% 15% 30% 10%`
+       Percentage tracks are resolved against the CONTAINER width and the gaps are
+       then added on top, so the five tracks plus the four 8px gaps came to 1008px
+       in a 976px row: the tier block overflowed the form by 32px and the page grew
+       a horizontal scrollbar between 900px and 1100px - the exact range where the
+       row is still five columns. Fractional tracks share out the space LEFT AFTER
+       the gaps, so the ratio is the requested one and the row measures exactly the
+       width of the form.
+
+   WHY THE NAME COLUMN IS 6fr AND NOT A PERCENTAGE WITH A FLOOR
+     A track can still be widened by the grid when the items inside it cannot
+     shrink to their share, and the ticket-name input's minimum content width did
+     exactly that: with `minmax(10rem, 30%)` the name took 34px out of the
+     description's 30% share, leaving the column that holds sentences the narrowest
+     of the three wide ones at 289.6px against the requested 292.8px. `min-width: 0`
+     on the controls lets them shrink to their track, so every track is its share.
+   -------------------------------------------------------------------------- */
+.ticket-rows {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.ticket-row {
+  display: grid;
+  /* 30% / 15% / 15% / 30% / 10%, as the review asked. */
+  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) minmax(0, 3fr) minmax(0, 6fr) minmax(0, 2fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* The row's error message is a line of its own, under all five columns. */
+.ticket-row .field-message {
+  grid-column: 1 / -1;
+}
+
+/* The control in the last column is centred vertically (align-items: center on
+   the row does that) and horizontally, so it sits in the middle of its 10% share
+   rather than hanging off the left edge of it. */
+.ticket-row__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+/* Every control inside a track has to be allowed to shrink below its own
+   intrinsic width, or it overflows the track it was given. */
+.ticket-row input {
+  min-width: 0;
+}
+
+/* The Remove button is the widest thing in the 10% column ("Remove" is 85px in a
+   97px track). It keeps its label on one line and is allowed to shrink, so a
+   longer translation cannot widen the track. */
+.ticket-row__actions .button {
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   3. The free-event lock
+   ==========================================================================
+   A locked field is greyed AND carries the hint that says why (see the template's
+   freeEventHint), so the state is unmistakable in both themes.
+   -------------------------------------------------------------------------- */
+.field--locked {
+  cursor: not-allowed;
+}
+
+/*
+ * The disabled tint is --ink-700 on --surface-100, and the token choice is
+ * measured rather than picked.
+ *
+ * --ink-500 is the "muted" ink and was the obvious choice, but on --surface-100 it
+ * measures 4.46:1 in the light theme - 0.04 under the 4.5:1 that 17px text is held
+ * to, and the site-wide contrast check would have failed on this one control.
+ * --ink-700 measures 8.59:1 there and 7.4:1 in the dark theme, and it is the token
+ * the tables already use for the same reason ("The secondary line inside a TOTALS
+ * row needs the darker ink"). Painting the tint with the design system's own
+ * tokens, rather than letting the browser apply its platform-specific disabled
+ * colour, is also what keeps the two themes consistent.
+ *
+ * No opacity here: opacity would change the MEASURED colour of the text by
+ * compositing it with the page behind, which is exactly the kind of value the
+ * contrast checker cannot see. The lock is stated by the tint, the cursor and the
+ * sentence beside it.
+ */
+.field--locked:disabled {
+  color: var(--ink-700);
+  background: var(--surface-100);
+}
+
+/* The hint under a checkbox occupies its own line, because it is a sentence
+   rather than a label. */
+.free-toggle__hint {
+  flex-basis: 100%;
+}
+
+/* A little more air between the checkbox block and the fields it governs. */
+.free-toggle + .form-row,
+.free-toggle + .ticket-rows,
+.free-toggle + .banner {
+  margin-top: var(--space-2);
+}
+
+.ticket-rows__caption + .ticket-row {
+  margin-top: 0;
+}
+
+/* ==========================================================================
+   4. The artwork picker
+   ==========================================================================
+   THE MISALIGNMENT THIS FIXES
+     The preview used to be a bare 96x64 <img> beside a 40px <select> in a
+     wrapping flex row, so the thumbnail was 24px taller than the control it
+     belonged to and the two baselines disagreed: it read as a patch stuck on the
+     side of the dropdown. Worse, `flex-wrap: wrap` meant that on a narrow window
+     the thumbnail dropped onto a line of its own under the select.
+
+   Now the pair is ONE card: the select and the preview are two items of a
+   non-wrapping row with `align-items: center`, the thumbnail is square (56px, the
+   height the select settles at once it is stretched by the card's padding) and
+   both are painted on the same --surface-50 tint with the same --line border, so
+   they read as one control. The thumbnail keeps `object-fit: cover`, so a
+   non-square source image is cropped rather than distorted. */
 .image-picker {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.image-picker select {
-  flex: 1 1 12rem;
-}
-
-.image-picker__preview {
-  width: 96px;
-  height: 64px;
-  object-fit: cover;
+  flex-wrap: nowrap;
+  padding: var(--space-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-50);
+  max-width: 30rem;
 }
 
-/*
- * The ticket-tier row has FOUR inputs (name, price, quantity, description) and
- * the remove button, while the admin stylesheet's .ticket-row is a four-column
- * grid (name, price, quantity, button) - the description column is new here. The
- * emulated encapsulation gives this rule a higher specificity than the global
- * one, so it wins without !important.
- */
-.ticket-row {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) auto;
+.image-picker select {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
+.image-picker__preview {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-0);
+}
+
+/* ==========================================================================
+   5. Narrow windows
+   ==========================================================================
+   The five-column row is a MEASURED WIDTH, not a percentage that scales down
+   forever. Its Description track is 30% of the row, so at 900px the column that
+   holds sentences is 260px - narrower than the 289px floor the old row gave it at
+   760px - and the numeric columns are down to 130px each. Two columns is the
+   honest answer below that, and one column below 760px, which is the width
+   base.css already treats as "a narrow window" (.form-row collapses there too).
+   The row is laid out rather than squeezed: nothing wraps mid-value and nothing
+   overflows its track. */
 @media (max-width: 900px) {
+  /*
+   * TWO ROWS OF TWO, NOT ONE ROW OF TWO.
+   *
+   * The admin stylesheet's own 900px rule keeps four tracks, which with five
+   * children would leave the last one wrapping onto an implicit second row. This
+   * rule names the shape instead: name and price share the first row (the two the
+   * public pages need), Available and Description the second, and the Remove
+   * control and any error message take a full-width row of their own.
+   */
   .ticket-row {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .ticket-row input {
+    max-width: none;
+  }
+
+  .ticket-row__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  /* One field per line: a price box sharing a 300px row with a description is
+     narrower than the description needs and wider than the price needs. */
+  .ticket-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The card keeps its row shape, but the select takes what is left rather than
+     forcing the pair to wrap. */
+  .image-picker {
+    max-width: none;
   }
 }

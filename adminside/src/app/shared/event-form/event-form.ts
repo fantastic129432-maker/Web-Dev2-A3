@@ -1,7 +1,7 @@
 import { Component, DestroyRef, DOCUMENT, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, ReactiveFormsModule, ValidationErrors } from '@angular/forms';
-import { startWith } from 'rxjs';
+import { Subscription, startWith } from 'rxjs';
 
 import { APP_CONFIG, EVENT_IMAGES, PUBLISH_STATUSES } from '@charity/shared/config/app-config';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
@@ -16,6 +16,7 @@ import {
   REQUIRED_MESSAGE_KEYS,
   createEventForm,
   createTicketTier,
+  isRowInUse,
   resetEventForm,
   toEventInput,
   type EventFormGroup,
@@ -113,6 +114,15 @@ export class EventForm implements OnInit {
   private readonly formValue = signal<EventFormValue | null>(null);
 
   /**
+   * The live subscription to the "this is a free event" box.
+   *
+   * Held so it can be dropped for the moment a reset writes that box: a reset must
+   * put the money fields back to the values the event was built with, not to the
+   * ones a previous tick left behind.
+   */
+  private freeChanges: Subscription | null = null;
+
+  /**
    * The three dropdown lists. Copied out of the reference data with a defensive
    * default so the template can iterate them without a null check per option -
    * the page renders this form only once the lists have arrived.
@@ -151,6 +161,10 @@ export class EventForm implements OnInit {
    * coordinates come from the selected venue (GET /api/admin/reference-data
    * returns latitude/longitude per venue) and the date from the form, so no event
    * row has to exist yet.
+   *
+   * The date read here is `dateStart`, which is the form's single source for the
+   * event's date; `eventDate` is derived from it when the payload is built, so the
+   * forecast and the saved event cannot disagree about the day.
    */
   protected readonly weatherTarget = computed<WeatherTarget | null>(() => {
     const value = this.formValue();
@@ -163,11 +177,31 @@ export class EventForm implements OnInit {
     return {
       latitude: venue?.latitude ?? null,
       longitude: venue?.longitude ?? null,
-      eventDate: value.eventDate ?? '',
+      eventDate: value.dateStart ?? '',
       venueName: venue?.venueName ?? '',
       city: venue?.city ?? '',
     };
   });
+
+  /**
+   * The "single-day event" switch.
+   *
+   * Ticked means one day: the end date is not asked for and is kept equal to the
+   * start date, so the payload (and the API, which derives date_end from
+   * event_date) cannot describe a two-day event that the administrator thought
+   * was one day. It is read OFF for a stored event whose dates differ - see
+   * isStoredSingleDay() in core/event-form.ts - which is what stops an untouched
+   * multi-day event from being collapsed by a save.
+   *
+   * A getter, not a field: it hands the template the control itself so the checkbox
+   * can bind to it with formControlName, the same way every other field does.
+   */
+  protected get singleDay(): EventFormGroup['controls']['singleDay'] {
+    return this.form.controls.singleDay;
+  }
+
+  /** True while "This is a free event" is ticked, so the price fields can be locked. */
+  protected readonly isFree = computed(() => this.formValue()?.isFree === true);
 
   /**
    * Are the ticket tiers editable on this page?
@@ -196,11 +230,129 @@ export class EventForm implements OnInit {
       if (this.mode() === 'create') this.addTier();
     }
 
+    /*
+     * THE EVENT DATE IS DERIVED FROM THE START DATE, IN THE FORM.
+     *
+     * `eventDate` is a required field of the API's contract but the form no longer
+     * shows a second box for it: the administrator states the event's first day
+     * once, and this writes it into the control the payload builder reads. Keeping
+     * the control in step here means the form's own value never contradicts itself
+     * (a validation message on the hidden control, a stale date shown nowhere),
+     * and toEventInput() makes the same derivation for the request body.
+     *
+     * It runs on a separate subscription so a change to the start date does not
+     * re-enter the mirror below.
+     */
+    this.form.controls.dateStart.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((date) => this.form.controls.eventDate.setValue(date, { emitEvent: false }));
+
+    /*
+     * A FREE EVENT HAS NO PRICES.
+     *
+     * The API validates `isFree` as a boolean and each ticket price on its own
+     * range (minimum 0), but it never compares the two: it happily stores
+     * isFree: true beside a priced tier, which is exactly the contradictory state
+     * the review found ("nothing stops an administrator ticking it and then
+     * filling in a price"). The form closes that gap itself. Ticking the box
+     * disables the price controls AND sets them to 0, and toEventInput() forces a
+     * free event's prices to 0 as well, so a value the disabled input still held
+     * can never be submitted. 0 is inside the API's own accepted range, so nothing
+     * here can produce a value the API rejects.
+     *
+     * The value each row had is stashed in `priceBeforeFree` (form-only state, not
+     * a column) so clearing the box puts a usable price back rather than leaving
+     * the row at 0.
+     */
+    this.freeChanges = this.watchFreeToggle();
+
+    if (this.form.controls.isFree.value === true) this.applyFreeState(true);
+
     // Mirror the form's value into a signal so the weather preview can react to
     // the venue and the date without the template having to poll the form.
     this.form.valueChanges
       .pipe(startWith(this.form.getRawValue()), takeUntilDestroyed(this.destroyRef))
-      .subscribe((value) => this.formValue.set(value));
+      .subscribe((value) => {
+        // Every route into the start date - typing, the picker, "Clear the form" -
+        // ends here, so the mirror is written from the subscribed value rather than
+        // from a second event listener.
+        this.form.controls.eventDate.setValue(value.dateStart ?? '', { emitEvent: false });
+        this.formValue.set(value);
+      });
+  }
+
+  /* ---------------------------------------------------- free / paid state ---- */
+
+  /**
+   * Listen for the "this is a free event" box being ticked or cleared.
+   *
+   * A factory rather than an inline subscription because the listener is re-made
+   * after a reset (see resetTo), and one description of what it does is what keeps
+   * the two places from drifting apart.
+   *
+   * @returns The live subscription, so the caller can drop it before a reset.
+   */
+  private watchFreeToggle(): Subscription {
+    return this.form.controls.isFree.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((free) => this.applyFreeState(free === true));
+  }
+
+  /**
+   * Apply the "this is a free event" state to the money fields.
+   *
+   * Ticking the box disables the goal and every ticket price and forces them to
+   * zero; clearing it restores the ticket prices that were stashed on the way in.
+   * The goal is deliberately NOT restored from a stash: a free event's fundraising
+   * target is a decision the administrator makes again, and leaving a stale figure
+   * in a box that was just re-enabled is the kind of guess this form avoids.
+   *
+   * @param free - `true` when the event is free, `false` to unlock the money fields.
+   */
+  private applyFreeState(free: boolean): void {
+    const goal = this.form.controls.goalAmount;
+
+    if (free) {
+      goal.setValue(0, { emitEvent: true });
+      goal.disable({ emitEvent: false });
+    } else {
+      goal.enable({ emitEvent: false });
+    }
+
+    for (const tier of this.form.controls.ticketTypes.controls) {
+      const price = tier.controls.price;
+
+      if (free) {
+        // An untouched row is left alone: writing 0 into its price would make it a
+        // half-filled row (a price with no name) and the API would reject the whole
+        // request over a tier nobody created. The row stays blank, and a blank row
+        // is dropped from the payload anyway.
+        if (!isRowInUse(tier.getRawValue())) continue;
+
+        // Only stash a value that is worth restoring, and never overwrite a stash
+        // that is already waiting: a second pass through here must not replace the
+        // remembered price with the zero this method itself wrote.
+        if (price.value !== null && price.value !== 0 && tier.controls.priceBeforeFree.value === null) {
+          tier.controls.priceBeforeFree.setValue(price.value, { emitEvent: false });
+        }
+        price.setValue(0, { emitEvent: false });
+        price.disable({ emitEvent: false });
+      } else {
+        price.enable({ emitEvent: false });
+        const remembered = tier.controls.priceBeforeFree.value;
+        if (remembered !== null) {
+          price.setValue(remembered, { emitEvent: false });
+          tier.controls.priceBeforeFree.setValue(null, { emitEvent: false });
+        }
+      }
+    }
+
+    // Publish the state deliberately rather than relying on the form's own
+    // notification: the writes above are silent by design (they must not be read
+    // back as an edit), and the template's `isFree()` tells it whether to paint the
+    // price boxes as locked. The value pushed is the one the payload builder will
+    // read, so what the panel says and what is sent cannot disagree.
+    this.formValue.set(this.form.getRawValue());
   }
 
   /* ------------------------------------------------------------- tiers ---- */
@@ -333,7 +485,7 @@ export class EventForm implements OnInit {
 
   /** "Clear the form": back to the values this form was built with. */
   protected onReset(): void {
-    resetEventForm(this.form, this.event());
+    this.resetTo(this.event());
     this.showAllErrors.set(false);
   }
 
@@ -345,8 +497,31 @@ export class EventForm implements OnInit {
    * including anything the API recomputed, such as the derived event state.
    */
   reset(initial: EventDetail | null): void {
-    resetEventForm(this.form, initial);
+    this.resetTo(initial);
     this.showAllErrors.set(false);
+  }
+
+  /**
+   * Put every control back to the value a freshly built form would hold.
+   *
+   * The "free event" listener is dropped for the length of the reset: resetting
+   * the box would otherwise run the tick's own handler over the rows that were
+   * just rebuilt, and the money fields would end up reflecting the last tick
+   * instead of the event that was loaded. The handler is re-attached afterwards,
+   * so the box keeps working from the next click.
+   *
+   * @param initial - The event to reset to, or null to reset to a blank form.
+   */
+  private resetTo(initial: EventDetail | null): void {
+    this.freeChanges?.unsubscribe();
+
+    resetEventForm(this.form, initial);
+
+    // A stored free event opens with its prices already locked and zeroed - the
+    // state the database holds - without writing over the values just loaded.
+    this.applyFreeState(this.form.controls.isFree.value === true);
+
+    this.freeChanges = this.watchFreeToggle();
   }
 
   /** Bring the first problem into view, so a long form never hides its own reason. */
