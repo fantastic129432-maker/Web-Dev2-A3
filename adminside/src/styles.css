@@ -406,6 +406,45 @@ html body.admin-body .admin-page-header p {
 
 .admin-filters .field { margin-bottom: 0; }
 
+/*
+ * THE REGISTRATIONS BAR HAS THREE CELLS, NOT FOUR - THAT IS ALL THIS CHANGES.
+ *
+ * The rule above sizes a FOUR-cell bar (Status, Time, Search, buttons), which is
+ * the event list's shape. The registrations bar has only three (Event, Search,
+ * buttons), so the browser laid them into the first three tracks and left the
+ * `auto` buttons where the FOURTH track's neighbour used to be: Event took track
+ * 1, Search was squeezed into track 2's `minmax(10rem, auto)` - which does not
+ * grow - and the buttons landed at the start of track 3, the `1fr` track, so the
+ * whole remaining width sat empty to the right of Clear. That is the dead strip
+ * the review reported, and it was a track-count mismatch rather than a width on
+ * any control.
+ *
+ * Naming the three tracks for this page puts the search field in the `1fr` track
+ * and the buttons in the last `auto` track, which is sized by its own content: the
+ * keyword grows into every spare pixel and the buttons end the row, in all four
+ * languages. This lives beside the four-cell rule rather than in the page's own
+ * stylesheet because the two must be read together, and because the narrow-width
+ * rules below have to be able to override it in source order.
+ */
+.admin-filters--registrations {
+  grid-template-columns: minmax(10rem, auto) minmax(12rem, 1fr) auto;
+}
+
+/*
+ * Below the width where three cells still fit side by side, the registrations bar
+ * stacks like every other filter bar.
+ *
+ * The four-cell bar could wait until 600px because its media query is the LAST
+ * word on the subject; a three-cell bar whose tracks need about 570px of minimum
+ * width (Event 10rem, Search 12rem, the two buttons, two gaps) starts to overflow
+ * its panel well before that, so it stacks at 760px instead. At 600px the general
+ * `.admin-filters { grid-template-columns: 1fr }` rule takes over, which says the
+ * same thing.
+ */
+@media (max-width: 760px) {
+  .admin-filters--registrations { grid-template-columns: 1fr; }
+}
+
 .admin-filters__actions {
   display: flex;
   gap: var(--space-2);
@@ -562,6 +601,46 @@ html body.admin-body .admin-page-header p {
 .row-action__icon { display: block; }
 
 /*
+ * THE ROW'S DESTRUCTIVE ACTION, NEUTRAL AT REST.
+ *
+ * `.button--danger` paints the destructive colour at rest, which is right for the
+ * confirmation dialog's confirm button - it is the one thing that dialog is for -
+ * but wrong for a Delete control that repeats on every row of a customer list.
+ * Eleven rows of red competed with the Edit link next to each one, and the review's
+ * point was that the mis-click this invites destroys a customer record and releases
+ * a ticket: the affordance was as prominent as the harmless action beside it.
+ *
+ * So the row's Delete keeps the icon-button treatment the event list already uses
+ * (the same inline SVG, the same `.row-action` box, the same `sr-only` accessible
+ * name) and only the COLOUR is deferred to the interaction. It is written as an
+ * outlined button rather than a `--danger` one so that at rest it is - rule for
+ * rule - the same neutral box as the outlined Edit link beside it, in both themes;
+ * the two rules below are the only thing that ever make it red.
+ *
+ * WHY THE HOVER IS TINTED WITH --danger-bg RATHER THAN FILLED WITH --danger
+ *   The filled hover is the design system's own destructive treatment and it is
+ *   legible in both themes (measured: 6.8:1 for --on-brand on --danger in each), so
+ *   this is a choice about weight, not a rescue from an inaccessible one. A solid
+ *   red block is what the `.button--danger` note further down already records as the
+ *   "wall of red" problem, and on a customer list it would paint one at the end of
+ *   every row the moment the pointer crossed the table. The tint states the same
+ *   thing - this control is the destructive one - at a weight that still leaves the
+ *   record the loudest thing on the row, and the icon keeps its contrast: --danger
+ *   on --danger-bg measures 5.72:1 in the light theme and 6.32:1 in the dark one,
+ *   above the 4.5:1 that the 16px stroked glyph is comfortably held to either way.
+ *
+ * The `:focus-visible` half is not decoration: the colour has to change for the
+ * keyboard too, because a keyboard user never triggers `:hover`, and the design
+ * system's outline ring (base.css `:focus-visible`) is drawn in addition to it.
+ */
+.row-action--delete:hover,
+.row-action--delete:focus-visible {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/*
  * A destructive button.
  *
  * Outlined rather than filled. An earlier revision used a solid `--danger`
@@ -711,6 +790,24 @@ html body.admin-body .admin-page-header p {
 
 .confirm-panel__title { margin: 0 0 var(--space-3); font-size: 1.15rem; }
 .confirm-panel__body { margin: 0 0 var(--space-5); color: var(--ink-700); }
+
+/*
+ * The optional second sentence: the consequence of confirming, which the
+ * registrations page uses to state how many tickets the delete releases.
+ *
+ * It sits between the body and the buttons rather than under them, so it is read
+ * before the destructive choice is reached, and it is --ink-900 on --surface-0 -
+ * the same pair every heading in the panel uses, which the site-wide contrast
+ * check already measures - rather than a new tint. The negative top margin is the
+ * body's own --space-5 bottom margin pulled back to a --space-2 gap, so the two
+ * sentences read as one statement; the pages that supply no detail line are
+ * unaffected, because the body above keeps the margin it always had.
+ */
+.confirm-panel__detail {
+  margin: calc(var(--space-2) - var(--space-5)) 0 var(--space-5);
+  color: var(--ink-900);
+  font-weight: bold;
+}
 
 .confirm-panel__actions {
   display: flex;

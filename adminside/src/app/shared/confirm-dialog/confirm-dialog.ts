@@ -44,6 +44,22 @@ export class ConfirmDialog {
   /** Placeholders substituted into the body sentence, for example the event name. */
   readonly bodyValues = input<TranslationValues>({});
 
+  /**
+   * Translation key of an OPTIONAL second sentence, shown under the body.
+   *
+   * It exists for a consequence the body sentence cannot carry on its own: the
+   * registrations page has to say how many tickets the delete releases, and that
+   * number changes the wording ("1 ticket" against "2 tickets"), so folding it
+   * into the shared body key would either break the dashboard's use of that key
+   * or render a sentence that is wrong for one of the two numbers. An empty
+   * string - the default - renders nothing, so a caller that has no extra
+   * consequence to state uses the dialog exactly as before.
+   */
+  readonly detailKey = input<string>('');
+
+  /** Placeholders substituted into the detail sentence, for example the ticket count. */
+  readonly detailValues = input<TranslationValues>({});
+
   /** Translation key of the label on the destructive button. */
   readonly confirmLabelKey = input.required<string>();
 

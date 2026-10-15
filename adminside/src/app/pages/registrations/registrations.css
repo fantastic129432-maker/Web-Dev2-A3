@@ -6,3 +6,87 @@
 :host {
   display: block;
 }
+
+/*
+ * The scope note under the totals row: what the money figure measures.
+ *
+ * --ink-500 on --surface-50, the pair the admin tables' secondary lines already
+ * use; the site-wide contrast check measures it at 4.69:1, above the 4.5:1 that
+ * this 0.85rem text is held to. It is kept visually quieter than the totals row
+ * on purpose - it qualifies the figures above it rather than being one of them.
+ */
+.admin-note {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-500);
+  font-size: 0.85rem;
+}
+
+/*
+ * The pager.
+ *
+ * A flex row that wraps: Previous, the numbered pages, Next, and the "Page n of m"
+ * status pushed to the far end by its own `margin-left: auto` (removed when the row
+ * wraps, where it would otherwise leave a gap).
+ *
+ * The current page is the one control painted at full strength - the design system's
+ * filled-button pair, --brand-700 with --on-brand, which is the pair the UPCOMING
+ * badge and every primary button already use and which the contrast check measures
+ * on those. The other numbers keep the outlined treatment they inherit, so the
+ * position in the set is readable from the shape of the row and not from colour
+ * alone: `aria-current="page"` carries the same fact to assistive technology.
+ */
+.admin-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.admin-pager__pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A square-ish target: wide enough for a two-digit page number, no wider. */
+.admin-pager__page {
+  min-width: 2.4rem;
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}
+
+/* Qualified with the list, not just the modifier: the dark theme repaints every
+   `.button--outline` from `[data-theme='dark'] .button--outline`, which has the same
+   specificity as a single class, and a page style that only won on source order
+   would be one build change away from a white page number on a light board. */
+.admin-pager__pages .admin-pager__page--current {
+  background: var(--brand-700);
+  border-color: var(--brand-700);
+  color: var(--on-brand);
+}
+
+/* The same hover the design system gives a filled button, so the current page does
+   not look like a control whose hover state was forgotten. */
+.admin-pager__pages .admin-pager__page--current:hover {
+  background: var(--brand-900);
+  border-color: var(--brand-900);
+  color: var(--on-brand);
+}
+
+.admin-pager__status {
+  margin: 0 0 0 auto;
+  color: var(--ink-700);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  /* Wrapped, the auto margin would strand the status on its own line to the right. */
+  .admin-pager__status {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}

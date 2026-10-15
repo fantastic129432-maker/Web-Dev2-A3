@@ -2,6 +2,13 @@
      REGISTRATIONS (ADMIN)
      Every registration in the system, newest purchase first, with an
      event/keyword filter, a totals row and a delete action per row.
+
+     The table shows ONE page of the filtered set at a time. The set
+     itself is the whole API response the page already loaded, so the
+     totals row and the "Showing X of Y" line keep describing every
+     filtered registration while ten of them are on screen; the pager
+     under the table is what moves between pages. See the page class for
+     why the paging is client-side, and which endpoints back each figure.
      ================================================================== -->
 
 <div class="page-header admin-page-header">
@@ -13,7 +20,10 @@
   <admin-feedback-banner [message]="message" />
 }
 
-<form class="admin-filters" [formGroup]="filters" (submit)="apply($event)">
+<!-- The modifier class is what makes the row fill: the shared .admin-filters rule
+     sizes a FOUR-cell bar (the event list's), and this page has three. See the
+     .admin-filters--registrations rule in src/styles.css. -->
+<form class="admin-filters admin-filters--registrations" [formGroup]="filters" (submit)="apply($event)">
   <div class="field">
     <label for="filter-event">{{ 'registrations.filterEvent' | t }}</label>
     <select id="filter-event" formControlName="eventId">
@@ -43,8 +53,12 @@
   </div>
 </form>
 
+<!-- `count` is the rows on screen and `total` is what the API matched, so the line
+     still states the size of the WHOLE filtered set while the table shows a page of
+     it - reading "Showing 10 of 20 registrations" on page one and "Showing 10 of 20"
+     on page two, which is the honest answer for both. -->
 <p class="admin-count" role="status">
-  {{ 'registrations.count' | t: { count: registrations().length, total: total() } }}
+  {{ 'registrations.count' | t: { count: visibleRegistrations().length, total: total() } }}
 </p>
 
 @if (loading()) {
@@ -73,7 +87,7 @@
       </thead>
 
       <tbody>
-        @for (registration of registrations(); track registration.registrationId) {
+        @for (registration of visibleRegistrations(); track registration.registrationId) {
           <tr>
             <td class="is-numeric">{{ registration.registrationId }}</td>
 
@@ -107,8 +121,39 @@
                 <a class="button button--small button--outline" [routerLink]="['/events', registration.eventId, 'edit']">
                   {{ 'events.edit' | t }}
                 </a>
-                <button class="button button--small button--danger" type="button" (click)="askDelete(registration)">
-                  {{ 'registrations.delete' | t }}
+
+                <!--
+                  The destructive action is an ICON, and it is NEUTRAL until it is
+                  hovered or focused.
+
+                  It used to be a labelled `button--danger`, so every row carried a
+                  red Delete at rest, at the same weight as the Edit link beside it.
+                  Deleting destroys a customer record and releases a ticket for the
+                  event, so the control must not invite the same casual click as the
+                  harmless one next to it. The treatment is the event list's compact
+                  icon action - the same inline SVG, the same `.row-action` box, the
+                  same `sr-only` accessible name - and the colour is deferred to the
+                  interaction; see `.row-action--delete` in src/styles.css for why the
+                  hover is a --danger tint rather than a solid --danger fill.
+
+                  The icon is decorative (`aria-hidden`); the name a screen reader
+                  announces is the `sr-only` span, which is the same word the button
+                  used to show. `title` is the sighted tooltip, and the keyboard ring
+                  comes from the design system's `:focus-visible` rule.
+                -->
+                <button
+                  class="button button--small button--outline row-action row-action--delete"
+                  type="button"
+                  (click)="askDelete(registration)"
+                  [title]="'registrations.delete' | t"
+                >
+                  <svg class="row-action__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M4 7h16"></path>
+                    <path d="M9.5 7V4.8h5V7"></path>
+                    <path d="M6.4 7l.9 12.2h9.4L17.6 7"></path>
+                    <path d="M10.4 10.5v6M13.6 10.5v6"></path>
+                  </svg>
+                  <span class="sr-only">{{ 'registrations.delete' | t }}</span>
                 </button>
               </div>
             </td>
@@ -116,9 +161,23 @@
         }
       </tbody>
 
+      <!--
+        The totals row.
+
+        The label spans ID, attendee and event - the three leading columns, where a
+        sum would mean nothing - and names the WHOLE filtered set, not the page: the
+        two figures beside it are totalled over every row the filters matched (see
+        totalTickets() and totalValue()), so the label has to say so or a reader
+        would take them for the ten rows above. Each figure stays under its own
+        column heading - the ticket count under TICKETS, the money under VALUE.
+
+        The wording was "Tickets", which named only half of what the row totals -
+        the count AND the ticket-sales money. It is now a summary label, translated
+        as `registrations.totalSummary`.
+      -->
       <tfoot>
         <tr>
-          <th scope="row" colspan="3">{{ 'registrations.totalTickets' | t }}</th>
+          <th scope="row" colspan="3">{{ 'registrations.totalSummary' | t: { total: registrations().length } }}</th>
           <td class="is-numeric">{{ totalTickets() }}</td>
           <td class="is-numeric">{{ formatCurrency(totalValue()) }}</td>
           <td colspan="2"></td>
@@ -126,13 +185,83 @@
       </tfoot>
     </table>
   </div>
+
+  <!--
+    What the money in the totals row IS.
+
+    This page sums each registration's own `totalAmount`, which is ticket sales. The
+    dashboard's "Total raised" tile shows `totalRaised` from GET /api/stats, which is
+    the events' DONATION total, so the two figures legitimately differ ($20,575
+    against $99,290 on the seeded data) and the counts agree (20 registrations, 49
+    tickets on both). Neither number is changed to match the other; the note states
+    the scope instead, because the difference is invisible from the figures alone.
+  -->
+  <p class="admin-note">{{ 'registrations.totalScope' | t }}</p>
+
+  <!--
+    THE PAGER.
+
+    Previous / numbered pages / Next, under the table, over the set the page already
+    loaded - the whole API response, not one page of it. `aria-current="page"` marks
+    the page a reader is on, each end disables itself when there is nowhere to go,
+    and the numbered buttons carry "Page n of m" as their accessible name so the bare
+    digit is not announced on its own. The status line repeats that position as a
+    live region, which is the announcement a page change otherwise would not produce:
+    the "Showing X of Y" line above can read identically on two pages.
+  -->
+  <nav class="admin-pager" [attr.aria-label]="'registrations.pagination' | t">
+    <button
+      class="button button--small button--outline admin-pager__step"
+      type="button"
+      [disabled]="currentPage() === 1"
+      (click)="goToPage(currentPage() - 1)"
+    >
+      {{ 'registrations.previousPage' | t }}
+    </button>
+
+    <ul class="admin-pager__pages">
+      @for (page of pageNumbers(); track page) {
+        <li>
+          <button
+            class="button button--small button--outline admin-pager__page"
+            type="button"
+            [class.admin-pager__page--current]="page === currentPage()"
+            [attr.aria-current]="page === currentPage() ? 'page' : null"
+            [attr.aria-label]="'registrations.pageOf' | t: { page: page, pages: pageCount() }"
+            (click)="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        </li>
+      }
+    </ul>
+
+    <button
+      class="button button--small button--outline admin-pager__step"
+      type="button"
+      [disabled]="currentPage() === pageCount()"
+      (click)="goToPage(currentPage() + 1)"
+    >
+      {{ 'registrations.nextPage' | t }}
+    </button>
+
+    <p class="admin-pager__status" role="status">
+      {{ 'registrations.pageOf' | t: { page: currentPage(), pages: pageCount() } }}
+    </p>
+  </nav>
 }
 
+<!-- The confirmation step: it names the attendee (bodyValues) and states what the
+     delete releases, which is the extra second sentence the shared dialog takes as
+     `detailKey`. Rendered only while a delete is pending, so there is no hidden
+     dialog in the DOM and no state to reset when it is dismissed. -->
 @if (pendingDelete(); as target) {
   <admin-confirm-dialog
     titleKey="registrations.deleteTitle"
     bodyKey="registrations.deleteBody"
     [bodyValues]="{ name: target.attendeeName }"
+    [detailKey]="deleteDetailKey(target)"
+    [detailValues]="deleteDetailValues(target)"
     confirmLabelKey="registrations.delete"
     [busy]="deleting()"
     (confirmed)="confirmDelete()"

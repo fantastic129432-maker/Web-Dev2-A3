@@ -8,6 +8,13 @@
   <div class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <h2 class="confirm-panel__title" id="confirm-title">{{ titleKey() | t }}</h2>
     <p class="confirm-panel__body">{{ bodyKey() | t: bodyValues() }}</p>
+    <!-- The optional consequence line. It is rendered only when the parent supplies
+         a key, so a caller with nothing extra to say gets the same two-paragraph
+         dialog it had before; see detailKey in confirm-dialog.ts for why the
+         registrations page needs this as text of its own. -->
+    @if (detailKey()) {
+      <p class="confirm-panel__detail">{{ detailKey() | t: detailValues() }}</p>
+    }
 
     <div class="confirm-panel__actions">
       <!--
