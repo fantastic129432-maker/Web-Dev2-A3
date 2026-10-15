@@ -217,8 +217,9 @@
         <p>
           <!--
             The call to action still points at #contact, which is the FOOTER's id:
-            the white "Get in touch" section this used to scroll to was removed so
-            the contact details live in one place, and the footer is that place.
+            the white "Get in touch" section this used to point at was removed so
+            the contact details live in one place, and the footer is that place, so
+            the fragment resolves to the contact details rather than to nothing.
           -->
           <a class="button button--small" href="#contact">{{ 'about.hostCta' | t }}</a>
         </p>

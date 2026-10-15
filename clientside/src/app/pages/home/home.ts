@@ -86,9 +86,14 @@ interface EventsState {
  *   The white "Get in touch" section was removed: it repeated the footer's email,
  *   phone, office and hours a couple of hundred pixels above the footer itself. The
  *   footer is now the single home for contact details, and the About card's
- *   "Talk to our events team" button still reaches them because `#contact` is the
- *   footer's id. `GET /api/organization` is still fetched here for the mission
- *   sentence, which is the only thing on this page it feeds.
+ *   "Talk to our events team" button points at `#contact` - the id the footer now
+ *   carries - so its fragment still resolves to the contact details instead of to a
+ *   section that no longer exists. (Whether the browser then scrolls to a fragment
+ *   is the router's `withInMemoryScrolling` setting in app.config.ts, which is
+ *   configured for scroll-position restoration only; that was already true of the
+ *   old `#contact` section, so nothing about this button changed but its target.)
+ *   `GET /api/organization` is still fetched here for the mission sentence, which
+ *   is the only thing on this page it feeds.
  */
 @Component({
   selector: 'app-home-page',

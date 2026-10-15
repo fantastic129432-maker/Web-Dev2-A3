@@ -36,7 +36,7 @@ export const appConfig: ApplicationConfig = {
 
     // The public site is a multi-page experience: restoring the scroll position
     // on navigation matches what a visitor expects from a normal website.
-    provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
+    provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top', anchorScrolling: 'enabled' })),
 
     provideHttpClient(),
 

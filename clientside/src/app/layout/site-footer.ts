@@ -16,7 +16,8 @@ import { ApiStatusComponent } from '../shared/api-status';
  *   The home page's white "Get in touch" section repeated them a couple of hundred
  *   pixels above this column, so it was removed and this footer became the one
  *   place they appear; `id="contact"` on the `<footer>` element is what keeps the
- *   About section's "Talk to our events team" fragment link landing here.
+ *   About section's "Talk to our events team" fragment link pointing at a real
+ *   element rather than at the section that no longer exists.
  *
  *   The heading, the address and the hours are translation keys, so they follow the
  *   language switcher like the rest of the interface. The email address and the

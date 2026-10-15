@@ -529,7 +529,7 @@ stops it coming back.
 > regression suite that loads the **archived** Assessment 2 frontend, which is kept
 > under `legacy/` as the behavioural reference for the pages I rewrote.
 
-> The front end is covered by `npm run test:e2e` — **39** checks that drive a
+> The front end is covered by `npm run test:e2e` — **40** checks that drive a
 > headless browser through both websites against the compiled API, including the
 > check I just showed you — and by `npm run check:angular`, **16** checks that fail
 > if the required architecture changes: no NgModule anywhere, zoneless, every

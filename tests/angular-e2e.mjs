@@ -313,6 +313,9 @@ async function main() {
     );
 
     const firstEvent = events[0]?.eventName ?? '';
+    // Placed AFTER firstEvent exists: the home page's own event list comes from the API,
+    // and this is data no dictionary can supply, so it proves the API drove the page.
+    record('home page lists the events the API returns', home.text.includes(firstEvent), firstEvent);
     record(
       'home page renders event cards from the API',
       firstEvent !== '' && home.text.includes(firstEvent),
