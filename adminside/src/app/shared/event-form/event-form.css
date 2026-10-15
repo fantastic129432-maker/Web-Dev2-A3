@@ -48,17 +48,23 @@
 }
 
 /*
- * The short fields take the width of what they hold.
+ * Two widths, not eleven: only the SHORT TYPED controls take the width of what
+ * they hold, and every control that holds a title or a sentence fills the form
+ * column.
  *
  * Applied only from 601px up: below that every field goes back to the full column
  * width (the rules above do not match at all there), so a phone never gets a
  * cramped 180px date box. The breakpoint is base.css's own narrow-width one, which
  * is where .form-row collapses to a single column as well.
  *
- * The values are deliberately three sizes, not eleven: a date, a time or a money
- * amount needs 180-240px, a name needs a readable line, and a sentence gets the
- * rest. -webkit/-moz max-width is not needed: the emulated encapsulation gives
- * these rules a higher specificity than base.css's `input { width: 100% }`.
+ * The fixed values are deliberately two sizes, not eleven: a date or a time needs
+ * ten characters and a money amount needs room for 9,999,999.99, so those are the
+ * only controls that are not the full width of the column. Everything else - the
+ * event name, the venue, both descriptions and what the money funds - lands on
+ * the column's own right edge, one right baseline per row shape, rather than the
+ * short/medium/long zigzag that a width per input type produced.
+ * -webkit/-moz max-width is not needed: the emulated encapsulation gives these
+ * rules a higher specificity than base.css's `input { width: 100% }`.
  */
 @media (min-width: 601px) {
   /* Date, time and money. A date input renders its own picker icon, the time
@@ -76,14 +82,37 @@
     max-width: 14rem;
   }
 
-  /* One line of a name or a venue. 26rem is about 40 characters at this size,
-     which is where "Riverside Rainbow Fun Run 2026" stops wrapping in any of the
-     four languages. */
-  .admin-form input[type='text'] {
-    max-width: 26rem;
-  }
-
-  /* The description fields hold sentences, so they keep the whole column. */
+  /*
+   * THE LONG TEXT FIELDS FILL THE COLUMN.
+   *
+   * The five fields that hold a title or a sentence - the event name, the venue,
+   * the short description, the full description (a textarea) and what the money
+   * funds - all take the whole width of the column, so all five right edges land on
+   * the column's own right edge. The venue select was already stretched by
+   * base.css's `width: 100%` (it is not inside a .form-row); the three text inputs
+   * were the ones the cap below held back. That is the page's rule: long text fills
+   * the container, short typed fields stay narrow, sibling pairs share a row.
+   *
+   * WHAT THE 26rem CAP HERE USED TO BE, AND WHY IT WENT
+   *   26rem is about 416px, roughly the 40 characters at which "Riverside Rainbow
+   *   Fun Run 2026" stops wrapping in any of the four languages, and it was
+   *   applied to EVERY text input on the assumption that a text input is a name.
+   *   On this form it is not: the event name is a title and the short description
+   *   is a sentence, so the cap cut short exactly the two fields that hold the most
+   *   text - and because the textarea, the venue select and the short
+   *   date/time/money boxes beside them were not capped the same way, the form's
+   *   right edge jumped short/medium/long down the page and the fields clipped what
+   *   the administrator typed. There is no narrower text field left on this page to
+   *   keep the cap for: a ticket row's inputs are sized by their grid tracks, not by
+   *   their type. Below 901px, where a ticket track is wider than 416px, that is
+   *   visible in the ticket block too - a tier's name and description now widen to
+   *   their track instead of stopping at 416px, which is the shape the narrow-window
+   *   block at the end of this file already gives that row.
+   *
+   * `max-width: none` STATES the rule rather than leaving it to the absence of a
+   * cap; the fill itself is base.css's `width: 100%` on every control.
+   */
+  .admin-form input[type='text'],
   .admin-form textarea {
     max-width: none;
   }
