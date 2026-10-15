@@ -26,13 +26,50 @@
  * replaced by. Both cards are the same width, which is what makes the health
  * card compact: it no longer has half a screen of empty space to the right of a
  * five-row table whose values stopped around 45%.
+ *
+ * `align-items: stretch` is written out because it is the rule this row depends
+ * on: it makes both columns the height of the taller one, so the two cards inside
+ * them end level. The row used to align its items to `start`, which let each card
+ * stop where its own content stopped - with one event needing attention the
+ * needs-attention card ended 90px above the health card, and the pair read as two
+ * cards floating at different heights.
  */
 .admin-overview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
+  align-items: stretch;
   gap: var(--space-4);
   margin-bottom: var(--space-4);
+}
+
+/*
+ * One column of the row: the section heading, then the card.
+ *
+ * The heading is OUTSIDE the white card on both sides of the row, which is one
+ * heading convention instead of the two the row used to mix. `auto 1fr` gives the
+ * heading only the height its line needs and hands the rest of the column to the
+ * card, so the card fills the column - and because the row stretches its columns,
+ * the two cards are the same height and their bottom edges line up. The inner
+ * content of a card stays in normal flow and so stays top-aligned; only the card
+ * grows.
+ */
+.admin-overview__column {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: var(--space-2);
+}
+
+/*
+ * A section heading outside a card cannot take `.panel h2`'s size from base.css,
+ * and the bare `h2` rule would draw it at up to 2.1rem - larger than every other
+ * heading on this page. It is therefore given the same 1.1rem `.panel h2` uses,
+ * so moving the heading out of the card changes where it sits and nothing else.
+ * The bottom margin is dropped because the column's own gap already separates the
+ * heading from the card.
+ */
+.admin-overview__heading {
+  margin: 0;
+  font-size: 1.1rem;
 }
 
 /* --------------------------------------------------------------------------
