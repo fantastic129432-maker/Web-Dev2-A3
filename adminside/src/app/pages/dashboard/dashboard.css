@@ -284,6 +284,17 @@
   padding: 0.4rem 0.75rem;
 }
 
+/*
+ * The attendee's email is the one secondary line on a striped row, and
+ * --ink-500 measures 4.46:1 on the stripe - under the 4.5:1 the contrast checker
+ * requires, which it reported the moment the stripes went in. The darker ink
+ * measures 8.5:1 there in the light theme and 10:1 in the dark one, and it is
+ * scoped to this table so no other page's secondary line changes with it.
+ */
+.data-table--recent .cell-stack__secondary {
+  color: var(--ink-700);
+}
+
 /* The View action is a link to another page, so it carries the same trailing
    arrow as every other clickable card on this dashboard. */
 .action-view__icon,

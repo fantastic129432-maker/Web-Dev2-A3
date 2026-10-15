@@ -170,6 +170,19 @@ export class Dashboard {
    * The six numbers the brief asks the dashboard for, in two rows: what is
    * coming up, then what it has produced. Money is rendered with the shared
    * formatCurrency so it matches every other total in the project.
+   *
+   * WHY TWO OF THEM CAN INCLUDE A SUSPENDED EVENT'S FIGURES
+   *   GET /api/stats does not count all six from the same place, and that is
+   *   deliberate. `upcomingEvents`, `totalRaised` and the two reference counts
+   *   come from the PUBLIC view, which is fixed to `status = 'active'`, so a
+   *   suspended event and the money raised for it are excluded - the same rule
+   *   that hides it from the public website. `registrations` and `ticketsSold`
+   *   come from the registrations table itself, which has no status filter, so
+   *   they DO include registrations taken before an event was suspended: those
+   *   people registered, and a staff member clearing the event needs to see
+   *   them. Anything that reads these two numbers has to expect that difference,
+   *   which is also why the needs-attention card below can list a suspended
+   *   event that `upcomingEvents` does not count.
    */
   protected readonly tiles = computed<readonly StatTile[]>(() => {
     const value = this.stats();
