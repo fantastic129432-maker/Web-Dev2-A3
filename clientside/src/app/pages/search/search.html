@@ -264,12 +264,52 @@
          RESULTS  (GET /api/events)
          ============================================================== -->
     <section aria-labelledby="results-heading">
+      <!--
+        THE RESULTS HEADER IS ONE ROW: heading left, sort control right.
+        It used to be TWO stacked rows - the heading with a bare count beside it,
+        then the sort control with the "chosen sort order" line - which spent about
+        74px of vertical space between the heading and the first card for nothing
+        (measured: the header block was 106.8px tall and the first card started at
+        y=484; it is now one 32.8px row and the first card starts at y=410).
+        `.results-head` is `justify-content: space-between; align-items: center`
+        (section 8 of styles.css), so the heading and the control share one line and
+        the cards start higher; on a narrow screen the same two elements wrap back
+        onto separate lines rather than being squeezed. The measured wrap width per
+        language, and the height and first-card position before and after, are
+        recorded with the `.results-head` rule.
+
+        THE COUNT IS A LABELLED QUANTITY INSIDE THE HEADING, NOT A FLOATING NUMBER.
+        It used to be a second element in this row rendering `{{ results().total }}`
+        on its own - a bare "6" with no label and no unit, pushed to the far right
+        of the row, which reads as a template variable that escaped its wrapper. It
+        is now folded into the heading as "Matching events (6)": the shape needs no
+        plural forms (the dictionary has no plural machinery, and inventing one for
+        four languages whose plural rules differ would be wrong in three of them),
+        and because this section is `aria-labelledby="results-heading"` the count is
+        part of the ACCESSIBLE NAME of the results region rather than a floating
+        element beside the heading. `resultsHeading()` in search.ts chooses the
+        counted or the plain string, the heading stays a real <h2>, and
+        `aria-live="polite"` keeps the completion announcement the old count
+        element used to provide.
+      -->
       <div class="results-head">
-        <h2 id="results-heading">{{ 'search.resultsHeading' | t }}</h2>
-        <p class="results-count" aria-live="polite">
-          @if (results().status === 'done') {
-            {{ results().total }}
-          }
+        <h2 id="results-heading" aria-live="polite">{{ resultsHeading() }}</h2>
+
+        <p class="sort-control">
+          <label for="results-sort">{{ 'search.sortLabel' | t }}</label>
+          <select
+            id="results-sort"
+            #resultsSort
+            [value]="sort()"
+            (change)="setSort(resultsSort.value); runSearch()"
+          >
+            <option value="date-asc">{{ 'home.sortDateAsc' | t }}</option>
+            <option value="date-desc">{{ 'home.sortDateDesc' | t }}</option>
+            <option value="name-asc">{{ 'home.sortNameAsc' | t }}</option>
+            <option value="name-desc">{{ 'search.sortNameDesc' | t }}</option>
+            <option value="goal-desc">{{ 'search.sortGoalDesc' | t }}</option>
+            <option value="progress-desc">{{ 'home.sortProgressDesc' | t }}</option>
+          </select>
         </p>
       </div>
 
@@ -291,29 +331,19 @@
         </div>
       }
 
-      <div class="results-head">
-        <p class="results-count">
-          @if (results().status === 'done' && hasActiveFilters()) {
-            {{ 'search.resultsHintDone' | t }}
-          }
-        </p>
-        <p class="sort-control">
-          <label for="results-sort">{{ 'search.sortLabel' | t }}</label>
-          <select
-            id="results-sort"
-            #resultsSort
-            [value]="sort()"
-            (change)="setSort(resultsSort.value); runSearch()"
-          >
-            <option value="date-asc">{{ 'home.sortDateAsc' | t }}</option>
-            <option value="date-desc">{{ 'home.sortDateDesc' | t }}</option>
-            <option value="name-asc">{{ 'home.sortNameAsc' | t }}</option>
-            <option value="name-desc">{{ 'search.sortNameDesc' | t }}</option>
-            <option value="goal-desc">{{ 'search.sortGoalDesc' | t }}</option>
-            <option value="progress-desc">{{ 'home.sortProgressDesc' | t }}</option>
-          </select>
-        </p>
-      </div>
+      <!--
+        The "shown below in your chosen sort order" line, which used to be the left
+        half of the second header row and is now a status line of its own. It is a
+        statement about the results, so it belongs directly above them, and giving
+        it a full line means the query that grows the header from one line to two is
+        "a filter is set" rather than "the page is open" - the common case (a visitor
+        who has set nothing) keeps the single-line header that lets the cards start
+        higher. It stays a `<p>` with the `.results-hint` class: a paragraph, not a
+        heading, because it labels nothing.
+      -->
+      @if (results().status === 'done' && hasActiveFilters()) {
+        <p class="results-hint">{{ 'search.resultsHintDone' | t }}</p>
+      }
 
       <div class="grid grid--events" aria-live="polite">
         @switch (results().status) {

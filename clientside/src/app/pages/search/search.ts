@@ -242,6 +242,36 @@ export class SearchPage {
   protected readonly sort = signal<SortChoice>('date-asc');
 
   /**
+   * The results heading, with the number of matching events folded in.
+   *
+   * The count used to be a `<p>` of its own beside the heading, rendering
+   * `{{ results().total }}` with no label and no unit - a bare "6" pushed to the
+   * far right of the header, which reads as a template variable that escaped its
+   * wrapper. The heading now carries it as a labelled quantity, "Matching events
+   * (6)", so the number has a subject and a unit without the dictionary needing
+   * plural forms (it has none, and a rule invented for it would be wrong in three
+   * of the four languages).
+   *
+   * Two things this buys beyond the wording: the heading is a real `<h2>`, and the
+   * results region is `aria-labelledby="results-heading"`, so the count is part of
+   * the accessible name of the region instead of a floating element beside it.
+   *
+   * While a request is in flight, or after one has failed, the plain heading is
+   * used: the page never states a count it does not have. Reading `results()` and
+   * calling `i18n.t` (which reads the language signal) makes this recompute on
+   * both a new result set and a language switch.
+   *
+   * @returns The translated heading, with the API's reported total in parentheses
+   *   once the search has finished.
+   */
+  protected readonly resultsHeading = computed(() => {
+    const state = this.results();
+    return state.status === 'done'
+      ? this.i18n.t('search.resultsHeadingCount', { count: state.total })
+      : this.i18n.t('search.resultsHeading');
+  });
+
+  /**
    * The validation message, or null when the form is acceptable.
    *
    * Set by `runSearch()` and cleared by `clearFilters()`. It is shown next to the

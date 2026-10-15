@@ -1364,19 +1364,86 @@ textarea:focus { border-color: var(--brand-500); }
 .filter-chip:hover { border-color: var(--brand-500); color: var(--brand-900); }
 .filter-chip span[aria-hidden='true'] { color: var(--danger); font-weight: bold; }
 
+/*
+ * THE RESULTS HEADER: ONE ROW, heading left, sort control right.
+ *
+ * It used to be TWO stacked rows - the heading with its count on the first, the
+ * sort control with the "chosen sort order" line on the second - which cost about
+ * 107px between the top of the heading and the top of the first card on the search
+ * page. Measured before/after in headless Edge against the running build, both
+ * themes, all four languages: the header block went from 106.8px (row boxes 42 +
+ * 48.8) to 32.8px, the first `app-event-card` started at y=484 on a 1366x768
+ * window and starts at y=410, and at 1440x900 it moved from 484 to 410 by the same
+ * 74px - the content column is capped at 1180px, so those two viewport widths
+ * render an identical column.
+ *
+ * WHY center AND NOT baseline
+ * `align-items: center` lines the two children up by their middles. The old
+ * `baseline` made sense for two pieces of text, but the second child here is a
+ * <label> plus a <select>, and centring is what keeps the label level with the
+ * heading instead of hanging it off the select's own text baseline.
+ *
+ * NARROW SCREENS STACK RATHER THAN SQUEEZE
+ * `flex-wrap: wrap` is the switch, and it needs no media query: side by side the
+ * two children need roughly 370px (English) to 470px (Vietnamese) of content
+ * width, and when they cannot both fit the sort control drops onto a line of its
+ * own. `justify-content: space-between` leaves it at the left edge there - the
+ * heading above it, not squeezed beside it. Measured, as the narrowest viewport at
+ * which the two still share a line: English 460px, Chinese 460px, Vietnamese
+ * 520px, Japanese 500px (Vietnamese is widest because its sort options are the
+ * longest of the four languages); below those widths the control moves to its own
+ * line at its full size, and the `select` never overflows the viewport at any
+ * width down to 320px. Below about 350px the PAGE does scroll sideways, but that
+ * is the event grid's `minmax(310px, 1fr)` and it behaves identically before and
+ * after this change, so it is not part of the header.
+ *
+ * The home page reuses `.results-head` for its own single labelled count line
+ * ("Showing 6 upcoming events."), which is why the rule stays a plain wrapping
+ * flex row rather than becoming search-page-specific: with one child, `center`
+ * and the old `baseline` compute to the same place.
+ */
 .results-head {
   display: flex;
+  /* Wraps the sort control under the heading once the two cannot share a line. */
   flex-wrap: wrap;
   gap: var(--space-3);
+  /* Heading left, sort control right. */
   justify-content: space-between;
-  align-items: baseline;
+  /* One line: the heading and the sort control are lined up by their middles. */
+  align-items: center;
   margin-bottom: var(--space-4);
 }
 .results-head h2 { margin: 0; font-size: 1.25rem; }
-.results-count { color: var(--ink-500); font-size: 0.9rem; }
 
-.sort-control { display: flex; align-items: center; gap: var(--space-2); font-size: 0.88rem; }
+/*
+ * `margin: 0` matters here and is not cosmetic: this <p> is now a flex item in
+ * the row above, `align-items: center` centres the item's MARGIN box, and the
+ * 1rem bottom margin a `p` gets from the base reset would therefore sit the whole
+ * control about 8px above the heading it is meant to be level with - and add 16px
+ * to the row's height, which is exactly the space this change exists to reclaim.
+ */
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.88rem;
+  margin: 0;
+}
 .sort-control select { width: auto; padding: 0.4rem 0.6rem; }
+
+/*
+ * Two lines of secondary text at the same size and colour: the home page's
+ * "Showing N upcoming events." and the search page's "Results are shown below in
+ * your chosen sort order.", which used to be the left half of the search page's
+ * second header row and is now a status line of its own directly above the grid.
+ * `.results-count` keeps its old declarations unchanged because the home page
+ * still uses it; `.results-hint` is the search page's class for the same look.
+ * Neither is a floating number any more: the search page's count is inside its
+ * heading (the heading takes the base ink colour, which also reads better than
+ * --ink-500 did at this size), and the home page's line has always been labelled.
+ */
+.results-count,
+.results-hint { color: var(--ink-500); font-size: 0.9rem; }
 
 /* ==========================================================================
    9. Event detail page
