@@ -391,9 +391,6 @@ export = {
   createEvent,
   updateEvent,
   deleteEvent,
-  validateEventBody,
-  validateTicketType,
-  parseEventId,
   PUBLISH_STATUSES,
   KNOWN_IMAGES,
 };

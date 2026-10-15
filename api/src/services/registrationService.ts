@@ -476,9 +476,5 @@ export = {
   listForEvent,
   listRegistrations,
   getRegistration,
-  validateRegistrationBody,
   normaliseEmail,
-  normaliseRegisteredAt,
-  parsePositiveId,
-  MAX_TICKETS_PER_REGISTRATION,
 };

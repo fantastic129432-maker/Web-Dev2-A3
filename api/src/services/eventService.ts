@@ -422,9 +422,4 @@ export = {
   getReferenceData,
   getFeaturedOrganization,
   getStats,
-  describeFilters,
-  ALLOWED_STATES,
-  ALLOWED_SORTS,
-  ALLOWED_PUBLISH_STATUSES,
-  ALLOWED_AUDIENCES,
 };

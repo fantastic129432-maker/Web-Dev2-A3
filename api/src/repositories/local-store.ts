@@ -170,7 +170,6 @@ function reset(): void {
 export = {
   data,
   overrides,
-  removedEventIds,
   registrations,
   addedTicketTypes,
   effectiveEvents,

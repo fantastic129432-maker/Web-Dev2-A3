@@ -276,12 +276,10 @@ function describe(): DataRecord {
 export = {
   // main API
   query,
-  getConnection,
   transaction,
   ping,
   close,
   describe,
   // exported for tests
   getPool,
-  connectionSettings,
 };
