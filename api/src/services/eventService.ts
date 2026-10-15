@@ -165,11 +165,22 @@ function buildQuery(query: UntrustedInput = {}) {
     if (parsed !== undefined) offset = parsed;
   }
 
+  // organizationId is an id like every other id filter, so it is parsed like one
+  // rather than coerced: this used to be `Number(parseText(...))`, which turned
+  // "abc" into NaN and 0 into 0, both of which the repository then treated as
+  // "no filter" - so a typo silently widened the result set to every event
+  // instead of answering the 400 the rest of the query string would have got.
+  // It is parsed before the throw below so the problem joins the same 400 as the
+  // other invalid parameters instead of being reported on its own.
+  const organizationIdText = parseText(query.organizationId);
+  const organizationId =
+    organizationIdText === undefined
+      ? undefined
+      : parseInteger(organizationIdText, 'organizationId', { min: 1, errors });
+
   if (errors.length > 0) {
     throw HttpError.badRequest('One or more query parameters are invalid.', errors);
   }
-
-  const organizationId = parseText(query.organizationId);
 
   // A3: the admin website asks for ?audience=admin, which switches the query to
   // vw_all_events so suspended and cancelled events are included. The default
@@ -195,7 +206,7 @@ function buildQuery(query: UntrustedInput = {}) {
       isFree,
       includePast,
       keyword: parseText(query.keyword),
-      organizationId: organizationId ? Number(organizationId) : undefined,
+      organizationId,
       // A3 additions - both default to the A2 behaviour.
       audience,
       publishStatus,
@@ -246,8 +257,12 @@ async function searchEvents(query: UntrustedInput) {
  * Listing for the home page: everything that has not finished yet.
  *
  * The state is pinned to `upcoming` rather than defaulted, so a caller cannot
- * turn the home page listing into a history listing by passing a query
- * parameter; anything else the caller sends is still honoured.
+ * turn the home page listing into a history listing with `?state=past` or
+ * `?state=all` - the pinned value overwrites whatever arrived. The documented
+ * `?includePast=true` alias still widens it, because that alias is folded into
+ * the state below as `all`; that is deliberate rather than an oversight, since
+ * the alias means exactly "include the past" and the search page relies on it.
+ * Anything else the caller sends is still honoured.
  *
  * @param query - The untrusted query string. May be omitted, in which case the default page of upcoming events is returned.
  * @returns The page of upcoming events, in the same shape as `searchEvents`.
@@ -295,12 +310,15 @@ async function getEventById(rawId: string | number, options: FindEventOptions = 
 /**
  * List every event regardless of status, for the admin listing.
  *
- * This is deliberately a separate entry point rather than a flag on
- * searchEvents(), so the public path cannot be switched to the admin view by a
- * query parameter alone - `getEventById` and `searchEvents` keep their own
- * defaults and only the admin controller asks for the wider view. The defaults
- * are the admin ones (everything, newest first) so an admin screen with no
- * filters still shows the complete list.
+ * `searchEvents` serves this call by being asked explicitly for `audience: 'admin'`,
+ * which switches the repository to vw_all_events; the public default stays
+ * `public`, so a public client only sees suspended or cancelled events when it
+ * asks for them with the documented `?audience=admin` parameter, which is an A3
+ * feature rather than a hole - the earlier wording here ("the public path cannot
+ * be switched to the admin view by a query parameter") described A2, before that
+ * parameter existed. This entry point remains separate because the defaults
+ * differ: an admin screen with no filters still shows the complete list, newest
+ * first, which is not what the public listing should do with an empty query.
  *
  * @param query - The untrusted query string. May be omitted, in which case every event is returned newest first.
  * @returns The page of events of every status, in the same shape as `searchEvents`.

@@ -87,6 +87,43 @@ function assertReferences(values: DataRecord): void {
 }
 
 /**
+ * Refuse two ticket tiers of one event that share a name.
+ *
+ * MySQL enforces this with uq_ticket_event_name and answers 409 through
+ * translateMysqlError when ER_DUP_ENTRY comes back; offline there is no key to
+ * lean on, so the rule is stated explicitly. The name is compared as text, which
+ * is what a case-insensitive database collation does with 'General' and
+ * 'general', so both data sources refuse the same submissions.
+ *
+ * It is called before anything is stored as well as before the tiers are
+ * written, because the offline store has no transaction to roll back: a create
+ * the database would refuse has to leave no event behind at all, and the check
+ * is only cheap enough to run twice because a submission carries a handful of
+ * tiers at most.
+ *
+ * @param ticketTypes - The validated tiers about to be written. May be omitted, in which case there is nothing to check.
+ * @throws HttpError with status 409 when two tiers share a name.
+ */
+function assertUniqueTicketTypeNames(ticketTypes?: DataRecord[]): void {
+  if (!Array.isArray(ticketTypes)) return;
+
+  const { HttpError } = require('../utils/errors') as typeof import('../utils/errors');
+  const seen = new Set<string>();
+
+  for (const ticket of ticketTypes) {
+    const name = String(ticket.ticketName);
+    if (seen.has(name.toLowerCase())) {
+      throw HttpError.conflict('A record with these details already exists.', {
+        field: 'ticketTypes',
+        ticketName: name,
+        hint: 'Two ticket types of one event cannot share a name; rename one of them.',
+      });
+    }
+    seen.add(name.toLowerCase());
+  }
+}
+
+/**
  * The camelCase payload field for each database column.
  *
  * The same mapping as toColumns() in the MySQL half, kept explicit so the mirror
@@ -222,12 +259,18 @@ const writeRepository: EventWriteRepository = {
    * the tier list is stored alongside the event when the form supplies one, and
    * the row is read back afterwards so the response carries the stored defaults.
    *
+   * The tier names are checked before the event row is stored, which is the
+   * offline equivalent of the MySQL create's transaction: where MySQL rolls the
+   * event back when a tier is refused, the mirror simply never writes it, so a
+   * create that answers 409 leaves no event behind in either data source.
+   *
    * @param values - The validated event values in camelCase.
    * @returns The created event, read back through the merged repository with its ticket tiers included.
-   * @throws HttpError with status 400 when a selected organisation, category or venue does not exist.
+   * @throws HttpError with status 400 when a selected organisation, category or venue does not exist, and 409 when two of the submitted tiers share a name.
    */
   async insertEvent(values) {
     assertReferences(values);
+    assertUniqueTicketTypeNames(values.ticketTypes);
 
     const eventId = store.allocateEventId();
     const row = toRow(values, eventId, undefined);
@@ -312,11 +355,21 @@ const writeRepository: EventWriteRepository = {
   /**
    * Store the ticket tiers of a newly created event.
    *
+   * MySQL's replaceTicketTypes returns early when the event already has tiers, so
+   * the offline twin answers the same instead of appending a second set: both
+   * data sources used to answer differently here, which is a defect even while
+   * no HTTP route reaches this method, because the repository is the published
+   * contract and one call must not have two meanings. The names are checked for
+   * the same reason - MySQL would refuse a duplicate through
+   * uq_ticket_event_name.
+   *
    * @param eventId - The event the tiers belong to.
    * @param ticketTypes - The validated tiers to store.
+   * @throws HttpError with status 409 when two of the submitted tiers share a name.
    */
   async replaceTicketTypes(eventId, ticketTypes) {
-    saveTicketTypes(eventId, ticketTypes);
+    if (store.ticketTypesFor(Number(eventId)).length > 0) return;
+    saveTicketTypes(Number(eventId), ticketTypes);
   },
 };
 
@@ -327,10 +380,17 @@ const writeRepository: EventWriteRepository = {
  * the store's allocator (the offline equivalent of AUTO_INCREMENT), so the demo
  * data stays exactly as the marker sees it in 02_seed.sql.
  *
+ * The duplicate-name check runs here as well as before an insert, so every path
+ * that writes tiers - a create, an update of an event that has none, and a direct
+ * replaceTicketTypes call - is refused the same submission MySQL would refuse.
+ *
  * @param eventId - The event the tiers belong to.
  * @param ticketTypes - The validated tiers to add.
+ * @throws HttpError with status 409 when two of the submitted tiers share a name.
  */
 function saveTicketTypes(eventId: number, ticketTypes: DataRecord[]): void {
+  assertUniqueTicketTypeNames(ticketTypes);
+
   for (const ticket of ticketTypes) {
     store.addedTicketTypes.push({
       ticket_type_id: store.allocateTicketTypeId(),
@@ -358,5 +418,6 @@ export = Object.assign(writeRepository, {
   countRegistrations,
   toRow,
   assertReferences,
+  assertUniqueTicketTypeNames,
   nowStamp,
 });

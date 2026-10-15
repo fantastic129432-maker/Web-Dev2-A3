@@ -5,16 +5,25 @@
  * MySQL statement, built against the views created in database/01_schema.sql.
  *
  * Three rules are applied consistently:
- *   1. Only rows with status = 'active' are ever publicly visible. This is
- *      guaranteed by vw_public_events, so a suspended event cannot leak out
- *      through an endpoint that is added later.
+ *   1. The public view decides public visibility. vw_public_events carries
+ *      `status = 'active'`, so a suspended event cannot leak out through a
+ *      public endpoint that is added later - the view, not the query, is the
+ *      filter. A3 deliberately widens this for the admin website only: the
+ *      documented `?audience=admin` parameter on GET /api/events, and the
+ *      /api/admin/... endpoints, read vw_all_events instead. That is a feature,
+ *      not an exception to the rule, and it is why every query below names the
+ *      view it reads rather than assuming one.
  *   2. upcoming / ongoing / past are DERIVED from date_start and date_end
  *      compared with CURDATE(); they are never stored, so the website stays
- *      correct without a nightly job.
- *   3. A3: the admin website lists every event regardless of status, so it
- *      reads vw_all_events instead. The view, not the query, is what decides
- *      visibility, which is why the public surface cannot be widened by
- *      accident.
+ *      correct without a nightly job. Each of the three is asked for by its own
+ *      name: 'upcoming' means "not finished yet" and so includes an event
+ *      running today, while 'ongoing' means only the events happening right
+ *      now.
+ *   3. Every user-supplied value reaches the statement as a bound parameter,
+ *      and the one construct that is not a plain comparison - a LIKE pattern -
+ *      is built by escapeLike() with an explicit ESCAPE clause, so a `%` or a
+ *      `_` typed into the search box matches itself instead of acting as a
+ *      wildcard.
  *
  * `q` is a short alias for event_db.query().
  */
@@ -74,6 +83,48 @@ const PRIMARY_PRICE = `
     WHERE t.event_id = e.event_id)                       AS primaryPrice`;
 
 /**
+ * The ESCAPE clause every LIKE in this file is written with.
+ *
+ * MySQL's default escape character for a LIKE pattern is the backslash, but the
+ * default is session state (NO_BACKSLASH_ESCAPES changes it), and a statement
+ * that relies on it while escapeLike() inserts backslashes would silently stop
+ * escaping - which is exactly the bug being fixed here. Naming it makes the
+ * pattern and the escaping agree whatever the session says. The SQL text is
+ * `ESCAPE '\\'`, which MySQL reads as the single character backslash.
+ */
+const LIKE_ESCAPE = "ESCAPE '\\\\'";
+
+/**
+ * Escape the LIKE metacharacters in a value that is bound to a LIKE pattern.
+ *
+ * A keyword or a city is user text, so a `%` or a `_` in it has to match itself
+ * rather than act as a wildcard: `?keyword=%` would otherwise build `LIKE '%%%'`
+ * and return every row, and `?keyword=_` every row with at least one character,
+ * while the offline mirror - whose `includes()` is literal - returns nothing for
+ * the same request. Escaping in one place, used by every LIKE in this file, is
+ * what keeps the two data sources answering the same question.
+ *
+ * @param value - The raw search text, exactly as the client sent it.
+ * @returns The text with `\`, `%` and `_` backslash-escaped, ready to be wrapped in `%` signs.
+ */
+function escapeLike(value: string): string {
+  return String(value).replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+/**
+ * Build the bound value for a contains-search on one column.
+ *
+ * The single place a LIKE pattern is assembled, so no call site can forget
+ * either the escaping or the surrounding wildcards.
+ *
+ * @param value - The raw search text, exactly as the client sent it.
+ * @returns The `%escaped%` pattern to bind to a `LIKE ? ESCAPE '\\'` condition.
+ */
+function containsPattern(value: string): string {
+  return `%${escapeLike(value)}%`;
+}
+
+/**
  * Build the WHERE / HAVING fragment used by every event listing.
  *
  * All user input is bound through `params`; even the sort column is whitelisted
@@ -102,8 +153,8 @@ function buildEventFilter(filters: Partial<EventFilters> = {}) {
   }
 
   if (filters.city) {
-    conditions.push('e.city LIKE ?');
-    params.push(`%${filters.city}%`);
+    conditions.push(`e.city LIKE ? ${LIKE_ESCAPE}`);
+    params.push(containsPattern(filters.city));
   }
 
   if (filters.from) {
@@ -123,14 +174,20 @@ function buildEventFilter(filters: Partial<EventFilters> = {}) {
   }
 
   if (filters.keyword) {
+    // The same five columns, in the same order, as the offline matches() tests
+    // one by one; each is a separate LIKE so a keyword cannot match across the
+    // boundary between two fields by accident.
     conditions.push(
-      `(e.event_name LIKE ? OR e.short_description LIKE ? OR
-        e.city LIKE ? OR e.venue_name LIKE ? OR e.organization_name LIKE ?)`
+      `(e.event_name LIKE ? ${LIKE_ESCAPE} OR e.short_description LIKE ? ${LIKE_ESCAPE} OR
+        e.city LIKE ? ${LIKE_ESCAPE} OR e.venue_name LIKE ? ${LIKE_ESCAPE} OR e.organization_name LIKE ? ${LIKE_ESCAPE})`
     );
-    const like = `%${filters.keyword}%`;
+    const like = containsPattern(filters.keyword);
     params.push(like, like, like, like, like);
   }
 
+  // organizationId is only reached with a positive whole number: the service
+  // validates it like every other id, so a 0 or a non-numeric value is a 400
+  // there rather than a filter that quietly disappears.
   if (filters.organizationId) {
     conditions.push('e.organization_id = ?');
     params.push(filters.organizationId);
@@ -145,17 +202,19 @@ function buildEventFilter(filters: Partial<EventFilters> = {}) {
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // The three public states. 'upcoming' in the UI means "not finished yet",
-  // which also covers an event running today, so ongoing folds into it.
+  // The three public states. 'upcoming' means "not finished yet", which also
+  // covers an event running today, so ongoing is included in it. 'ongoing' is
+  // the narrower question and asks for the events happening right now only; it
+  // used to be folded into the 'upcoming' branch, which made ?state=ongoing
+  // return events that had not even started.
   let having = '';
   if (filters.state === 'past') {
     having = 'HAVING eventState = ?';
     params.push('past');
-  } else if (
-    filters.state === 'upcoming' ||
-    filters.state === 'ongoing' ||
-    filters.excludePast
-  ) {
+  } else if (filters.state === 'ongoing') {
+    having = 'HAVING eventState = ?';
+    params.push('ongoing');
+  } else if (filters.state === 'upcoming' || filters.excludePast) {
     having = 'HAVING eventState <> ?';
     params.push('past');
   }
@@ -673,12 +732,19 @@ const registrationQueries: RegistrationQueries = {
       params.push(filters.eventId);
     }
     if (filters.email) {
-      conditions.push('r.attendee_email LIKE ?');
-      params.push(`%${filters.email}%`);
+      // Escaped like every other LIKE in this file, so an address fragment of
+      // "_" searches for an underscore rather than for any one character.
+      conditions.push(`r.attendee_email LIKE ? ${LIKE_ESCAPE}`);
+      params.push(containsPattern(filters.email));
     }
     if (filters.keyword) {
-      conditions.push('(r.attendee_name LIKE ? OR r.attendee_email LIKE ?)');
-      const like = `%${filters.keyword}%`;
+      // Two separate LIKEs, one per field, exactly as the offline twin tests
+      // name and email separately: joining them first would let a keyword match
+      // across the boundary between the two.
+      conditions.push(
+        `(r.attendee_name LIKE ? ${LIKE_ESCAPE} OR r.attendee_email LIKE ? ${LIKE_ESCAPE})`
+      );
+      const like = containsPattern(filters.keyword);
       params.push(like, like);
     }
 
@@ -779,6 +845,9 @@ export = Object.assign(repository, {
   REGISTRATION_COLUMNS,
   REGISTRATION_COLUMNS_BARE,
   PRIMARY_PRICE,
+  LIKE_ESCAPE,
+  escapeLike,
+  containsPattern,
   decorateEventDetail,
   queryOne,
   registrationQueries,

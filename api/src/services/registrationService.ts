@@ -21,7 +21,9 @@
  *      space is a different string.
  *   3. The number of tickets must be a whole number of at least 1, and cannot
  *      exceed the remaining allocation of the chosen tier when the tier
- *      publishes a quantity.
+ *      publishes a quantity. The same rule runs on an update, where the row's
+ *      own tickets count as already accounted for - otherwise raising a
+ *      quantity could oversell a tier that a create would have refused.
  *   4. The optional ticket type must belong to the same event, which the
  *      composite foreign key fk_registration_ticket also enforces.
  *   5. "The date of registration" may be supplied; when it is not, the moment
@@ -32,6 +34,10 @@
 import repository = require('../repositories');
 import type { DataRecord, UntrustedInput, ValidationIssue } from '../types';
 import { HttpError } from '../utils/errors';
+import {
+  assertTicketsRemain,
+  soldForTier,
+} from '../repositories/ticket-allocation';
 const {
   requiredDate,
   requiredText,
@@ -210,6 +216,13 @@ async function createRegistration(
   // Rule 3: do not accept more tickets than the tier has left. The count is
   // taken from the registrations already recorded, which is the same figure the
   // event page shows.
+  //
+  // This is the readable answer, not the safe one: between this read and the
+  // insert another request could buy the last ticket, so the repository repeats
+  // the identical check inside the transaction that writes the row, with the
+  // tier row locked. Keeping both is deliberate - this one answers with the
+  // per-field detail before anything is written, and the locked one is what
+  // makes the limit hold under concurrency.
   if (values.ticketTypeId !== undefined && values.ticketTypeId !== null) {
     await assertTicketsAvailable(eventId, values.ticketTypeId, values.ticketsPurchased);
   }
@@ -230,17 +243,27 @@ async function createRegistration(
  * unlimited, which is how the virtual challenge tiers are seeded. The sold count
  * is derived from the registrations already recorded for the tier rather than
  * from a stored counter, so it cannot drift away from the rows the event page
- * displays.
+ * displays. The arithmetic and the 400 itself live in
+ * repositories/ticket-allocation.ts, because the repository repeats this exact
+ * check inside the transaction that inserts the row, and two implementations of
+ * "how many are left" would eventually disagree.
+ *
+ * The check is shared by a create and an update. On an update the registration
+ * being changed is excluded from the sold count: its own tickets are already
+ * accounted for, so sending the quantity the row already has stays valid while
+ * an increase beyond the tier's remaining allocation is refused.
  *
  * @param eventId - The id of the event being registered for.
  * @param ticketTypeId - The tier the attendee chose.
  * @param requested - The number of tickets being requested.
+ * @param options - The registration whose own tickets must not be counted. May be omitted, in which case every recorded registration counts.
  * @throws HttpError with status 404 when the event does not exist, and 400 when the tier belongs to another event, is sold out, or has fewer tickets left than were requested.
  */
 async function assertTicketsAvailable(
   eventId: number,
   ticketTypeId: number,
-  requested: number
+  requested: number,
+  { excludeRegistrationId }: { excludeRegistrationId?: number } = {}
 ): Promise<void> {
   const event = await repository.findEventById(eventId, { status: 'all' });
   if (!event) {
@@ -256,28 +279,15 @@ async function assertTicketsAvailable(
     ]);
   }
 
-  if (tier.quantityAvailable === null || tier.quantityAvailable === undefined) return;
-
-  const sold = (event.registrations || [])
-    .filter((row: DataRecord) => Number(row.ticketTypeId) === Number(ticketTypeId))
-    .reduce((sum: number, row: DataRecord) => sum + Number(row.ticketsPurchased || 0), 0);
-
-  const remaining = Number(tier.quantityAvailable) - sold;
-  if (requested > remaining) {
-    throw HttpError.badRequest(
-      remaining <= 0
-        ? `"${tier.ticketName}" is sold out.`
-        : `Only ${remaining} ${remaining === 1 ? 'ticket' : 'tickets'} of "${tier.ticketName}" remain, but ${requested} were requested.`,
-      [
-        {
-          field: 'ticketsPurchased',
-          message: `Choose ${Math.max(remaining, 0)} or fewer.`,
-          remaining,
-          ticketName: tier.ticketName,
-        },
-      ]
-    );
-  }
+  assertTicketsRemain({
+    ticketName: tier.ticketName,
+    quantityAvailable:
+      tier.quantityAvailable === null || tier.quantityAvailable === undefined
+        ? null
+        : Number(tier.quantityAvailable),
+    sold: soldForTier(event.registrations || [], ticketTypeId, excludeRegistrationId),
+    requested,
+  });
 }
 
 /**
@@ -288,10 +298,20 @@ async function assertTicketsAvailable(
  * mistake. Changing the email is re-checked against the event's unique key by
  * the repository, so a move onto an address that is already registered is a 409.
  *
+ * The allocation rule from a create applies here too: raising `ticketsPurchased`,
+ * or moving the row onto a different tier, is checked against the tier's
+ * remaining allocation before anything is written. The row's own tickets are
+ * excluded from that count, so an update that keeps the quantity it already has
+ * is never refused - which is what makes a partial update of only the notes, or
+ * a re-send of the current quantity, still succeed for a tier that is sold out.
+ * The row is read first so the check knows which event and tier it is about; a
+ * missing id is a 404 at that point rather than after the check, so an unknown
+ * id is never reported as an allocation problem.
+ *
  * @param rawId - The registration id from the route parameter, still unvalidated text.
  * @param body - The untrusted request body holding only the fields to change.
  * @returns The registration as it now stands.
- * @throws HttpError with status 400 for an invalid id, an empty body or a value the database refuses, 404 when no registration has that id, and 409 when the new email is already registered for that event.
+ * @throws HttpError with status 400 for an invalid id, an empty body, a ticket count the tier cannot satisfy or a value the database refuses, 404 when no registration has that id, and 409 when the new email is already registered for that event.
  */
 async function updateRegistration(
   rawId: string | number,
@@ -304,6 +324,27 @@ async function updateRegistration(
     throw HttpError.badRequest(
       'No fields were supplied. Send only the fields you want to change.'
     );
+  }
+
+  const existing = await repository.registrationQueries.findById(registrationId);
+  if (!existing) {
+    throw HttpError.notFound(
+      `No registration was found with id ${registrationId}, so there was nothing to update.`
+    );
+  }
+
+  // The tier and the quantity the row will have once the update is applied: an
+  // absent field keeps the stored value, which is what makes this a check of the
+  // outcome rather than of the payload.
+  const ticketTypeId =
+    values.ticketTypeId === undefined ? existing.ticketTypeId : values.ticketTypeId;
+  const requested =
+    values.ticketsPurchased === undefined ? existing.ticketsPurchased : values.ticketsPurchased;
+
+  if (ticketTypeId !== null && ticketTypeId !== undefined) {
+    await assertTicketsAvailable(existing.eventId, ticketTypeId, requested, {
+      excludeRegistrationId: registrationId,
+    });
   }
 
   const registration = await repository.updateRegistration(registrationId, values);

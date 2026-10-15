@@ -22,6 +22,7 @@
 import store = require('./local-store');
 import type { DataRecord, RegistrationFilters } from '../types';
 import { HttpError } from '../utils/errors';
+import { assertTicketsRemain } from './ticket-allocation';
 
 /**
  * Lower-case and trim an email address.
@@ -179,6 +180,13 @@ const registrationStore = {
    * insensitive fragment), and the total is counted before paging so it matches
    * the rows the same filters select.
    *
+   * The keyword is tested against the name and the email separately, in the same
+   * order as the two LIKEs in repository.mysql.ts: joining them first would let a
+   * keyword match across the boundary between the two fields, which MySQL's two
+   * independent LIKEs can never do. Both tests are literal `includes`, which is
+   * what the MySQL side gets from escaping the LIKE metacharacters - so a `%` in
+   * the query matches a `%`, not everything.
+   *
    * @param filters - The event id, email fragment and keyword to filter on. May be omitted, in which case every registration is included.
    * @param paging - The limit and offset to apply. May be omitted, in which case the first hundred rows are returned.
    * @returns The page of registrations plus the unpaged total.
@@ -196,7 +204,11 @@ const registrationStore = {
     if (filters.keyword) {
       const needle = String(filters.keyword).toLowerCase();
       rows = rows.filter((row) =>
-        `${row.attendee_name} ${row.attendee_email}`.toLowerCase().includes(needle)
+        [row.attendee_name, row.attendee_email].some((value) =>
+          String(value === null || value === undefined ? '' : value)
+            .toLowerCase()
+            .includes(needle)
+        )
       );
     }
 
@@ -264,10 +276,20 @@ const registrationStore = {
    * uq_registration_event_email. Both rules are checked here because offline
    * there is no database to enforce them.
    *
+   * The allocation rule is the third, and it is the mirror of the locked check
+   * in registration.repository.mysql.ts: the tier's remaining tickets are
+   * counted immediately before the row is pushed, from the same rows the event
+   * page lists. No lock is needed and none is possible here - this method is
+   * synchronous and Node runs one thread, so no other request can be interleaved
+   * between the count and the push, which is what makes the offline twin
+   * race-free by construction rather than by a database guarantee. The count is
+   * taken after the email check so both data sources answer 409 before 400 when
+   * a request breaks both rules.
+   *
    * @param eventId - The event being registered for.
    * @param values - The validated registration values in camelCase.
    * @returns The stored registration, or `null` when the event does not exist.
-   * @throws HttpError with status 400 when the tier belongs to another event and 409 when that email is already registered for it.
+   * @throws HttpError with status 400 when the tier belongs to another event or the tier is oversold, and 409 when that email is already registered for it.
    */
   insertRegistration(eventId: number, values: DataRecord): DataRecord | null {
     const event = eventFor(eventId);
@@ -320,6 +342,31 @@ const registrationStore = {
       registered_at: values.registeredAt || nowStamp(),
       notes: values.notes === undefined ? null : values.notes,
     };
+
+    // The same rule MySQL enforces while holding a row lock on the tier. The
+    // count comes from the rows already stored for this event and tier, which is
+    // the figure the event page displays; a tier that publishes no quantity is
+    // unlimited and assertTicketsRemain returns without objecting.
+    if (ticketTypeId !== null) {
+      const tier = ticketFor(ticketTypeId);
+
+      if (tier && tier.quantity_available !== null && tier.quantity_available !== undefined) {
+        const sold = store.registrations
+          .filter(
+            (item) =>
+              Number(item.event_id) === Number(eventId) &&
+              Number(item.ticket_type_id) === Number(ticketTypeId)
+          )
+          .reduce((sum, item) => sum + Number(item.tickets_purchased || 0), 0);
+
+        assertTicketsRemain({
+          ticketName: tier.ticket_name,
+          quantityAvailable: Number(tier.quantity_available),
+          sold,
+          requested: row.tickets_purchased,
+        });
+      }
+    }
 
     store.registrations.push(row);
     return toApiShape(row);

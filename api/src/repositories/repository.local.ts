@@ -32,12 +32,21 @@ const data = store.data;
  * DATA_SOURCE=local + DEMO_TODAY=2026-09-28 makes the demo reproducible; when
  * DEMO_TODAY is not set the real current date is used, matching CURDATE().
  *
- * @returns The demo date, or the real current date as `YYYY-MM-DD`.
+ * That date is the HOST'S LOCAL date, not the UTC one. CURDATE() answers in the
+ * database server's own time zone, which on the deployment host is local time,
+ * so taking the UTC date here made the two data sources disagree for the first
+ * ten or eleven hours of every day on a UTC+10 host - an event happening today
+ * was "upcoming" offline and "ongoing" in MySQL. Building the string from the
+ * local getters is what makes the mirror answer what CURDATE() answers.
+ *
+ * @returns The demo date, or the real current local date as `YYYY-MM-DD`.
  */
 function today(): string {
   const override = process.env.DEMO_TODAY;
   if (override && /^\d{4}-\d{2}-\d{2}$/.test(override)) return override;
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 /**
@@ -231,6 +240,9 @@ function matches(event: DataRecord, filters: EventFilters): boolean {
   if (filters.isFree === true && !event.isFree) return false;
   if (filters.isFree === false && event.isFree) return false;
 
+  // The mirror of MySQL's `e.organization_id = ?`. The value is only ever a
+  // positive whole number, because the service parses it like every other id, so
+  // the falsy test here cannot swallow a 0 that the caller meant as a filter.
   if (filters.organizationId && Number(event.organizationId) !== Number(filters.organizationId)) {
     return false;
   }
@@ -241,24 +253,34 @@ function matches(event: DataRecord, filters: EventFilters): boolean {
   }
 
   if (filters.keyword) {
+    // The same five fields, in the same order, as the five LIKEs
+    // repository.mysql.ts builds - each tested on its own. Joining them into one
+    // string first (which is what this did) made a two-word keyword match across
+    // the boundary between two fields, so "Dinner Black-tie" found the gala
+    // offline and nothing in MySQL. A field that is absent contributes nothing,
+    // exactly as a LIKE against a NULL column matches nothing.
     const needle = filters.keyword.toLowerCase();
-    const haystack = [
+    const fields = [
       event.eventName,
       event.shortDescription,
       event.city,
       event.venueName,
       event.organizationName,
-    ]
-      .join(' ')
-      .toLowerCase();
-    if (!haystack.includes(needle)) return false;
+    ];
+    const found = fields.some((value) =>
+      String(value === null || value === undefined ? '' : value)
+        .toLowerCase()
+        .includes(needle)
+    );
+    if (!found) return false;
   }
 
   if (filters.state === 'past' && event.eventState !== 'past') return false;
+  // 'ongoing' is its own state now: it used to share the 'upcoming' branch
+  // below, which made ?state=ongoing return events that had not started yet.
+  if (filters.state === 'ongoing' && event.eventState !== 'ongoing') return false;
   if (
-    (filters.state === 'upcoming' ||
-      filters.state === 'ongoing' ||
-      filters.excludePast) &&
+    (filters.state === 'upcoming' || filters.excludePast) &&
     event.eventState === 'past'
   ) {
     return false;

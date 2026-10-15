@@ -5,7 +5,7 @@
  *
  *     node tests/run-tests.js
  *
- * Four groups of checks are performed:
+ * Five groups of checks are performed:
  *
  *   PART A - HTTP tests against the live Express API.
  *            The suite starts the API itself (on its own free port, with a temporary
@@ -32,6 +32,12 @@
  *            client-side validation and the confirmation screen), the
  *            registrations table on the event page, and the admin website's
  *            list, menu, update panel and dashboard.
+ *
+ *   PART E - Repository unit checks: the two behaviours no HTTP request can
+ *            reach. The offline "today" (the running suite pins DEMO_TODAY, so
+ *            the real derivation is tested with the pin removed) and the SQL
+ *            text the MySQL filter builder produces (which needs no server,
+ *            because the defect was in the statement rather than in the data).
  *
  * Every check runs against whichever data source TEST_DATA_SOURCE selects, so
  * the whole suite can be pointed at MySQL to prove both repositories behave
@@ -72,6 +78,48 @@ const CLIENT_DIR = path.join(ROOT, 'legacy', 'clientside');
 const API_DIR = path.join(ROOT, 'api');
 const API_DIST = path.join(API_DIR, 'dist');
 const API_SRC = fs.existsSync(path.join(API_DIST, 'server.js')) ? API_DIST : API_DIR;
+
+/**
+ * Report a compiled API that is older than the sources it was built from.
+ *
+ * The suite runs api/dist whenever it exists, which is the right choice - that is
+ * the artefact the deployment and the marker use - but it means a source edit
+ * that was never compiled is invisible: every API check silently exercises the
+ * previous build, and the failures look like defects in the new code. A warning
+ * costs nothing and says exactly which command to run; it is deliberately not a
+ * failure and not a skip, because neither would make the suite truer.
+ */
+function reportStaleBuild() {
+  if (API_SRC !== API_DIST) return;
+
+  try {
+    const newest = (directory) =>
+      fs.readdirSync(directory, { withFileTypes: true }).reduce((latest, entry) => {
+        const full = path.join(directory, entry.name);
+        if (entry.isDirectory()) return Math.max(latest, newest(full));
+        return entry.name.endsWith('.ts') ? Math.max(latest, fs.statSync(full).mtimeMs) : latest;
+      }, 0);
+
+    const sourceTime = Math.max(
+      newest(path.join(API_DIR, 'src')),
+      fs.statSync(path.join(API_DIR, 'server.ts')).mtimeMs
+    );
+    const buildTime = fs.statSync(path.join(API_DIST, 'server.js')).mtimeMs;
+
+    if (sourceTime > buildTime) {
+      console.warn(
+        '\nWARNING: api/dist is older than api/src, so these checks are running the\n' +
+          'previous build. Run `npm --prefix api run build` (or `npm run build:api`)\n' +
+          'before trusting the result.\n'
+      );
+    }
+  } catch (error) {
+    // A warning that cannot be computed must never stop the checks themselves.
+    console.warn(`Could not compare api/dist with api/src: ${error.message}`);
+  }
+}
+
+reportStaleBuild();
 
 const PREFERRED_PORT = Number(process.env.TEST_PORT || 3100);
 const DEMO_TODAY = '2026-09-28'; // matches the seed data and api/.env
@@ -330,6 +378,128 @@ async function testApi() {
     const byCity = await api('/events?state=all&keyword=Sydney&limit=100');
     assert.ok(byCity.body.meta.total >= 1);
     assert.ok(byCity.body.data.every((event) => event.city === 'Sydney'));
+  });
+
+  await test('search filter: a keyword is matched against each field, not across two of them', async () => {
+    /*
+     * "Dinner Black-tie" is the seam between event 2's name ("Coastal Stars Gala
+     * Dinner") and its short description ("Black-tie dinner with a three-course
+     * menu and live auction."). The offline matches() used to join its five
+     * fields into one string and search that, so this keyword found the gala
+     * offline while the five separate LIKEs in MySQL found nothing - the two data
+     * sources answered differently for the same request, which is the one thing
+     * the suite exists to prevent.
+     */
+    const acrossFields = await api(
+      `/events?state=all&limit=100&keyword=${encodeURIComponent('Dinner Black-tie')}`
+    );
+    assert.equal(acrossFields.status, 200);
+    assert.equal(
+      acrossFields.body.meta.total,
+      0,
+      'a keyword spanning two fields must not match: each field is tested on its own'
+    );
+
+    // A two-word keyword that really is inside ONE field still matches, so the
+    // fix narrowed the search rather than breaking it.
+    const withinField = await api(
+      `/events?state=all&limit=100&keyword=${encodeURIComponent('Charity Concert')}`
+    );
+    assert.equal(withinField.body.meta.total, 1);
+    assert.equal(withinField.body.data[0].eventId, 4);
+  });
+
+  await test('search filter: LIKE metacharacters are matched literally, not as wildcards', async () => {
+    /*
+     * A `%` or a `_` typed into the search box is text, not a pattern. MySQL used
+     * to receive `LIKE '%%%'` / `LIKE '%_%'`, which returned every row and every
+     * row with at least one character, while the offline `includes()` matched
+     * nothing - so the same query answered "everything" and "nothing" depending on
+     * the data source. The seed contains neither character, so the correct answer
+     * is no rows in both modes.
+     */
+    for (const value of ['_', '%']) {
+      const byKeyword = await api(
+        `/events?state=all&limit=100&keyword=${encodeURIComponent(value)}`
+      );
+      assert.equal(byKeyword.status, 200);
+      assert.equal(
+        byKeyword.body.meta.total,
+        0,
+        `keyword=${value} must be matched literally, not as a wildcard`
+      );
+    }
+
+    const byCity = await api(`/events?state=all&limit=100&city=${encodeURIComponent('%')}`);
+    assert.equal(byCity.body.meta.total, 0, 'city=% must not select every event');
+  });
+
+  await test('search filter: organizationId is validated like every other id', async () => {
+    /*
+     * This was the one filter whose value was coerced instead of parsed:
+     * `Number(parseText(query.organizationId))` turned "abc" into NaN and 0 into
+     * 0, both of which the repository read as "no filter", so the response was a
+     * 200 with every event and an appliedFilters block that had quietly dropped
+     * the parameter - a typo widened the result set instead of reporting itself.
+     */
+    for (const value of ['abc', '0']) {
+      const { status, body } = await api(`/events?organizationId=${value}`);
+      assert.equal(status, 400, `organizationId=${value} must be refused with a 400`);
+      assert.equal(body.success, false);
+      const fields = body.error.details.map((detail) => detail.field);
+      assert.ok(
+        fields.includes('organizationId'),
+        `the 400 must name the field; got ${JSON.stringify(fields)}`
+      );
+    }
+
+    // A well-formed id still filters, and is echoed back as applied.
+    const filtered = await api('/events?state=all&organizationId=1&limit=100');
+    assert.equal(filtered.status, 200);
+    assert.ok(filtered.body.data.length >= 1, 'organisation 1 has seeded events');
+    assert.ok(
+      filtered.body.data.every((event) => event.organizationId === 1),
+      'an event from another organisation was returned'
+    );
+    assert.equal(filtered.body.meta.appliedFilters.organizationId, 1);
+  });
+
+  await test('search filter: state=ongoing means ongoing, not merely "not past"', async () => {
+    /*
+     * 'ongoing' used to share the 'upcoming' branch, which is "not finished yet",
+     * so ?state=ongoing returned events that had not even started - on this seed,
+     * eight rows all reporting eventState "upcoming". The two questions are
+     * different: 'ongoing' is the events happening right now, 'upcoming' is
+     * everything that has not finished, and 'upcoming' is the wider one.
+     */
+    const ongoing = await api('/events?state=ongoing&limit=100');
+    assert.equal(ongoing.status, 200);
+    assert.ok(
+      ongoing.body.data.every((event) => event.eventState === 'ongoing'),
+      'state=ongoing returned an event that is not ongoing'
+    );
+
+    const upcoming = await api('/events?state=upcoming&limit=100');
+    assert.equal(upcoming.status, 200);
+    assert.ok(upcoming.body.data.length > 0, 'the home listing must not be empty');
+    assert.ok(
+      upcoming.body.data.every((event) => event.eventState !== 'past'),
+      "state=upcoming must keep meaning 'has not finished yet'"
+    );
+
+    // The demo date is pinned to 2026-09-28 offline and the seed has no event
+    // running that day, so the narrower question is empty here. MySQL answers
+    // CURDATE() instead, which the suite cannot pin, so the exact count is only
+    // asserted for the offline mirror.
+    if (ongoing.body.meta.dataSource === 'local') {
+      assert.equal(ongoing.body.meta.total, 0, 'no seeded event runs on the pinned demo date');
+    }
+
+    // Whatever the date, every ongoing event is also "not past".
+    const upcomingIds = new Set(upcoming.body.data.map((event) => event.eventId));
+    ongoing.body.data.forEach((event) =>
+      assert.ok(upcomingIds.has(event.eventId), `${event.eventName} is ongoing but not upcoming`)
+    );
   });
 
   await test('search filter: isFree=true returns only free events', async () => {
@@ -1061,6 +1231,305 @@ async function testA3Api() {
     // And the preamble that actually creates the database.
     assert.match(dump, /DROP DATABASE IF EXISTS charityevents_db/);
     assert.match(dump, /CREATE DATABASE charityevents_db/);
+  });
+
+  /* ------------------------------------------- query-layer regression --- */
+
+  await test('creating an event whose tiers share a name answers 409 and leaves no event behind', async () => {
+    /*
+     * The create used to insert the event row on the pool and then open a SECOND
+     * transaction for its tiers, so the duplicate tier was refused (409) while the
+     * event stayed committed with no tiers - and a retry created a second event.
+     * The row and its tiers are one transaction now, in MySQL as well as offline.
+     *
+     * The public list is compared before and after rather than only the response
+     * body being checked, because "no event behind" is the half of the rule that a
+     * status code cannot show.
+     */
+    const duplicateName = 'Suite Duplicate Tier Event';
+    const before = await api('/events?state=all&limit=100');
+
+    const response = await fetch(`${baseUrl()}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...NEW_EVENT,
+        eventName: duplicateName,
+        ticketTypes: [
+          { ticketName: 'General', price: 10, quantityAvailable: 5 },
+          { ticketName: 'General', price: 20, quantityAvailable: 5 },
+        ],
+      }),
+    });
+
+    assert.equal(response.status, 409, 'a duplicate tier name is a conflict');
+
+    const after = await api('/events?state=all&limit=100');
+    assert.equal(
+      after.body.meta.total,
+      before.body.meta.total,
+      'the refused create must not leave an event row behind'
+    );
+    assert.ok(
+      !after.body.data.some((event) => event.eventName === duplicateName),
+      'the event of the failed create is still in the list'
+    );
+  });
+
+  await test('PUT /api/registrations/:id cannot raise a quantity past the tier it is on', async () => {
+    /*
+     * Registration 6 holds all ten seats of tier 5 ("Table of Ten"): the tier
+     * publishes quantity_available = 10 and that one row has tickets_purchased =
+     * 10, so POST could never sell another. PUT used to accept any valid quantity
+     * because the allocation rule only ran on create, which sold 20 tickets on a
+     * ten-seat tier.
+     */
+    const over = await fetch(`${baseUrl()}/registrations/6`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketsPurchased: 11 }),
+    });
+    assert.equal(over.status, 400, 'an update beyond the tier must be refused');
+
+    const overBody = await over.json();
+    assert.match(overBody.error.message, /Table of Ten/, 'the message must name the tier');
+    assert.equal(overBody.error.details[0].field, 'ticketsPurchased');
+
+    const unchanged = await api('/registrations/6');
+    assert.equal(unchanged.body.data.ticketsPurchased, 10, 'the refused update changed nothing');
+
+    // The row's own tickets count as already accounted for, so re-sending the
+    // quantity it already holds is accepted on a tier that is completely sold out.
+    const same = await fetch(`${baseUrl()}/registrations/6`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketsPurchased: 10 }),
+    });
+    assert.equal(same.status, 200, 'an update that keeps the quantity must still succeed');
+    assert.equal((await same.json()).data.ticketsPurchased, 10);
+  });
+
+  await test('the last remaining ticket can be sold, and the next attempt is refused', async () => {
+    /*
+     * The tier-level counterpart of the create and the update: a tier with one
+     * seat left accepts the request that takes it and refuses the next one with
+     * the sold-out 400. It is deliberately sequential - the read and the INSERT
+     * are one transaction that locks the tier row, so two concurrent buyers
+     * serialise on that lock and the second one reads the first one's committed
+     * row. A concurrency test would need two connections racing, but the lock is
+     * why this sequential pair is meaningful rather than merely a repeat of the
+     * create-time check.
+     */
+    const lastTicketEvent = {
+      ...NEW_EVENT,
+      eventName: 'Suite Last Ticket Event',
+      ticketTypes: [{ ticketName: 'Final Seat', price: 50, quantityAvailable: 1 }],
+    };
+
+    const created = await fetch(`${baseUrl()}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lastTicketEvent),
+    });
+    assert.equal(created.status, 201, 'the event with a single-seat tier should be created');
+
+    const createdBody = await created.json();
+    const eventId = createdBody.data.eventId;
+    const tierId = createdBody.data.ticketTypes[0].ticketTypeId;
+
+    const sell = async (email) =>
+      fetch(`${baseUrl()}/events/${eventId}/registrations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendeeName: 'Last Ticket',
+          attendeeEmail: email,
+          ticketsPurchased: 1,
+          ticketTypeId: tierId,
+        }),
+      });
+
+    try {
+      const first = await sell('last.ticket.one@example.com');
+      assert.equal(first.status, 201, 'the last seat must be sellable');
+
+      const second = await sell('last.ticket.two@example.com');
+      assert.equal(second.status, 400, 'the tier is sold out after that');
+      const secondBody = await second.json();
+      assert.match(secondBody.error.message, /sold out/i);
+    } finally {
+      // Leave the seed exactly as it was: PART D counts the events and the
+      // registrations the whole site reports.
+      const rows = await api(`/events/${eventId}/registrations`);
+      for (const row of rows.body.data) {
+        await fetch(`${baseUrl()}/registrations/${row.registrationId}`, { method: 'DELETE' });
+      }
+      const removed = await fetch(`${baseUrl()}/events/${eventId}`, { method: 'DELETE' });
+      assert.equal(removed.status, 204, 'the temporary event must be removed again');
+    }
+  });
+
+  await test('replaceTicketTypes answers the same in both data sources', async () => {
+    /*
+     * MySQL's replaceTicketTypes returns early when the event already has tiers;
+     * the offline twin appended a second set. No HTTP route reaches the method
+     * today, but it is one published call on the merged repository, and one call
+     * must not have two meanings.
+     */
+    const repository = require(path.join(API_SRC, 'src', 'repositories'));
+
+    const created = await fetch(`${baseUrl()}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...NEW_EVENT,
+        eventName: 'Suite Tier Replacement Event',
+        ticketTypes: [{ ticketName: 'Original', price: 25, quantityAvailable: 10 }],
+      }),
+    });
+    assert.equal(created.status, 201);
+    const eventId = (await created.json()).data.eventId;
+
+    try {
+      await repository.replaceTicketTypes(eventId, [
+        { ticketName: 'Replacement', price: 30, quantityAvailable: 5 },
+      ]);
+
+      const after = await api(`/events/${eventId}`);
+      const names = after.body.data.ticketTypes.map((tier) => tier.ticketName);
+      assert.deepEqual(
+        names,
+        ['Original'],
+        'an event that already has tiers must keep them, in both data sources'
+      );
+    } finally {
+      const removed = await fetch(`${baseUrl()}/events/${eventId}`, { method: 'DELETE' });
+      assert.equal(removed.status, 204, 'the temporary event must be removed again');
+    }
+  });
+}
+
+/* =====================================================================
+ * PART E - repository unit checks
+ * ===================================================================== */
+
+/**
+ * Checks that need a repository function rather than an HTTP response.
+ *
+ * Two things cannot be reached through the API at all: the offline "today",
+ * because the running suite pins DEMO_TODAY on purpose, and the SQL text MySQL
+ * builds, because no MySQL server is required to run this suite. Both are still
+ * the site of a real defect, so both are asserted here against the same compiled
+ * modules the API uses.
+ */
+async function testRepositoryUnits() {
+  group('PART E - repository unit checks');
+
+  await test('the offline "today" is the host LOCAL date, so it matches CURDATE()', async () => {
+    /*
+     * The offline state used to come from `new Date().toISOString().slice(0, 10)`,
+     * which is the UTC date. CURDATE() answers in the database server's own time
+     * zone, so on a UTC+10 host the two disagreed for the first ten or eleven
+     * hours of every local day: an event happening today was "upcoming" offline
+     * and "ongoing" against MySQL.
+     *
+     * The check would be vacuous on a host that happens to run in UTC, and the
+     * value of this test must not depend on where it runs, so the zone is moved
+     * for the duration: UTC+14 and UTC-11 between them are always on a different
+     * calendar date from UTC, whatever the moment. DEMO_TODAY is cleared for the
+     * same reason - the suite pins it on purpose, and the pin is what hides the
+     * real derivation - and both settings are restored in the finally block.
+     */
+    const localRepository = require(
+      path.join(API_SRC, 'src', 'repositories', 'repository.local.js')
+    );
+    const savedDemoToday = process.env.DEMO_TODAY;
+    const savedTimeZone = process.env.TZ;
+    delete process.env.DEMO_TODAY;
+
+    try {
+      const pad = (value) => String(value).padStart(2, '0');
+      const observed = ['Pacific/Kiritimati', 'Pacific/Midway'].map((zone) => {
+        process.env.TZ = zone;
+        const now = new Date();
+        return {
+          zone,
+          localDate: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+          utcDate: now.toISOString().slice(0, 10),
+          today: localRepository.today(),
+        };
+      });
+
+      observed.forEach(({ zone, localDate, today }) =>
+        assert.equal(
+          today,
+          localDate,
+          `today() must be built from the local getters in ${zone}, as CURDATE() is`
+        )
+      );
+
+      const apartFromUtc = observed.filter((entry) => entry.localDate !== entry.utcDate);
+      assert.ok(
+        apartFromUtc.length > 0,
+        'two zones fourteen hours either side of UTC must disagree with the UTC date'
+      );
+      apartFromUtc.forEach(({ zone, today, utcDate }) =>
+        assert.notEqual(today, utcDate, `a UTC date must not decide the offline date (${zone})`)
+      );
+
+      // The derived state reads today() when no date is passed, so the local date
+      // has to decide that too: the UTC date of an event would call it ongoing.
+      const { zone, utcDate } = apartFromUtc[0];
+      process.env.TZ = zone;
+      assert.notEqual(
+        localRepository.eventState({ date_start: utcDate, date_end: utcDate }),
+        'ongoing',
+        'the UTC date must not decide the offline event state'
+      );
+
+      // DEMO_TODAY still wins, which is what keeps the demo and this suite pinned.
+      process.env.DEMO_TODAY = '2026-09-28';
+      assert.equal(localRepository.today(), '2026-09-28');
+    } finally {
+      if (savedDemoToday === undefined) delete process.env.DEMO_TODAY;
+      else process.env.DEMO_TODAY = savedDemoToday;
+      if (savedTimeZone === undefined) delete process.env.TZ;
+      else process.env.TZ = savedTimeZone;
+    }
+  });
+
+  await test('the MySQL filter escapes LIKE metacharacters and names its ESCAPE character', async () => {
+    /*
+     * The MySQL half of bug 5 can be checked without a server, because the bug was
+     * in the statement rather than in the data: `%` and `_` have to reach the
+     * database escaped, and the pattern has to say which character escapes them,
+     * or a keyword of `%` selects the whole table. This asserts the builder, which
+     * is the same function every event listing uses.
+     */
+    const mysqlRepository = require(
+      path.join(API_SRC, 'src', 'repositories', 'repository.mysql.js')
+    );
+
+    assert.equal(mysqlRepository.escapeLike('a_b%c\\d'), 'a\\_b\\%c\\\\d');
+    assert.equal(mysqlRepository.escapeLike('plain'), 'plain');
+    assert.equal(mysqlRepository.containsPattern('%'), '%\\%%');
+
+    const keyword = mysqlRepository.buildEventFilter({ keyword: '%' });
+    assert.equal(
+      keyword.where.match(/LIKE \?/g).length,
+      5,
+      'the keyword still searches the same five fields'
+    );
+    assert.match(
+      keyword.where,
+      /ESCAPE '\\\\'/,
+      'every LIKE must name the backslash as its escape character'
+    );
+    assert.deepEqual(keyword.params, ['%\\%%', '%\\%%', '%\\%%', '%\\%%', '%\\%%']);
+
+    const city = mysqlRepository.buildEventFilter({ city: '_' });
+    assert.match(city.where, /e\.city LIKE \? ESCAPE '\\\\'/);
+    assert.deepEqual(city.params, ['%\\_%']);
   });
 }
 
@@ -3026,6 +3495,7 @@ async function testA3Client() {
   try {
     await testApi();
     await testA3Api();
+    await testRepositoryUnits();
     await testClient();
     await testA3Client();
   } catch (error) {

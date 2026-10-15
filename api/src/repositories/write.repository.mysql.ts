@@ -32,6 +32,15 @@ import mysqlRepository = require('./repository.mysql');
 const q = db;
 
 /**
+ * The connection a transaction callback receives.
+ *
+ * Derived from event_db.transaction() rather than written out again, so this
+ * file cannot end up describing an older version of that contract than the one
+ * it is calling.
+ */
+type TransactionConnection = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
  * The columns an administrator may set, in table order.
  *
  * Nothing outside this list can be written, so a request cannot set a column the
@@ -223,8 +232,14 @@ const writeRepository: EventWriteRepository = {
    * Insert one event and return it as the API will report it.
    *
    * The admin form may send ticket tiers in the same request; when it does, the
-   * event and its tiers are written as one unit, and the row is read back
-   * afterwards so the response carries the database's own values.
+   * event row and every tier are written inside ONE transaction, so a tier the
+   * database refuses takes the event down with it. That is not decoration: two
+   * tiers of one event that share a name are rejected by uq_ticket_event_name
+   * with ER_DUP_ENTRY, and the earlier code inserted the event on the pool and
+   * then opened a second transaction for the tiers - so the 409 it answered left
+   * a committed event with no tiers behind, and a retry created a second one.
+   * One transaction makes the 409 true. The row is read back after the commit,
+   * through the admin view, so the response carries the database's own values.
    *
    * @param values - The validated event values in camelCase.
    * @returns The created event, read back through the admin view with its ticket tiers included.
@@ -237,28 +252,32 @@ const writeRepository: EventWriteRepository = {
     }
 
     const placeholders = columns.map(() => '?').join(', ');
-    let result;
+
     try {
-      result = await q.query(
-        `INSERT INTO events (${columns.join(', ')}) VALUES (${placeholders})`,
-        params
-      );
+      const eventId = await db.transaction(async (connection) => {
+        const [result] = await connection.execute(
+          `INSERT INTO events (${columns.join(', ')}) VALUES (${placeholders})`,
+          params
+        );
+        const id = Number(result.insertId);
+
+        // The tiers ride in the same transaction as the event row, which is what
+        // the JSDoc above has always claimed and what the atomicity rule needs:
+        // a duplicate tier name rolls the event back instead of stranding it.
+        if (Array.isArray(values.ticketTypes) && values.ticketTypes.length > 0) {
+          await insertTicketTypes(connection, id, values.ticketTypes);
+        }
+
+        return id;
+      });
+
+      // The row was inserted a moment ago, so the read-back can never be null.
+      return (await readBack(eventId)) as DataRecord;
     } catch (error) {
       const translated = translateMysqlError(error);
       if (translated) throw translated;
       throw error;
     }
-
-    const eventId = Number(result.insertId);
-
-    // The admin form may send ticket tiers in the same request; if it does, the
-    // event and its tiers are written as one unit.
-    if (Array.isArray(values.ticketTypes) && values.ticketTypes.length > 0) {
-      await replaceTicketTypes(eventId, values.ticketTypes);
-    }
-
-    // The row was inserted a moment ago, so the read-back can never be null here.
-    return (await readBack(eventId)) as DataRecord;
   },
 
   /**
@@ -363,7 +382,9 @@ const writeRepository: EventWriteRepository = {
    * Add ticket tiers when the admin form supplies them.
    *
    * A thin wrapper around the module-level function below, which is what
-   * insertEvent() and updateEvent() call directly.
+   * updateEvent() calls directly; a create does not come through it, because the
+   * tiers of a new event are written inside the create's own transaction so that
+   * a refused tier takes the event with it.
    *
    * Why the separation matters, recorded because it cost an afternoon: this was
    * originally an inline method, and insertEvent() referenced it as a bare
@@ -383,14 +404,60 @@ const writeRepository: EventWriteRepository = {
 };
 
 /**
- * Insert the tiers for an event, unless it already has some.
+ * Insert the tiers of an event on a connection a transaction already owns.
  *
- * The whole set is written inside one transaction, so a failure half way through
- * cannot leave an event with one of its three tiers. A tier failure is logged and
- * swallowed rather than rethrown, because the event itself has already been
- * saved and losing the tiers is not a reason to tell the client the create
- * failed; a driver error that this layer can explain (an unknown reference, a
- * value the column refuses) is still raised as an HttpError.
+ * The statements run on the caller's connection rather than on the pool, which
+ * is the whole point: they are part of the caller's transaction, so a tier the
+ * database refuses - a second tier with a name the event already uses, which
+ * uq_ticket_event_name rejects - rolls back everything the transaction has
+ * written so far. Nothing is caught here; the caller decides whether the failure
+ * means "the create failed" (insertEvent, where the event must not survive) or
+ * "the tiers were not saved" (replaceTicketTypes, where it must).
+ *
+ * @param connection - The connection the surrounding transaction is using.
+ * @param eventId - The event the tiers belong to.
+ * @param ticketTypes - The validated tiers to insert, each with a name, a price and optional quantity and description.
+ */
+async function insertTicketTypes(
+  connection: TransactionConnection,
+  eventId: number,
+  ticketTypes: DataRecord[]
+): Promise<void> {
+  for (const ticket of ticketTypes) {
+    // eslint-disable-next-line no-await-in-loop
+    await connection.execute(
+      `INSERT INTO ticket_types
+         (event_id, ticket_name, price, quantity_available, description)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        eventId,
+        ticket.ticketName,
+        ticket.price,
+        ticket.quantityAvailable === undefined ? null : ticket.quantityAvailable,
+        ticket.description === undefined ? null : ticket.description,
+      ]
+    );
+  }
+}
+
+/**
+ * Add the tiers for an event, unless it already has some.
+ *
+ * This is the published `replaceTicketTypes` contract and the path updateEvent()
+ * uses, so it keeps its own transaction: the existence check and the inserts are
+ * one unit, and a failure half way through cannot leave an event with one of its
+ * three tiers. A failure is logged and swallowed rather than rethrown, because
+ * here the event itself has already been saved and losing the tiers is not a
+ * reason to tell the client the update failed; a driver error that this layer
+ * can explain (an unknown reference, a value the column refuses, a duplicate
+ * tier name) is still raised as an HttpError, which is the same answer the
+ * offline twin gives. insertEvent() deliberately does NOT come through here: a
+ * create must fail as a whole, so it calls insertTicketTypes() inside its own
+ * transaction instead.
+ *
+ * The "unless it already has some" guard is what makes this the same call in
+ * both data sources; write.repository.local.ts now returns early for an event
+ * that already has tiers too, where it used to append a second set.
  *
  * @param eventId - The event the tiers belong to.
  * @param ticketTypes - The validated tiers to insert, each with a name, a price and optional quantity and description.
@@ -404,21 +471,7 @@ async function replaceTicketTypes(eventId: number, ticketTypes: DataRecord[]) {
       );
       if (existing[0] && Number(existing[0].total) > 0) return;
 
-      for (const ticket of ticketTypes) {
-        // eslint-disable-next-line no-await-in-loop
-        await connection.execute(
-          `INSERT INTO ticket_types
-             (event_id, ticket_name, price, quantity_available, description)
-           VALUES (?, ?, ?, ?, ?)`,
-          [
-            eventId,
-            ticket.ticketName,
-            ticket.price,
-            ticket.quantityAvailable === undefined ? null : ticket.quantityAvailable,
-            ticket.description === undefined ? null : ticket.description,
-          ]
-        );
-      }
+      await insertTicketTypes(connection, eventId, ticketTypes);
     });
   } catch (error) {
     const translated = translateMysqlError(error);
@@ -439,6 +492,7 @@ export = Object.assign(writeRepository, {
   translateMysqlError,
   toColumns,
   replaceTicketTypes,
+  insertTicketTypes,
   WRITABLE_COLUMNS,
   registrationExists,
   countRegistrations,

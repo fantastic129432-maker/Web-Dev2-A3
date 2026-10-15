@@ -32,6 +32,7 @@
 import db = require('../db/event_db');
 import type { RegistrationWriteRepository } from '../types';
 import { HttpError } from '../utils/errors';
+import { assertTicketsRemain } from './ticket-allocation';
 import mysqlRepository = require('./repository.mysql');
 
 const q = db;
@@ -104,10 +105,24 @@ const registrationRepository: RegistrationWriteRepository = {
    * 500. `registered_at` is only included when the caller supplied one, so the
    * column default records the moment of submission otherwise.
    *
+   * The fourth rule, the tier's remaining allocation, is the one that cannot be
+   * answered outside the write: the sold count and the INSERT run inside ONE
+   * transaction, and the tier row is locked with `SELECT ... FOR UPDATE` before
+   * the count is taken. Without both, two requests for the last ticket would
+   * each read the same sold figure - the check-then-act the audit found - and
+   * the second INSERT would succeed on a tier with nothing left. The service
+   * checks the same allocation first so the ordinary caller gets the per-field
+   * detail without a write; this one is what makes the limit hold when two
+   * requests arrive together, because the loser of the lock waits and then reads
+   * the winner's committed row. The count is a plain SELECT inside that
+   * transaction on purpose: MySQL takes the read view at the first consistent
+   * read, which happens after the lock has been granted, so the figure includes
+   * whatever the transaction ahead of us committed.
+   *
    * @param eventId - The event being registered for.
    * @param values - The validated registration values in camelCase.
    * @returns The stored registration, read back in the API shape, or `null` when the event does not exist.
-   * @throws HttpError with status 400 when the tier or the values are refused by the database, and 409 when that email is already registered for the event.
+   * @throws HttpError with status 400 when the tier is oversold, the tier or the values are refused by the database, and 409 when that email is already registered for the event.
    */
   async insertRegistration(eventId, values) {
     // 1. The event must exist.
@@ -166,14 +181,57 @@ const registrationRepository: RegistrationWriteRepository = {
     }
 
     const placeholders = columns.map(() => '?').join(', ');
+    const requested =
+      values.ticketsPurchased === undefined ? 1 : Number(values.ticketsPurchased);
 
     let insertId;
     try {
-      const result = await q.query(
-        `INSERT INTO event_registrations (${columns.join(', ')}) VALUES (${placeholders})`,
-        params
-      );
-      insertId = Number(result.insertId);
+      insertId = await db.transaction(async (connection) => {
+        if (ticketTypeId !== null) {
+          // The lock comes first: this is the statement a concurrent buyer of
+          // the same tier blocks on, and it is what makes the count below
+          // describe the data the INSERT is about to join rather than a snapshot
+          // taken before the other request committed. A tier row that is not
+          // there is simply an unlimited tier as far as this check is concerned
+          // (step 2 has already refused an unknown or foreign tier).
+          const [tiers] = await connection.execute(
+            `SELECT ticket_name, quantity_available
+               FROM ticket_types
+              WHERE ticket_type_id = ? AND event_id = ?
+              FOR UPDATE`,
+            [ticketTypeId, eventId]
+          );
+
+          if (tiers.length > 0) {
+            const tier = tiers[0];
+            const quantityAvailable =
+              tier.quantity_available === null || tier.quantity_available === undefined
+                ? null
+                : Number(tier.quantity_available);
+
+            if (quantityAvailable !== null) {
+              const [soldRows] = await connection.execute(
+                `SELECT COALESCE(SUM(tickets_purchased), 0) AS sold
+                   FROM event_registrations
+                  WHERE event_id = ? AND ticket_type_id = ?`,
+                [eventId, ticketTypeId]
+              );
+              assertTicketsRemain({
+                ticketName: tier.ticket_name,
+                quantityAvailable,
+                sold: soldRows[0] ? Number(soldRows[0].sold) : 0,
+                requested,
+              });
+            }
+          }
+        }
+
+        const [result] = await connection.execute(
+          `INSERT INTO event_registrations (${columns.join(', ')}) VALUES (${placeholders})`,
+          params
+        );
+        return Number(result.insertId);
+      });
     } catch (error) {
       const code = error.code || (error.errors || []).find((item: any) => item && item.code)?.code;
       if (code === 'ER_DUP_ENTRY') {
@@ -196,6 +254,8 @@ const registrationRepository: RegistrationWriteRepository = {
           { code, sqlMessage: error.sqlMessage }
         );
       }
+      // An HttpError raised by the allocation check above is already the answer
+      // the client should see; db.transaction has rolled the insert back.
       throw error;
     }
 
