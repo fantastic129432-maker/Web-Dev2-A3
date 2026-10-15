@@ -766,6 +766,26 @@ const registrationQueries: RegistrationQueries = {
   },
 
   /**
+   * Every registration for one event, projected for a PUBLIC caller.
+   *
+   * The named counterpart of the offline `findPublicForEvent()` in
+   * registration.repository.local.ts, and the method the public sub-collection
+   * (GET /api/events/:id/registrations) calls. It is `findByEventId(eventId,
+   * false)` - the explicit `false` is what selects REGISTRATION_COLUMNS_PUBLIC -
+   * but it exists as its own name for the reason the offline twin records beside
+   * its own copy: the public shape and the staff shape are then chosen at the
+   * call site by name, so neither can be reached by forgetting a flag's default.
+   * Staff get the contact details from the admin list, which asks for
+   * `includeContactDetails: true` through GET /api/admin/events/:id.
+   *
+   * @param eventId - The event whose registrations should be listed.
+   * @returns The registrations in the public projection, newest first, without attendee contact details.
+   */
+  async findPublicForEvent(eventId) {
+    return registrationQueries.findByEventId(eventId, false);
+  },
+
+  /**
    * Return one registration by its primary key.
    *
    * @param registrationId - The registration's id.

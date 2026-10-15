@@ -174,6 +174,17 @@ export interface RegistrationQueries {
     eventId: number,
     includeContactDetails?: boolean
   ): DataRecord[] | Promise<DataRecord[]>;
+  /**
+   * Every registration belonging to one event, projected for a public caller.
+   *
+   * The privacy-safe counterpart of `findByEventId()`: the same rows in the same
+   * order, but the attendee's email address and phone number are not selected (or
+   * are dropped) whichever data source answers. The public sub-collection
+   * (GET /api/events/:id/registrations) calls this rather than relying on
+   * `findByEventId()`'s default, so the narrower shape is chosen by name at the
+   * call site and the two data sources cannot disagree about it.
+   */
+  findPublicForEvent(eventId: number): DataRecord[] | Promise<DataRecord[]>;
   /** One registration by its primary key, or null when the id is unknown. */
   findById(
     registrationId: number

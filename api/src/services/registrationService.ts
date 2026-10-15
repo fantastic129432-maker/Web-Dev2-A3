@@ -400,7 +400,10 @@ async function listForEvent(rawEventId: string | number) {
     throw HttpError.notFound(`No event was found with id ${eventId}.`);
   }
 
-  const registrations = await repository.registrationQueries.findByEventId(eventId);
+  // The public projection, by name: this backs a PUBLIC endpoint, so the rows must
+  // carry no attendee email or phone. The admin list (GET /api/registrations) is
+  // where staff get the contact details.
+  const registrations = await repository.registrationQueries.findPublicForEvent(eventId);
 
   return {
     eventId,

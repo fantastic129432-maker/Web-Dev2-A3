@@ -831,6 +831,51 @@ async function testA3Api() {
     assert.equal(headers.get('content-type').includes('application/json'), true);
   });
 
+  await test('GET /api/events/:id/registrations never exposes attendee contact details', async () => {
+    /*
+     * The same breach that was closed on GET /api/events/:id, on the one public
+     * endpoint that was missed. Both data sources must answer through
+     * findPublicForEvent(): the MySQL read already defaulted to the narrow
+     * projection, while the offline twin's findByEventId() returned the whole row
+     * - and the suite runs the offline source, so the leak was visible to the
+     * marker and invisible against MySQL. Asserting the served shape, rather than
+     * the method the service calls, is what makes this check data-source
+     * independent.
+     */
+    const { status, body } = await api('/events/1/registrations');
+    assert.equal(status, 200);
+    assert.ok(Array.isArray(body.data) && body.data.length > 0);
+
+    body.data.forEach((row, index) => {
+      assert.ok(
+        !('attendeeEmail' in row),
+        `registration ${index} must not expose attendeeEmail on the public endpoint`
+      );
+      assert.ok(
+        !('attendeePhone' in row),
+        `registration ${index} must not expose attendeePhone on the public endpoint`
+      );
+      assert.ok(
+        row.attendeeDisplayName,
+        `registration ${index} must carry the masked attendeeDisplayName instead`
+      );
+    });
+
+    // The keys must be absent from the serialised response too, not merely
+    // undefined: a JSON body is what a browser or a scraper actually receives.
+    const serialised = JSON.stringify(body);
+    assert.ok(
+      !serialised.includes('attendeeEmail') && !serialised.includes('attendeePhone'),
+      'the public response body must not mention attendeeEmail or attendeePhone at all'
+    );
+
+    // The mask keeps the first name and the initial of the surname, so the list
+    // still shows who booked without identifying them.
+    const maskedRow = body.data.find((row) => row.registrationId === 1);
+    assert.equal(maskedRow.attendeeName, 'Amelia Hartley');
+    assert.equal(maskedRow.attendeeDisplayName, 'Amelia H.');
+  });
+
   /* -------------------------------------------------------- registration --- */
 
   const NEW_EVENT = {

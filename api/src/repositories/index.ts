@@ -104,6 +104,7 @@ repository.deleteRegistration = registrations.deleteRegistration.bind(registrati
 if (!repository.registrationQueries) {
   repository.registrationQueries = {
     findByEventId: registrations.findByEventId.bind(registrations),
+    findPublicForEvent: registrations.findPublicForEvent.bind(registrations),
     findById: registrations.findById.bind(registrations),
     findAll: registrations.findAll.bind(registrations),
     countByEventId: registrations.countByEventId.bind(registrations),
