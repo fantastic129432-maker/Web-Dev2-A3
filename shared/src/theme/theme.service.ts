@@ -77,6 +77,13 @@ export class ThemeService {
    *
    * The preference is read into a local first so TypeScript can narrow away
    * 'system' and know the remaining branches are 'light' | 'dark'.
+   *
+   * A preference of 'system' is what "following the operating system" means
+   * here: the visitor has chosen neither light nor dark, so the theme on screen
+   * is the OS's current preference, and it keeps following the OS for as long as
+   * the page is open because `systemPrefersDark` changes with it. This resolved
+   * value is what the effect writes to the document, so a caller that only wants
+   * to know which theme is showing reads it here.
    */
   readonly resolved = computed<ResolvedTheme>(() => {
     const preference = this.preference();
@@ -85,9 +92,6 @@ export class ThemeService {
     }
     return preference;
   });
-
-  /** True when the user is following the operating system. */
-  readonly followsSystem = computed(() => this.preference() === 'system');
 
   /**
    * Start following the operating system, and paint the current theme.

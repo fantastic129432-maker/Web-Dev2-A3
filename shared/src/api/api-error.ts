@@ -89,19 +89,9 @@ export class ApiError extends Error {
     return this.status === HTTP_STATUS.conflict;
   }
 
-  /** 429: the API's rate limiter refused the request. */
-  get isRateLimited(): boolean {
-    return this.status === HTTP_STATUS.tooManyRequests;
-  }
-
   /** 5xx: the API itself failed. */
   get isServerError(): boolean {
     return this.status >= HTTP_STATUS.serverError;
-  }
-
-  /** Never reached the server, or the request was aborted by the timeout. */
-  get isOffline(): boolean {
-    return this.status === 0 && !this.timedOut;
   }
 
   /**
@@ -171,6 +161,15 @@ export class ApiError extends Error {
    * names the missing event; a 409 explains how many registrations block the
    * delete). For everything else a translated, status-appropriate sentence is
    * better than an internal message, so the i18n key is used instead.
+   *
+   * Two of those statuses carry a decision worth keeping in writing. A 429 means
+   * the API's rate limiter refused the request, so the visitor is told to slow
+   * down in their own language rather than shown the limiter's own wording. A
+   * status of 0 with `timedOut` false is the last branch's case: the request
+   * never reached a server at all (offline, DNS failure, CORS rejection). A
+   * timeout also leaves no HTTP status behind, but it arrives with `timedOut`
+   * set and is named first instead, because "check your connection" is the wrong
+   * advice for a slow API.
    *
    * @param t - The `TranslationService.t` function for the active language.
    * @returns The message to display: the API's wording where it is useful, and a

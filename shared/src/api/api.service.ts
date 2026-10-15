@@ -135,6 +135,12 @@ function toPagedMeta(meta: ApiMeta, fallbackCount: number): PagedMeta {
  * either the payload or an ApiError. The design decisions behind that are
  * recorded in the file block at the top of this file.
  *
+ * The per-event registration list is not a method here, and not because the
+ * endpoint is missing: neither website ever asks for those rows separately.
+ * GET /api/events/:id already carries the complete registration list, newest
+ * purchase first, which is what the public detail page renders, so the API's own
+ * GET /api/events/:id/registrations route would be a call nothing makes.
+ *
  * @throws ApiError Every method's Observable errors with an ApiError, never a bare
  *   HttpErrorResponse or a TimeoutError, so a caller has one error type to render in the
  *   active language.
@@ -334,18 +340,6 @@ export class ApiService {
   /* =====================================================================
    * Registrations (Assessment 3)
    * =================================================================== */
-
-  /**
-   * Read every registration for one event.
-   *
-   * GET /api/events/:id/registrations, newest purchase first.
-   *
-   * @param eventId - Primary key of the event whose registrations are wanted.
-   * @returns The registrations for that event, newest purchase first.
-   */
-  getEventRegistrations(eventId: number | string): Observable<Registration[]> {
-    return this.get<Registration[]>(`/events/${encodeURIComponent(eventId)}/registrations`);
-  }
 
   /**
    * Register an attendee for an event.

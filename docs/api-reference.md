@@ -2603,6 +2603,11 @@ Every endpoint the two websites use is a method here, so a component never
 builds a URL and never sees the response envelope: it asks for data and gets
 either the payload or an ApiError. The design decisions behind that are
 recorded in the file block at the top of this file.
+The per-event registration list is not a method here, and not because the
+endpoint is missing: neither website ever asks for those rows separately.
+GET /api/events/:id already carries the complete registration list, newest
+purchase first, which is what the public detail page renders, so the API's own
+GET /api/events/:id/registrations route would be a call nothing makes.
 - `@throws ApiError Every method's Observable errors with an ApiError, never a bare`
 HttpErrorResponse or a TimeoutError, so a caller has one error type to render in the
 active language.
