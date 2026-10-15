@@ -4,13 +4,17 @@
  * Refuses to let a repository be published while it still contains a real
  * credential.
  *
- * It scans the files that git actually tracks (not the working tree, so
- * git-ignored files are excluded by definition) for the known local passwords
- * plus a set of generic patterns. Exit code 1 means "do not publish".
+ * It scans the file list git actually tracks (so git-ignored files are excluded by
+ * definition), but it reads the WORKING TREE content of each one. Reading the
+ * staged copy instead meant an unstaged edit that introduced a credential was
+ * reported as safe - the opposite of useful while a change is being prepared, and
+ * exactly the case this checker exists to catch. Exit code 1 means "do not publish".
  *
  * Usage: node tools/check-no-secrets.mjs
  */
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Values that exist on this machine and must never be committed.
@@ -53,13 +57,19 @@ function trackedFiles() {
 }
 
 function fileContent(file) {
+  // The working tree first, so an unstaged change is scanned.
   try {
-    return execFileSync('git', ['-c', 'core.quotepath=false', 'show', `:${file}`], {
-      encoding: 'utf8',
-      maxBuffer: 20 * 1024 * 1024,
-    });
+    return fs.readFileSync(path.join(process.cwd(), file), 'utf8');
   } catch {
-    return '';
+    // Fall back to the staged copy, for a tracked file absent from disk.
+    try {
+      return execFileSync('git', ['-c', 'core.quotepath=false', 'show', `:${file}`], {
+        encoding: 'utf8',
+        maxBuffer: 20 * 1024 * 1024,
+      });
+    } catch {
+      return '';
+    }
   }
 }
 

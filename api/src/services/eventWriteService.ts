@@ -147,10 +147,14 @@ function validateEventBody(
   }
 
   // ---- money, capacity and flags ------------------------------------------
+  // The bound matches events.goal_amount, which is DECIMAL(12,2): the largest
+  // value it can hold is 9,999,999,999.99. A larger number used to pass validation
+  // and then be rejected by MySQL with an out-of-range error, which surfaced as a
+  // 500 instead of the 400 a validation failure deserves.
   const goalAmount = requiredNumber(body, 'goalAmount', errors, {
     required: false,
     min: 0,
-    max: 99_999_999_999,
+    max: 9_999_999_999.99,
     integer: false,
   });
   if (goalAmount !== undefined) values.goalAmount = goalAmount;

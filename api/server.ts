@@ -69,7 +69,18 @@ if (baseUri) {
 // Middleware
 // ---------------------------------------------------------------------------
 app.disable('x-powered-by');
-app.set('trust proxy', true); // correct client IPs behind a proxy
+
+/*
+ * Trust exactly ONE proxy hop - Passenger, which sits in front of this app on the
+ * cPanel - and no more.
+ *
+ * `true` was wrong and quietly defeated the rate limiter: it makes req.ip the
+ * LEFTMOST X-Forwarded-For value, and the limiter keys on req.ip, so any caller
+ * could send a different `X-Forwarded-For` on every request and never be limited
+ * (RATE_LIMIT_MAX is 300). Trusting one hop takes the address Passenger appends,
+ * which the client cannot forge.
+ */
+app.set('trust proxy', 1);
 
 app.use(securityHeaders);
 app.use(createCors());

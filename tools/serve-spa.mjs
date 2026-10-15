@@ -76,7 +76,17 @@ function sendFile(response, filePath, status = 200) {
 }
 
 const server = http.createServer((request, response) => {
-  const requestedPath = decodeURIComponent((request.url ?? '/').split('?')[0]);
+  // decodeURIComponent throws on a malformed escape, and an exception inside a
+  // request listener is uncaught: `GET /%` would take the whole file server down,
+  // killing the site being demonstrated until start-all is restarted. Answer 400.
+  let requestedPath;
+  try {
+    requestedPath = decodeURIComponent((request.url ?? '/').split('?')[0]);
+  } catch {
+    response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('Bad request');
+    return;
+  }
   const candidate = path.join(ROOT, requestedPath);
 
   // Never serve anything outside the built application.

@@ -203,7 +203,7 @@ if (adminEvents.status === 200 && adminEvents.json) {
     '其中包含 suspended 的活动（A3 要求 regardless of status）',
     suspended.length >= 1,
     suspended.length
-      ? `找到 ${suspended.length} 个: ${suspended.map((e) => `${e.eventId}=${e.name}`).join(', ')}`
+      ? `找到 ${suspended.length} 个: ${suspended.map((e) => `${e.eventId}=${e.eventName}`).join(', ')}`
       : '没有找到'
   );
 } else {
@@ -217,7 +217,7 @@ console.log('\n【4】活动详情与报名记录（A3 新增）\n');
 const detail = await api('/events/1');
 if (detail.status === 200 && detail.json) {
   const event = detail.json.data || {};
-  record('GET /api/events/1 返回 200', true, `name = ${event.name}`);
+  record('GET /api/events/1 返回 200', true, `name = ${event.eventName}`);
 } else {
   record('GET /api/events/1 返回 200', false, `status=${detail.status}`);
 }
@@ -591,16 +591,28 @@ if (SKIP_SITE) {
     console.log('  （assets/images 下没有可检查的插图，跳过）\n');
   } else {
     const imageStatus = await sweep(imageUrls);
+    /*
+     * Status 0 is NOT a missing image. It means the request never produced an HTTP
+     * answer, which is what this host does under a rapid sweep. The resource check
+     * above already draws that distinction; this one did not, so a single dropped
+     * connection among the 18 URLs reported a 404 for an image that is present and
+     * told the student to rebuild and re-upload site/ for no reason.
+     */
     const imagesMissing = [...imageStatus.entries()]
-      .filter(([, code]) => code !== null && code !== 200)
+      .filter(([, code]) => code !== null && code !== 0 && code !== 200)
       .map(([url, code]) => `${url} (${code})`);
+    const imagesUnreachable = [...imageStatus.entries()].filter(([, code]) => code === 0).map(([url]) => url);
     for (const item of imagesMissing) console.log(`  MISS  ${item}`);
+    if (imagesUnreachable.length) {
+      console.log(`  （${imagesUnreachable.length} 张插图因连接被中断而没能确认，不算缺失）`);
+    }
 
     record(
       `活动插图全部就位（两个应用各 ${imageFiles.length} 张）`,
       imagesMissing.length === 0,
       imagesMissing.length === 0
-        ? `共查 ${imageUrls.length} 个 URL，全部返回 200，活动卡片不会出现破图`
+        ? `共查 ${imageUrls.length} 个 URL，返回 200` +
+          (imagesUnreachable.length ? `；另有 ${imagesUnreachable.length} 个因网络中断未能确认` : '，活动卡片不会出现破图')
         : `缺 ${imagesMissing.length} 个: ${imagesMissing.join(', ')}\n` +
           '          修法: 重新构建并上传 site/ 的完整内容（assets/images/*.svg 会被复制进 dist）'
     );

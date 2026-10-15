@@ -114,7 +114,8 @@ function validateRegistrationBody(
   if (registeredAt !== undefined) {
     // The column is a DATETIME, so keep the time when one was supplied: the
     // event page orders the list by exactly this value.
-    values.registeredAt = normaliseRegisteredAt(body.registeredAt, registeredAt);
+    const normalised = normaliseRegisteredAt(body.registeredAt, registeredAt, errors);
+    if (normalised !== undefined) values.registeredAt = normalised;
   }
 
   const notes = requiredText(body, 'notes', errors, { required: false, max: 300 });
@@ -135,7 +136,11 @@ function validateRegistrationBody(
  * string. A bare date becomes midday so that a date-only entry still sorts
  * sensibly against the registrations that carry a real time.
  */
-function normaliseRegisteredAt(raw: unknown, datePart: string): string {
+function normaliseRegisteredAt(
+  raw: unknown,
+  datePart: string,
+  errors: ValidationIssue[] = []
+): string | undefined {
   const text = String(raw).trim();
   if (text.length <= 10) return `${datePart} 12:00:00`;
 
@@ -143,6 +148,25 @@ function normaliseRegisteredAt(raw: unknown, datePart: string): string {
   if (!timeMatch) return `${datePart} 12:00:00`;
 
   const [, hours, minutes, seconds = '00'] = timeMatch;
+
+  /*
+   * Range-check the clock time.
+   *
+   * `\d{2}` on its own accepted "99:99", which became "2026-09-21 99:99:00". MySQL
+   * rejects that with an out-of-range error, so the caller saw a 500 rather than the
+   * 400 that a bad field deserves; the offline store accepted it and then sorted the
+   * row as the NEWEST registration, quietly corrupting the order the event page is
+   * required to show. A field error is the honest answer.
+   */
+  const [h, m, s] = [hours, minutes, seconds].map(Number);
+  if (h > 23 || m > 59 || s > 59) {
+    errors.push({
+      field: 'registeredAt',
+      message: 'registeredAt must contain a time between 00:00:00 and 23:59:59.',
+    });
+    return undefined;
+  }
+
   return `${datePart} ${hours}:${minutes}:${seconds}`;
 }
 

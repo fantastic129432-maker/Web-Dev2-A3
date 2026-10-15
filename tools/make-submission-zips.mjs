@@ -743,7 +743,15 @@ console.log(
 );
 
 if (incomplete) {
-  console.error('\nOne or more archives are incomplete. Nothing usable was written.');
+  // Say what actually happened: the archives above WERE written (unless this was a
+  // dry run), they just did not contain everything they should. Claiming "nothing
+  // usable was written" sent the reader looking for a problem that was not there.
+  console.error(
+    options.dryRun
+      ? '\nOne or more archives would be incomplete. Nothing was written (dry run).'
+      : '\nOne or more archives are incomplete: the files listed above are missing from them.\n' +
+        'The archives were still written to disk, so do NOT submit them as they are.'
+  );
   process.exitCode = 1;
 } else if (options.skipBuildCheck) {
   console.log('\nWARNING: --skip-build-check was used, so the build output was not verified.');

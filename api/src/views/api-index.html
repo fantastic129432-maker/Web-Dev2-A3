@@ -103,16 +103,19 @@
     </div>
 
     <div class="note">
-      <strong>Client website:</strong> start it separately and open
-      <code>http://localhost:5500/index.html</code>. The admin website is at
-      <code>http://localhost:5500/admin/index.html</code>.
+      <strong>Client website:</strong> <code>npm start</code> (from the project root)
+      compiles this API, then serves it on port 3000 together with both websites:
+      the public site at <code>http://localhost:4200/</code> and the admin site at
+      <code>http://localhost:4300/</code>.
       <br />
       <strong>Search example:</strong>
       <code>/api/events?state=all&amp;city=Lismore&amp;category=1&amp;from=2026-09-01</code>
       <br />
-      <strong>Written with:</strong> HTML, CSS and plain JavaScript only (no CSS or
-      JS framework, no templating engine). Express serves this API and nothing
-      else; the pages are static files sent as they are.
+      <strong>Written with:</strong> Node.js + Express + MySQL on the server, in
+      TypeScript compiled to <code>dist/</code>; the two websites are Angular v22
+      applications written in HTML, TypeScript and CSS, and they also call the
+      Open-Meteo weather API. Express serves this API and nothing else; the websites
+      are separate applications served from <code>dist/</code>.
     </div>
   </main>
 </body>

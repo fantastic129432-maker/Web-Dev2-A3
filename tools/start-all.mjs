@@ -125,9 +125,27 @@ const node = process.execPath;
 
 /* --------------------------------------------------------------- 1. checks -- */
 
-const [major] = process.versions.node.split('.').map(Number);
-if (major < 20) {
-  console.error(`Node ${process.versions.node} is too old. Angular 22 needs Node 22.22+, 24.15+ or 26+.`);
+/*
+ * Match the range in package.json `engines` (`^22.22.3 || ^24.15.0 || >=26.0.0`),
+ * which is what Angular 22 itself requires. The earlier guard only rejected
+ * major < 20, so Node 20, 21 or 22.0 sailed through and failed later inside the
+ * Angular build with an error that pointed at the wrong thing.
+ */
+const nodeVersion = process.versions.node.split('.').map(Number);
+const atLeast = (wanted) => {
+  for (let i = 0; i < 3; i += 1) {
+    if ((nodeVersion[i] ?? 0) !== wanted[i]) return (nodeVersion[i] ?? 0) > wanted[i];
+  }
+  return true;
+};
+const nodeSupported =
+  (nodeVersion[0] === 22 && atLeast([22, 22, 3])) ||
+  (nodeVersion[0] === 24 && atLeast([24, 15, 0])) ||
+  nodeVersion[0] >= 26;
+
+if (!nodeSupported) {
+  console.error(`Node ${process.versions.node} is not supported by Angular 22.`);
+  console.error('Use Node 22.22.3+, 24.15.0+ or 26+ (see the "engines" field in package.json).');
   process.exit(1);
 }
 
