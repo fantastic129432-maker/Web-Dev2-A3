@@ -1,13 +1,24 @@
 /*
- * Only one layout adjustment is needed on top of the shared stylesheet.
+ * Only the desktop arrangement is adjusted on top of the shared stylesheet; the
+ * mobile rules stay entirely in clientside/src/styles.css, because they are the
+ * ones the end-to-end suite exercises.
  *
- * The legacy header inserted the settings bar and the menu into a wrapper with
+ * WHAT THE LEGACY HEADER DID
+ * It inserted the settings bar and the menu into a wrapper with
  * `justify-content: space-between`, where two children put one at each end. The
  * Angular header has one more element - the mobile menu button - so
  * space-between would place the menu in the middle of a wide screen. Pushing
  * `.site-header__nav` to the right with an automatic left margin produces the
  * same arrangement for any number of children, and the mobile button is hidden
  * above 760px anyway.
+ *
+ * WHY A SECOND FLEX ITEM WAS ADDED INSIDE THAT WRAPPER
+ * The menu and the settings controls used to be one per row, which made the
+ * header two rows tall and left the logo centred against nothing. Above 760px
+ * `.site-header__nav` is now a single row again, so the settings controls are
+ * wrapped in `.site-header__controls`; that one box is what the desktop rules
+ * below treat as the end of the row, and it is also what collapses the controls
+ * back under the menu on a phone.
  */
 .site-header__inner {
   justify-content: flex-start;
@@ -15,4 +26,24 @@
 
 .site-header__nav {
   margin-left: auto;
+}
+
+@media (min-width: 761px) {
+  /* One row: brand | menu | controls, all centred against the logo. */
+  .site-header__inner {
+    flex-wrap: nowrap;
+  }
+
+  .site-header__nav {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  /* The controls are a compact group of their own: the 100% width the settings
+     bar takes inside it is what let it wrap onto a line below the menu before. */
+  .site-header__controls {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+  }
 }

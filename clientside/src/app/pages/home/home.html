@@ -11,6 +11,12 @@
      panel on the right is filled from the same
      GET /api/events/upcoming response the grid below uses, so the two
      can never disagree.
+
+     The two actions are deliberately NOT the same control. "Browse
+     upcoming events" is the primary action and keeps the solid
+     `button--on-dark` fill; "Search by date and location" is the
+     secondary one and is painted as an outline (`button--on-dark-ghost`).
+     The labels are unchanged - only the hierarchy between them is new.
      ------------------------------------------------------------------ -->
 <section class="hero" aria-labelledby="hero-heading">
   <div class="hero__inner">
@@ -22,7 +28,7 @@
         <a class="button button--on-dark" href="#upcoming-events">
           {{ 'home.ctaBrowse' | t }}
         </a>
-        <a class="button button--on-dark" routerLink="/search">
+        <a class="button button--on-dark-ghost" routerLink="/search">
           {{ 'home.ctaSearch' | t }}
         </a>
       </div>
@@ -49,6 +55,16 @@
           }
         }
       </ul>
+
+      <!--
+        The card's own way into the listing. No new wording was invented: this is
+        `search.eventCountMany`, a key every one of the four dictionaries already
+        defines, rendered with the number of events actually in the listing, so
+        the line is translated in all four languages and is always true.
+      -->
+      <a class="hero__panel-link" href="#upcoming-events">
+        {{ 'search.eventCountMany' | t: { count: eventsState().events.length } }}
+      </a>
     </aside>
   </div>
 </section>
@@ -59,8 +75,13 @@
      A failure replaces the four cards with one explanatory card rather
      than leaving "Loading..." on screen forever or breaking the page:
      the listing further down is the important part of this page.
+
+     `section--impact` is what keeps this block on the first screen: it
+     takes one step off the section's vertical padding and closes the gap
+     between the heading and the cards, so at least half of a card is
+     visible at 1440x1000 and at 1366x768. See clientside/src/styles.css.
      ------------------------------------------------------------------ -->
-<section class="section section--tint" aria-labelledby="stats-heading">
+<section class="section section--tint section--impact" aria-labelledby="stats-heading">
   <div class="container">
     <div class="section__head">
       <span class="section__eyebrow">{{ 'home.statsEyebrow' | t }}</span>

@@ -4,6 +4,14 @@
   the menu belongs to the header landmark - that is what the shell's "Header
   (contains Nav)" comment in app.html refers to.
 
+  ONE ROW ON DESKTOP
+  Brand, menu and settings controls are three flex items of `.site-header__inner`.
+  Above 760px the stylesheet keeps them on one line, centred against the logo; the
+  menu and the settings controls share the right-hand wrapper so the two of them
+  are laid out as a single group and the menu can sit against the controls rather
+  than floating in the middle of the bar. Below 760px that wrapper becomes a
+  column, which is what puts the settings controls under the collapsed menu.
+
   The heart-in-a-circle mark is inline SVG rather than a file: it is four lines of
   path data, it inherits the brand colour from CSS, and it cannot 404. The legacy
   header did the same.
@@ -46,18 +54,22 @@
     </button>
 
     <div class="site-header__nav">
-      <app-settings-bar />
-
       <!--
-        NAV segment (2 of the 4 in app.html). `showNav` decides whether the menu is
-        rendered at all; `menuOpen` is the class the mobile stylesheet keys off;
-        `linkActivated` closes the menu after a navigation.
+        The menu is listed BEFORE the settings controls. On desktop the single row
+        reads brand | Home Search Events Admin site | Language Theme, with the
+        controls pushed to the far edge; on a narrow screen this wrapper is a
+        column and the menu then sits above the controls, which is the reading
+        order the mobile stylesheet was written for.
       -->
       <app-site-nav
         [showNav]="showNav()"
         [menuOpen]="menuOpen()"
         (linkActivated)="closeMenu()"
       />
+
+      <div class="site-header__controls">
+        <app-settings-bar />
+      </div>
     </div>
   </div>
 </header>

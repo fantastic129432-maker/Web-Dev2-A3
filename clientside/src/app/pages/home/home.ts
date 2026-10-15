@@ -61,7 +61,7 @@ interface EventsState {
  *   chain when the visitor navigates away.
  *
  * WHY THE HERO PANEL REUSES THE SAME RESPONSE
- *   "Next events at a glance" shows the first three of the very events already
+ *   "Next events at a glance" shows the first four of the very events already
  *   fetched for the grid. A second request for the same rows would be wasteful and
  *   could disagree with the grid during a sort change.
  *
@@ -133,8 +133,15 @@ export class HomePage {
   /** True once /api/stats has definitely failed, so a note can replace the cards. */
   protected readonly statsFailed = signal(false);
 
-  /** The first three events, for the hero panel. */
-  protected readonly heroEvents = computed(() => this.eventsState().events.slice(0, 3));
+  /**
+   * The events the hero panel lists, taken from the head of the same response.
+   *
+   * Four rather than three: with three, the card was the short side of the hero
+   * row and left a block of empty dark green under it, which is what made the
+   * section lean to the lower left. Four entries plus the card's own link to the
+   * listing bring it up to roughly the height of the copy and buttons beside it.
+   */
+  protected readonly heroEvents = computed(() => this.eventsState().events.slice(0, 4));
 
   /** The four impact cards, formatted and paired with their translation keys. */
   protected readonly statCards = computed<StatCard[]>(() => {
