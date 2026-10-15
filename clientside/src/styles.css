@@ -1582,11 +1582,13 @@ textarea:focus { border-color: var(--brand-500); }
  * `scroll-margin-top` is what makes the "Get tickets" fragment land the card just
  * below the header instead of under it.
  *
- * HOW FAR IT TRAVELS IS DECIDED BY `.side-column` BELOW, not by this rule: a
+ * HOW FAR IT TRAVELS IS DECIDED BY THE RAIL IT SITS IN, not by this rule: a
  * sticky element is confined to its containing block, so the card can only follow
- * the reader as far as the column it lives in is tall. The column therefore puts
- * this card in a grid row of its own that spans the other two, which is what gives
- * it the whole column's height to move in.
+ * the reader as far as the box that holds it is tall. That box is
+ * `.side-column__rail` below - a plain block box, whose bottom edge is the card's
+ * last allowed position. This rule used to hand the card the whole column instead,
+ * by spanning every row of the column's grid (`grid-row: 1 / -1`), and that is what
+ * let it slide down over the goal panel and paint on top of it.
  */
 .panel--sticky {
   position: sticky;
@@ -1612,11 +1614,17 @@ textarea:focus { border-color: var(--brand-500); }
  * already pushed off the top at scrollY 1900.
  *
  * Putting the start alignment on the one column that wants it leaves the side
- * column stretched to the height of the description, which is what gives the
- * sticky card the whole column to move in. Measured after the change, on event 2
- * at 1440x1000: the card's top holds at exactly 96px - just under the header -
- * from scrollY 900 through scrollY 1800, and only releases at the very end of the
- * description (scrollY 2013, where the column's bottom arrives).
+ * column stretched to the height of the description, and that stretched height is
+ * the room the card's rail gets to travel in. Measured on event 2 at 1440x1000,
+ * with the card holding its own place in the column (see `.side-column__rail`):
+ * the card's top holds at exactly 96px - just under the header - from scrollY 1202
+ * through scrollY 1682, which is every pixel of travel the column's leftover
+ * height allows, and the card is still on screen - Register button included - when
+ * the description ends at scrollY 2043. The pin used to run from scrollY 739 to
+ * 2015, and it was longer for the wrong reason: the card was sliding over the goal
+ * panel and covering 416.94 x 378.63 px of it. A longer pin is not worth a covered
+ * sibling. The two ends of the grid still meet - prose bottom and side-column
+ * bottom are the same pixel at every scroll position.
  */
 .prose { align-self: start; }
 
@@ -1625,18 +1633,31 @@ textarea:focus { border-color: var(--brand-500); }
 .prose p { color: var(--ink-700); }
 
 /*
- * The side column: three panels, with the ticket card given a row of its own.
+ * The side column: three panels, with the ticket card given a row of its own
+ * inside a rail.
  *
  * WHY THE EXPLICIT ROWS
- *   The stickiness is measured, not assumed. With the three panels as three
- *   ordinary grid rows the ticket card was confined to its own row's height - a
- *   sticky element travels only inside its containing block - so it unpinned after
- *   about 300px of scrolling and slid away with the goal card.
+ *   `grid-template-rows` spells the column out - goal panel, the ticket card's row,
+ *   the organiser panel - so the middle row (`1fr`) takes the column's leftover
+ *   height. That leftover is the card's travel budget: measured on event 2 at
+ *   1440x1000, the row is 876px tall and the 396px card has 480px of it to move in,
+ *   which is what keeps the card on screen while the description is read.
  *
- *   `grid-template-rows` therefore spells the column out - goal panel, the ticket
- *   card's own row, the organiser panel - and the card spans all three
- *   (`grid-row: 1 / -1`), so its containing block is the column rather than a
- *   single row. The goal and organiser cards scroll past underneath it.
+ *   A ROW ON THE CARD ITSELF DOES NOT BOUND ITS TRAVEL, and that is the
+ *   misdiagnosis this rail replaces. The original reasoning was that a sticky
+ *   element travels only inside its containing block, so giving the card a row of
+ *   its own confined it to that row - and the card was therefore made to span ALL
+ *   three rows (`grid-row: 1 / -1`) to win the whole column instead. The first half
+ *   is true, but for a grid item the containing block is the grid CONTAINER, not the
+ *   row the item occupies: measured with `grid-row: 2` on the card - one row, no
+ *   span - its sticky top still ran from its static position to the bottom of the
+ *   column, 814px, and it painted over the organiser panel from scrollY 1800 to the
+ *   end of the page. Spanning all three rows did the same thing in the other
+ *   direction: it pushed the goal and organiser panels into implicit rows BELOW the
+ *   card, and slid the card 1277px down the column and over the goal panel -
+ *   416.94 x 378.63 px of it covered at scrollY 1700, the "Goal" line among the
+ *   hidden rows. The bound has to be a box whose own height is the travel window,
+ *   which is `.side-column__rail`.
  *
  *   The column is NOT itself sticky any more. A sticky column moves as one block,
  *   which is what left the tall empty area in the lower right: it scrolls away
@@ -1650,18 +1671,39 @@ textarea:focus { border-color: var(--brand-500); }
 }
 
 /*
- * The card spans the column's rows so its containing block is the column, but it
- * must NOT be stretched by them.
+ * The rail: the sticky card's containing block, and the only reason the middle row
+ * exists.
  *
- * A grid item stretches to fill its area by default, and an 1,100px-tall ticket
- * card with one button at the top of it is a block of empty panel - the very
- * "large empty area" this change is meant to remove, moved inside the card.
- * `align-self: start` keeps the card at its natural height while the spanning row
- * still gives sticky positioning the whole column to travel in.
+ * It is the grid item in the flexible row (`1fr`), so it takes the column's
+ * leftover height - 876px on event 2 at 1440x1000 - and it is a plain block box, so
+ * the card inside it is bounded by the rail's content box instead of by the column.
+ * The card therefore pins at 96px from scrollY 1202 through scrollY 1682 and stops
+ * travelling 24px above the organiser panel. Measured at 25px scroll steps from 0
+ * to 2043 on event 2 at 1440x1000: the card's box intersects no sibling's box, and
+ * the overlap is 0 x 0 px where the worst case before the fix was 416.94 x 378.63 px
+ * of the goal panel.
+ *
+ * THE PIN IS ONLY AS LONG AS THE COLUMN'S SPARE HEIGHT, and on a short window the
+ * card does leave the viewport before the page ends: at 1366x768 the rail is 870px
+ * and the card's last 143px of travel are off the top of the screen, while the
+ * page's own tail (the footer) is arriving. That is the honest cost of not
+ * overlapping anything - the alternative, giving the card the whole column to slide
+ * through, is exactly what put it on top of the goal panel.
+ *
+ * `min-height: 0` keeps the rail's automatic minimum size from being its content's
+ * min-content height: the row is sized by the column's free space, and the rail
+ * must not be able to force it taller.
+ *
+ * THE CARD IS A BLOCK HERE, NOT A GRID ITEM, which is deliberate. A grid item
+ * stretches to fill its area by default, and an 1,100px-tall ticket card with one
+ * button at the top of it is a block of empty panel - the very "large empty area"
+ * this layout is meant to remove, moved inside the card. `align-self: start` was
+ * what kept the card at its natural height when it was the grid item; a block box
+ * needs nothing, it cannot be stretched by the row it sits in.
  */
-.side-column .panel--sticky {
-  grid-row: 1 / -1;
-  align-self: start;
+.side-column__rail {
+  grid-row: 2;
+  min-height: 0;
 }
 
 .panel {

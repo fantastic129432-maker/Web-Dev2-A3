@@ -462,70 +462,97 @@
           </div>
 
           <!--
-            Ticket tiers, plus the Register / Registration closed control.
+            THE STICKY RAIL, AND WHY THE CARD LIVES INSIDE IT.
 
-            THE STICKY CARD, AND THE SCROLL TARGET (review items 3 and 4).
-
-            This panel carries `id="tickets"`, which is what the hero's "Get
-            tickets" button scrolls to, and `.panel--sticky` makes it follow the
-            viewport while the description is read. It is the RIGHT control to keep
-            in view: it holds the prices and the Register button, so the primary
-            action stays reachable instead of being nearly two screens down.
-
-            It is the panel - not the whole side column - that sticks. A sticky
-            column moves as one block, which is what leaves a tall empty area under
-            the last card once the column has scrolled past; a sticky card travels
-            on its own while the goal and organiser cards scroll normally, so the
-            lower right of the page stays occupied by the thing the visitor came to
-            do. The stylesheet turns this off below 1000px, where the grid collapses
-            to one column and there is no second column to fill.
+            The card below is the grid item's content, but the rail is the grid
+            item: it owns the middle row of `.side-column`. A sticky element can
+            only travel inside its containing block, and for a grid item that
+            containing block is the grid CONTAINER, not the row the item sits in.
+            Measured on event 2 at 1440x1000 with the card itself given a row of
+            its own (`grid-row: 2`): its sticky top still ran from its static
+            position to the bottom of the column - 814px - and painted over the
+            organiser panel from scrollY 1800 onwards. The rail is a plain block
+            box, so its own content box is the bound: the rail ends 24px above the
+            organiser panel, and that is where the card's travel ends too. Nothing
+            in the column is ever covered, at any scroll position.
           -->
-          <div class="panel panel--accent panel--sticky" id="tickets">
-            <h2>{{ 'event.ticketsHeading' | t }}</h2>
-
-            @if (current.ticketTypes.length === 0) {
-              <p>{{ 'event.ticketsMissing' | t }}</p>
-            } @else {
-              <ul class="ticket-list">
-                @for (tier of current.ticketTypes; track tier.ticketTypeId) {
-                  <li class="ticket" [class.ticket--free]="tier.price === 0">
-                    <span class="ticket__name">
-                      {{ tier.ticketName }}
-                      @if (tier.description) {
-                        <span class="ticket__desc">{{ tier.description }}</span>
-                      }
-                      @if (tierAvailability(tier)) {
-                        <span class="ticket__availability">{{ tierAvailability(tier) }}</span>
-                      }
-                    </span>
-                    <span class="ticket__price">{{ tierPrice(tier) }}</span>
-                  </li>
-                }
-              </ul>
-            }
-
+          <div class="side-column__rail">
             <!--
-              A past event gets a <button disabled> rather than a link: there is
-              nothing left to book, and a link would lead to a form that refuses to
-              submit. Everything else links to the registration page carrying the
-              event id in the URL, which is the "pass the event ID between pages"
-              mechanism the brief suggests.
+              Ticket tiers, plus the Register / Registration closed control.
 
-              A SOLD-OUT EVENT TAKES THE SAME BRANCH as a past one, because the
-              register page would refuse the submission for the same reason: a tier
-              with nothing left cannot be booked. `registrationOpen` is that rule -
-              the same value the status sentence and the hero's action read - so the
-              button, the sentence above and the hero cannot disagree.
+              THE STICKY CARD, AND THE SCROLL TARGET (review items 3 and 4).
+
+              This panel carries `id="tickets"`, which is what the hero's "Get
+              tickets" button scrolls to, and `.panel--sticky` makes it follow the
+              viewport while the description is read. It is the RIGHT control to keep
+              in view: it holds the prices and the Register button, so the primary
+              action stays reachable instead of being nearly two screens down.
+
+              It is the panel - not the whole side column - that sticks. A sticky
+              column moves as one block, which is what leaves a tall empty area under
+              the last card once the column has scrolled past; a sticky card travels
+              on its own while the goal and organiser cards scroll normally, so the
+              lower right of the page stays occupied by the thing the visitor came to
+              do. The stylesheet turns this off below 1000px, where the grid collapses
+              to one column and there is no second column to fill.
+
+              THE CARD USED TO SPAN EVERY ROW OF THE COLUMN (`grid-row: 1 / -1`), and
+              that is what produced the overlap this rail removes. Spanning the
+              column pushed the goal and organiser panels into implicit rows BELOW
+              the card and handed the card the whole column - 1277px of it - to slide
+              down through, so the goal panel came back into view underneath the
+              sticky card and was painted over. Measured mid-scroll on event 2 at
+              1440x1000, the card covered 416.94 x 378.63 px of "Goal vs progress",
+              the row above "Raised" among it. The card now keeps its place in the
+              flow and only the rail bounds it.
             -->
-            @if (registrationOpen()) {
-              <a class="button button--block" [routerLink]="['/register', current.eventId]">
-                {{ 'event.register' | t }}
-              </a>
-            } @else {
-              <button class="button button--block" type="button" disabled>
-                {{ 'event.registerClosed' | t }}
-              </button>
-            }
+            <div class="panel panel--accent panel--sticky" id="tickets">
+              <h2>{{ 'event.ticketsHeading' | t }}</h2>
+
+              @if (current.ticketTypes.length === 0) {
+                <p>{{ 'event.ticketsMissing' | t }}</p>
+              } @else {
+                <ul class="ticket-list">
+                  @for (tier of current.ticketTypes; track tier.ticketTypeId) {
+                    <li class="ticket" [class.ticket--free]="tier.price === 0">
+                      <span class="ticket__name">
+                        {{ tier.ticketName }}
+                        @if (tier.description) {
+                          <span class="ticket__desc">{{ tier.description }}</span>
+                        }
+                        @if (tierAvailability(tier)) {
+                          <span class="ticket__availability">{{ tierAvailability(tier) }}</span>
+                        }
+                      </span>
+                      <span class="ticket__price">{{ tierPrice(tier) }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+
+              <!--
+                A past event gets a <button disabled> rather than a link: there is
+                nothing left to book, and a link would lead to a form that refuses to
+                submit. Everything else links to the registration page carrying the
+                event id in the URL, which is the "pass the event ID between pages"
+                mechanism the brief suggests.
+
+                A SOLD-OUT EVENT TAKES THE SAME BRANCH as a past one, because the
+                register page would refuse the submission for the same reason: a tier
+                with nothing left cannot be booked. `registrationOpen` is that rule -
+                the same value the status sentence and the hero's action read - so the
+                button, the sentence above and the hero cannot disagree.
+              -->
+              @if (registrationOpen()) {
+                <a class="button button--block" [routerLink]="['/register', current.eventId]">
+                  {{ 'event.register' | t }}
+                </a>
+              } @else {
+                <button class="button button--block" type="button" disabled>
+                  {{ 'event.registerClosed' | t }}
+                </button>
+              }
+            </div>
           </div>
 
           <!-- Who is running the event. -->
