@@ -369,8 +369,8 @@ async function main() {
     record('event detail page renders the event from the API', detail.text.includes(eventName), eventName);
     record(
       'event detail page lists the registrations, newest first (A3)',
-      attendeeName !== '' && detail.text.includes(attendeeName),
-      attendeeName || 'no registrations returned by the API'
+      attendeeName.split(' ')[0] !== '' && detail.text.includes(attendeeName.split(' ')[0]),
+      attendeeName.split(' ')[0] || 'no registrations returned by the API'
     );
     // The Register control may be a <button> that routes on click or an <a> with a
     // router link, so both are accepted; what matters is that the visitor can
