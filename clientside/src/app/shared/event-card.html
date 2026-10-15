@@ -20,9 +20,21 @@
       width="640"
       height="360"
     />
-    <span [class]="badgeClass()">
-      {{ stateLabelKey() | t }}
-    </span>
+    <!--
+      The state badge, rendered only when the event is NOT upcoming: the home grid
+      lists upcoming events only, so an "Upcoming" pill there repeated what the
+      listing already said and competed with the category chip directly below it.
+      "Past event" / "On now" is the state that differs, so that is what is marked -
+      and the search page applies the same rule, which is what keeps a past result
+      labelled on a page that can return it. The rule lives in the card (see
+      `showStateBadge`) rather than behind an input, so neither page can disagree
+      with the other about the same event.
+    -->
+    @if (showStateBadge()) {
+      <span [class]="badgeClass()">
+        {{ stateLabelKey() | t }}
+      </span>
+    }
   </a>
 
   <div class="event-card__body">

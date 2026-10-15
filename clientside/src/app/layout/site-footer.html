@@ -1,11 +1,21 @@
 <!--
   Site footer: brand note, quick links, project note and the live API indicator.
 
-  The contact details are real anchors with mailto: and tel: hrefs, and the ABN
-  value is labelled as fictional in the dictionary itself, so nothing here reads
-  as a claim about a real organisation.
+  THE CONTACT DETAILS LIVE HERE, AND ONLY HERE
+  The home page used to carry a white "Get in touch" section with the same email,
+  phone, office and hours a couple of hundred pixels above this footer, so the
+  visitor read the same four facts twice. That section has been removed: this column
+  is now the single home for contact details, and `id="contact"` is what keeps the
+  About card's "Talk to our events team" link working - the app scrolls to the
+  fragment, and the fragment is this footer.
+
+  The contact details are real anchors with mailto: and tel: hrefs. They are the
+  assessment's fictional values, and the address and hours lines say so in the
+  dictionary: the ABN line that used to label itself "fictional, for assessment"
+  lived in the home page's Contact section and was removed with it, so this column
+  no longer makes a claim about a registered business at all.
 -->
-<footer class="site-footer">
+<footer class="site-footer" id="contact">
   <div class="site-footer__inner">
     <div class="site-footer__column">
       <h3>{{ 'nav.siteName' | t }}</h3>

@@ -57,13 +57,14 @@
       </ul>
 
       <!--
-        The card's own way into the listing. No new wording was invented: this is
-        `search.eventCountMany`, a key every one of the four dictionaries already
-        defines, rendered with the number of events actually in the listing, so
-        the line is translated in all four languages and is always true.
+        The card's own way into the listing, as a plain call to action. It used to
+        borrow the search page's `search.eventCountMany`, so the hero read "6 events
+        matched your filters." on a page that has no filters at all - the same
+        leaked copy the results count below carried. The count is not repeated here
+        because the listing states it once, a few hundred pixels further down.
       -->
       <a class="hero__panel-link" href="#upcoming-events">
-        {{ 'search.eventCountMany' | t: { count: eventsState().events.length } }}
+        {{ 'home.panelLink' | t }}
       </a>
     </aside>
   </div>
@@ -112,10 +113,12 @@
 </section>
 
 <!-- ------------------------------------------------------------------
-     UPCOMING EVENTS  (GET /api/events/upcoming?limit=12&sort=&direction=)
-     The sort dropdown re-asks the API rather than reordering the twelve
-     rows already on screen, so the order is decided over the whole
-     table. The in-flight request is cancelled when the sort changes.
+     UPCOMING EVENTS  (GET /api/events/upcoming?limit=12&sort=date&direction=asc)
+     The listing is ordered by the API - once, for the whole table rather than for
+     the twelve rows already on screen - and it is deliberately NOT re-sortable
+     from here. Sorting and filtering both belong to the search page, which the
+     hero links to; see the class comment in home.ts for why the control and the
+     state behind it were removed.
      ------------------------------------------------------------------ -->
 <section class="section" id="upcoming-events" aria-labelledby="events-heading">
   <div class="container">
@@ -127,28 +130,20 @@
 
     <div class="results-head">
       <!--
-        "12 events matched your filters" style count. The singular/plural pairs
-        are separate dictionary keys rather than a pluralisation rule, because the
-        four supported languages do not share English's -s plural and a rule would
-        be wrong in three of them.
+        "Showing 6 upcoming events." - NOT the search page's "{count} events matched
+        your filters.", which this line used to borrow even though a home page has no
+        filters to match. The singular/plural pairs are separate dictionary keys
+        rather than a pluralisation rule, because the four supported languages do not
+        share English's -s plural and a rule would be wrong in three of them.
       -->
       <p class="results-count" aria-live="polite">
         @if (!eventsState().loading && eventsState().error === null) {
           @if (eventsState().events.length === 1) {
-            {{ 'search.eventCountOne' | t: { count: eventsState().events.length } }}
+            {{ 'home.eventsCountOne' | t }}
           } @else {
-            {{ 'search.eventCountMany' | t: { count: eventsState().events.length } }}
+            {{ 'home.eventsCountMany' | t: { count: eventsState().events.length } }}
           }
         }
-      </p>
-      <p class="sort-control">
-        <label for="home-sort">{{ 'home.sortLabel' | t }}</label>
-        <select id="home-sort" #homeSort [value]="sort()" (change)="onSortChange(homeSort.value)">
-          <option value="date-asc">{{ 'home.sortDateAsc' | t }}</option>
-          <option value="date-desc">{{ 'home.sortDateDesc' | t }}</option>
-          <option value="name-asc">{{ 'home.sortNameAsc' | t }}</option>
-          <option value="progress-desc">{{ 'home.sortProgressDesc' | t }}</option>
-        </select>
       </p>
     </div>
 
@@ -183,6 +178,18 @@
      call succeeds, and falls back to the translated static sentence
      when it does not - which is why the heading and the bullet list are
      never at risk from a failed request.
+
+     The two columns are deliberately NOT drawn as white cards. The left one is
+     a heading and four long bullets, the right one a heading, a paragraph and a
+     button, and forcing the pair to one card height left the right column with
+     two lines of empty white under its button in English (44px of a 265px card,
+     against 17px in the left one) and nearly three lines in Vietnamese - and the
+     size of that gap moved with the language, because the same four bullets
+     measure 265px in English and 292px in Vietnamese. `.info-card--plain` in
+     clientside/src/styles.css drops the box and leaves the typography; measured
+     after the change, the two columns end on exactly the same line in all four
+     languages. The `info-card` class is kept, so the heading and list styling is
+     unchanged - only the box is gone.
      ------------------------------------------------------------------ -->
 <section class="section section--tint" id="about" aria-labelledby="about-heading">
   <div class="container">
@@ -195,7 +202,7 @@
     </div>
 
     <div class="grid grid--two">
-      <div class="info-card">
+      <div class="info-card info-card--plain">
         <h3>{{ 'about.useHeading' | t }}</h3>
         <ul>
           <li>{{ 'about.use1' | t }}</li>
@@ -204,10 +211,15 @@
           <li>{{ 'about.use4' | t }}</li>
         </ul>
       </div>
-      <div class="info-card">
+      <div class="info-card info-card--plain">
         <h3>{{ 'about.hostHeading' | t }}</h3>
         <p>{{ 'about.hostBody' | t }}</p>
         <p>
+          <!--
+            The call to action still points at #contact, which is the FOOTER's id:
+            the white "Get in touch" section this used to scroll to was removed so
+            the contact details live in one place, and the footer is that place.
+          -->
           <a class="button button--small" href="#contact">{{ 'about.hostCta' | t }}</a>
         </p>
       </div>
@@ -215,65 +227,3 @@
   </div>
 </section>
 
-<!-- ------------------------------------------------------------------
-     CONTACT
-     Static, except that the organisation's own phone and email replace
-     the fictional defaults once GET /api/organization has answered. The
-     href is rebuilt from the same value, so the link and its label can
-     never point at different addresses.
-     ------------------------------------------------------------------ -->
-<section class="section" id="contact" aria-labelledby="contact-heading">
-  <div class="container">
-    <div class="section__head">
-      <span class="section__eyebrow">{{ 'contact.eyebrow' | t }}</span>
-      <h2 id="contact-heading">{{ 'contact.heading' | t }}</h2>
-      <p class="section__lead">{{ 'contact.lead' | t }}</p>
-    </div>
-
-    <div class="grid grid--two">
-      <div class="info-card">
-        <h3>{{ organization()?.name || ('contact.orgHeading' | t) }}</h3>
-        <ul class="contact-list">
-          <li>
-            <span>{{ 'contact.email' | t }}</span>
-            <span>
-              <a [href]="'mailto:' + (organization()?.email || 'hello@unityheart.org.au')">
-                {{ organization()?.email || 'hello@unityheart.org.au' }}
-              </a>
-            </span>
-          </li>
-          <li>
-            <span>{{ 'contact.phone' | t }}</span>
-            <span>
-              <a [href]="'tel:' + (organization()?.phone || '(02) 6620 1001')">
-                {{ organization()?.phone || '(02) 6620 1001' }}
-              </a>
-            </span>
-          </li>
-          <li>
-            <span>{{ 'contact.office' | t }}</span>
-            <span>{{ 'contact.officeValue' | t }}</span>
-          </li>
-          <li>
-            <span>{{ 'contact.hours' | t }}</span>
-            <span>{{ 'contact.hoursValue' | t }}</span>
-          </li>
-          <li>
-            <span>{{ 'contact.abn' | t }}</span>
-            <span>{{ 'contact.abnValue' | t }}</span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="info-card">
-        <h3>{{ 'contact.beforeHeading' | t }}</h3>
-        <p>{{ 'contact.beforeBody' | t }}</p>
-        <p>
-          <a class="button button--small button--outline" href="#upcoming-events">
-            {{ 'contact.beforeCta' | t }}
-          </a>
-        </p>
-      </div>
-    </div>
-  </div>
-</section>

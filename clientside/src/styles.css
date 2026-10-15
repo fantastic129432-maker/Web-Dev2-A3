@@ -603,6 +603,33 @@ textarea {
   justify-content: flex-end;
 }
 
+/* The rule that separates the two groups in the header.
+ *
+ * The row reads [Home Search Events Admin site] | [Language: ... Theme: ...]. The
+ * first group answers "where can I go?", the second "how should this site look?",
+ * and until this rule existed the language picker sat immediately after "Admin
+ * site" with nothing but the ordinary 0.75rem gap between them, so the row read as
+ * one long run of controls.
+ *
+ * It is a REAL element (`.site-header__divider`, a 1px span) and not a `|` typed
+ * into the markup, which is why it can be themed and hidden at all. `--line` is the
+ * token every other border in the header uses - the header's own border-bottom, the
+ * theme button and the language select all draw with it - so the rule follows the
+ * light/dark theme with no rule of its own in the dark block.
+ *
+ * `align-self: center` keeps it vertically centred on the row without adding any
+ * height to it, so the 64px header, the 40px menu links and the 34px controls keep
+ * exactly the positions they had: the rule is 1.75rem of line that floats in the
+ * middle of the row's own gap.
+ */
+.site-header__divider {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 1px;
+  height: 1.75rem;
+  background: var(--line);
+}
+
 /* The settings controls at the end of the desktop row. `flex: 1` only takes
    effect below 760px, where the wrapper is a column and the controls should use
    the full width; on desktop site-header.css pins them to their content width. */
@@ -993,6 +1020,38 @@ textarea {
 }
 .info-card h3 { margin-top: 0; }
 .info-card ul { color: var(--ink-700); }
+
+/* An info card presented as plain text, used by the home page's "Who we are"
+ * columns.
+ *
+ * Those two columns are not the same shape: the left one is a heading and four
+ * long bullets, the right one a heading, a paragraph and a button. `.grid--two`
+ * stretches both to the height of the taller one, so as white boxes the right
+ * column ended with a band of empty card under its button - measured at 44px of a
+ * 265px card in English, against 17px under the left column, and 71px against 17px
+ * in Vietnamese. Adding copy to the shorter column cannot fix that in four
+ * languages at once, because the two columns wrap differently in each of them
+ * (the same four bullets measure 265px in English and 292px in Vietnamese once the
+ * card's 24px of padding has narrowed the column).
+ *
+ * Removing the box fixes it in all four at once, and the box is what made the
+ * difference visible in the first place: without it these are two columns of text,
+ * and a column that ends a line higher than its neighbour is simply a column of
+ * text. Measured after the change, both columns end on exactly the same line in
+ * every language - 172px of content in English, Vietnamese and Japanese, 145px in
+ * Chinese - and the columns are shorter than the padded version too, because the
+ * extra 48px of width means less wrapping.
+ *
+ * Only the box is removed: the heading, the list spacing and the ink colours still
+ * come from `.info-card`, and `.grid--two` still holds the two columns on one row.
+ */
+.info-card--plain {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
 
 .contact-list { list-style: none; padding: 0; }
 .contact-list li {
@@ -1817,6 +1876,10 @@ textarea:focus { border-color: var(--brand-500); }
      it. The order is the markup order of `.site-header__nav`, so the controls
      never end up above the menu even though desktop puts them at the far right. */
   .site-header__nav { flex-direction: column; align-items: stretch; }
+  /* The header's rule between the menu and the preferences is hidden on a phone:
+     the wrapper above is a column here, so a vertical rule would be separating two
+     stacked groups and reading as a stray mark rather than as a divider. */
+  .site-header__divider { display: none; }
   .site-header__controls { flex: 1 1 100%; }
   .form-row { grid-template-columns: 1fr; }
   .fact-list li { grid-template-columns: 1fr; gap: var(--space-1); }

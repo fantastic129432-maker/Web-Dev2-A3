@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { catchError, map, of, startWith, switchMap } from 'rxjs';
+import { catchError, map, of, startWith } from 'rxjs';
 
 import { ApiError } from '@charity/shared/api/api-error';
 import { ApiService } from '@charity/shared/api/api.service';
@@ -15,8 +15,15 @@ import { formatCurrency, formatShortDate, formatTime } from '@charity/shared/uti
 import { EventCardComponent } from '../../shared/event-card';
 import { useDocumentTitle } from '../../shared/page-title';
 
-/** The four sort orders the home page offers, and the API parameters they mean. */
-type SortChoice = 'date-asc' | 'date-desc' | 'name-asc' | 'progress-desc';
+/**
+ * The order the home listing is fetched in, and the only one this page asks for.
+ *
+ * Fixed rather than chosen: this page is the browse view, so it always asks the API
+ * for the soonest event first, and the API applies that order over the whole table
+ * rather than over the twelve rows on screen. Sorting (and filtering) are the search
+ * page's job - see "no client-side sorting" in the class comment below.
+ */
+const HOME_LISTING_QUERY: EventQuery = { sort: 'date', direction: 'asc' };
 
 /** One headline statistic, already formatted for display. */
 interface StatCard {
@@ -54,21 +61,34 @@ interface EventsState {
  *   mission sentence on the page rather than an error. The impact figures ARE the
  *   "nice to have" of this page, so they are the ones that degrade to a note.
  *
- *   The event grid is driven by `toObservable(sort)` piped into `switchMap`, which
- *   means changing the sort ORDER cancels the request in flight and issues the new
- *   one. There is therefore no way to race two sorts and render the wrong list,
- *   and no manual subscription to clean up: `takeUntilDestroyed` ends the whole
- *   chain when the visitor navigates away.
+ *   The event grid is ONE request for the whole visit: `toSignal` over a single
+ *   `getUpcomingEvents` call. It used to be driven by `toObservable(sort)` piped
+ *   into `switchMap`, because the page carried a sort dropdown of its own; that
+ *   control has been removed (browsing is this page's job, sorting is the search
+ *   page's), so there is nothing left to re-issue the request and no in-flight
+ *   request to cancel - `HOME_LISTING_QUERY` is the only order this page asks for.
+ *   `takeUntilDestroyed` still ends the two one-off requests below when the visitor
+ *   navigates away.
  *
  * WHY THE HERO PANEL REUSES THE SAME RESPONSE
  *   "Next events at a glance" shows the first four of the very events already
  *   fetched for the grid. A second request for the same rows would be wasteful and
- *   could disagree with the grid during a sort change.
+ *   could disagree with the grid while it is loading.
  *
  * DESIGN DECISION: no client-side sorting
- *   Sorting is sent to the API (`sort` + `direction`) rather than done in the
- *   browser, so the ORDER BY runs against the whole table rather than only the
- *   twelve rows this page asked for.
+ *   The listing is fetched with `sort=date&direction=asc`, so the ORDER BY runs
+ *   against the whole table rather than only the twelve rows this page asked for,
+ *   and the order is a property of the data rather than of this component. A visitor
+ *   who wants another order - or any filter at all - uses the search page, which is
+ *   where those controls live and which the hero links to.
+ *
+ * THE CONTACT DETAILS ARE NOT ON THIS PAGE
+ *   The white "Get in touch" section was removed: it repeated the footer's email,
+ *   phone, office and hours a couple of hundred pixels above the footer itself. The
+ *   footer is now the single home for contact details, and the About card's
+ *   "Talk to our events team" button still reaches them because `#contact` is the
+ *   footer's id. `GET /api/organization` is still fetched here for the mission
+ *   sentence, which is the only thing on this page it feeds.
  */
 @Component({
   selector: 'app-home-page',
@@ -93,9 +113,6 @@ export class HomePage {
   /** Tab title, from the route's `data.titleKey` ('nav.siteName'). */
   private readonly title = useDocumentTitle();
 
-  /** The selected sort order, as the <select>'s value. */
-  protected readonly sort = signal<SortChoice>('date-asc');
-
   /**
    * The event grid's state.
    *
@@ -103,18 +120,18 @@ export class HomePage {
    * `error`) because they always change together: the grid is either loading, or
    * showing a list, or showing an error. Three signals could be made to disagree
    * ("loading" with a list already on screen), and a single object cannot.
+   *
+   * One request, issued when the component is created: the page has no control that
+   * could ask for a different listing, so no `switchMap` and no cancellation are
+   * needed here any more.
    */
   protected readonly eventsState = toSignal(
-    toObservable(this.sort).pipe(
-      switchMap((choice) =>
-        this.api.getUpcomingEvents({ ...this.toQuery(choice), limit: APP_CONFIG.homeEventLimit }).pipe(
-          map((page): EventsState => ({ loading: false, events: page.items, error: null })),
-          catchError((error: unknown) =>
-            of<EventsState>({ loading: false, events: [], error: this.messageFor(error) })
-          ),
-          startWith<EventsState>({ loading: true, events: [], error: null })
-        )
-      )
+    this.api.getUpcomingEvents({ ...HOME_LISTING_QUERY, limit: APP_CONFIG.homeEventLimit }).pipe(
+      map((page): EventsState => ({ loading: false, events: page.items, error: null })),
+      catchError((error: unknown) =>
+        of<EventsState>({ loading: false, events: [], error: this.messageFor(error) })
+      ),
+      startWith<EventsState>({ loading: true, events: [], error: null })
     ),
     { initialValue: { loading: true, events: [], error: null } as EventsState }
   );
@@ -159,43 +176,6 @@ export class HomePage {
     this.title.set();
     this.loadOrganization();
     this.loadStats();
-  }
-
-  /**
-   * The query parameters for one sort choice.
-   *
-   * `date-asc`/`date-desc` map to the API's `date` column, `name-asc` to `name`
-   * and `progress-desc` to `progress` - the sort whitelist the API exposes. The
-   * mapping lives in one function so the dropdown's value strings and the API's
-   * parameter names never drift apart.
-   */
-  private toQuery(choice: SortChoice): EventQuery {
-    switch (choice) {
-      case 'date-desc':
-        return { sort: 'date', direction: 'desc' };
-      case 'name-asc':
-        return { sort: 'name', direction: 'asc' };
-      case 'progress-desc':
-        return { sort: 'progress', direction: 'desc' };
-      default:
-        return { sort: 'date', direction: 'asc' };
-    }
-  }
-
-  /**
-   * Re-read the listing when the visitor changes the sort order.
-   *
-   * Bound to the <select>'s `change` event rather than `ngModel`: the value is
-   * only ever read here, so two-way binding would add a forms import for nothing.
-   */
-  protected onSortChange(value: string): void {
-    // Narrow the raw DOM string back to the union the signal is typed with. The
-    // <select> can only contain the four literals, so anything else is a bug in
-    // the template rather than user input, and falling back to the default keeps
-    // the page working.
-    const allowed: readonly SortChoice[] = ['date-asc', 'date-desc', 'name-asc', 'progress-desc'];
-    const next = allowed.find((choice) => choice === value);
-    this.sort.set(next ?? 'date-asc');
   }
 
   /**

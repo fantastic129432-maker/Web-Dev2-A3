@@ -67,6 +67,25 @@
         (linkActivated)="closeMenu()"
       />
 
+      <!--
+        The divider between the two groups. What sits on either side answers a
+        different question - "where can I go?" (Home, Search Events, Admin site)
+        against "how should this site look?" (language, theme) - and until now the
+        row read as one long run of controls with the language picker immediately
+        after "Admin site". The rule is a real, styled element (it is 1px of
+        `--line`, the same token as every other border in the header) rather than a
+        `|` typed into the markup, so it follows the theme and can be hidden.
+
+        It is rendered only when the menu is: on the wildcard 404 route `showNav` is
+        false, and a rule with nothing on its left would be exactly the stray
+        separator an earlier review went looking for. Below 760px it is hidden by
+        the stylesheet, where the row becomes a column and a vertical rule between
+        two stacked groups would separate nothing.
+      -->
+      @if (showNav()) {
+        <span class="site-header__divider" aria-hidden="true"></span>
+      }
+
       <div class="site-header__controls">
         <app-settings-bar />
       </div>

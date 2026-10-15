@@ -22,8 +22,9 @@ import { ProgressBarComponent } from './progress-bar';
  * identical to the pre-Angular site.
  *
  * WHAT THE CARD SHOWS, AND WHY
- *   * artwork, with the derived state badge ("Upcoming" / "On now" / "Past")
- *     overlaid, so the state is visible before anything is read
+ *   * artwork, with the derived state badge ("Past event" / "On now") overlaid WHEN
+ *     THE EVENT IS NOT UPCOMING, so a state that differs from the ordinary one is
+ *     visible before anything is read
  *   * category chip and a price pill
  *   * title, linking to the event's own page
  *   * short description
@@ -31,6 +32,20 @@ import { ProgressBarComponent } from './progress-bar';
  *     asks before clicking
  *   * the compact fundraising bar
  *   * a "View details" button
+ *
+ * WHY THE STATE BADGE IS SHOWN ONLY FOR A NON-UPCOMING EVENT
+ *   This card is shared, so the rule lives in the card and not behind a per-page
+ *   flag: one page must never be able to disagree with the other about what the
+ *   same event is. The home page lists upcoming events only, so an "Upcoming" badge
+ *   there sat directly above the brown category chip and told the visitor nothing
+ *   the listing had not already told them - two pills competing for the same glance.
+ *   The information that actually differs is "this one has finished" or "this one is
+ *   on now", and that is what the badge now marks. The search page can return past
+ *   events, so the same rule keeps it honest there: past results still carry
+ *   "Past event". A missing state is treated as upcoming - the same default
+ *   `cardClass` uses, and the same assumption the API's own "upcoming" listing
+ *   makes - so it never invents a "Past event" badge for an event that has not
+ *   happened.
  *
  * WHY THE WHOLE CARD IS NOT A LINK
  *   Only the artwork and the title are links, and the button is a third. Nesting
@@ -57,11 +72,22 @@ export class EventCardComponent {
   protected readonly cardClass = computed(() => `event-card event-card--${this.event().eventState ?? 'upcoming'}`);
 
   /**
+   * Whether the state badge is rendered at all.
+   *
+   * True only when the event is NOT upcoming, which is the one case where the badge
+   * carries information of its own - see the class comment. A null or missing state
+   * counts as upcoming, so an endpoint that omits the field cannot produce a
+   * misleading badge.
+   */
+  protected readonly showStateBadge = computed(() => (this.event().eventState ?? 'upcoming') !== 'upcoming');
+
+  /**
    * The state badge's classes, e.g. `badge badge--past`.
    *
    * Built here because the modifier the stylesheet knows is `badge--<state>`, and
    * the state is nullable on the shared `Event` type - a badge with no modifier
-   * would be invisible, so 'upcoming' is the fallback.
+   * would be invisible, so 'upcoming' is the fallback. Only read while
+   * `showStateBadge()` is true.
    */
   protected readonly badgeClass = computed(
     () => `badge badge--${this.event().eventState ?? 'upcoming'}`
@@ -70,7 +96,12 @@ export class EventCardComponent {
   /** The artwork path, resolved against assets/images by the shared helper. */
   protected readonly image = computed(() => imageUrl(this.event()));
 
-  /** "Upcoming" / "On now" / "Past event", as a translation key. */
+  /**
+   * "On now" / "Past event", as a translation key.
+   *
+   * Only rendered when `showStateBadge()` is true; `stateKey` still knows the
+   * upcoming label, because the shared helper is used by pages that do show it.
+   */
   protected readonly stateLabelKey = computed(() => stateKey(this.event().eventState));
 
   /** The category name, or a neutral "Charity event" when none is joined in. */
