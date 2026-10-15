@@ -101,6 +101,18 @@ export class EventDetailPage {
   protected readonly forecast = signal<WeatherForecast | null>(null);
 
   /**
+   * True once the forecast request has finished, whether it produced a forecast or
+   * not.
+   *
+   * `forecast()` is null both WHILE the request is in flight and AFTER it has
+   * definitively come back with nothing (WeatherService resolves null for every
+   * failure instead of erroring, so the page degrades quietly). Without this flag
+   * the panel could not tell the two apart and showed "Loading the forecast..."
+   * forever on an event whose forecast was simply unavailable.
+   */
+  protected readonly forecastSettled = signal(false);
+
+  /**
    * True when a forecast could be requested at all.
    *
    * Checked through the service rather than reimplementing the rule (coordinates
@@ -187,13 +199,19 @@ export class EventDetailPage {
   private loadForecast(event: EventDetail): void {
     if (!this.weather.canShowForecast(event)) {
       this.forecast.set(null);
+      this.forecastSettled.set(true);
       return;
     }
 
     this.weather
       .forecastFor(event)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((forecast) => this.forecast.set(forecast));
+      .subscribe((forecast) => {
+        this.forecast.set(forecast);
+        // forecastFor() never errors - it resolves null instead - so this callback
+        // always runs and the panel can never be left in its loading state.
+        this.forecastSettled.set(true);
+      });
   }
 
   /* ==================================================================

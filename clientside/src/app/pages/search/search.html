@@ -108,8 +108,20 @@
               (change)="setLocation(location.value)"
             >
               <option value="">{{ 'search.cityPlaceholder' | t }}</option>
+              <!--
+                [selected] is needed as well as the [value] on the select: the options
+                are created by the loop, so a value restored from the URL is written
+                before any option exists, is discarded, and the browser shows the
+                first one. The results were filtered by the venue while the picker
+                read "Start typing, e.g. Lis" - the page looked unfiltered.
+              -->
               @for (option of locationOptions(); track option.value) {
-                <option [value]="option.value">{{ option.label }}</option>
+                <option
+                  [value]="option.value"
+                  [selected]="option.value === form().location"
+                >
+                  {{ option.label }}
+                </option>
               }
             </select>
             <p class="field__hint" id="filter-location-hint">{{ 'search.cityHint' | t }}</p>

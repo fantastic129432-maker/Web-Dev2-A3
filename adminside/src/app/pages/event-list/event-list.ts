@@ -141,24 +141,34 @@ export class EventList {
   protected apply(domEvent: SubmitEvent): void {
     domEvent.preventDefault();
     const value = this.filters.getRawValue();
-    this.syncUrl(value.publishStatus, value.keyword);
+    this.syncUrl(value.publishStatus, value.state, value.keyword);
     this.load();
   }
 
   /** Back to every event, whatever its status. */
   protected clear(): void {
     this.filters.setValue({ publishStatus: 'all', state: 'all', keyword: '' });
-    this.syncUrl('all', '');
+    this.syncUrl('all', 'all', '');
     this.load();
   }
 
-  private syncUrl(publishStatus: string, keyword: string): void {
+  /**
+   * Mirror the filters into the URL.
+   *
+   * `state` is included: it is read back from the query string on load, but it used
+   * to be omitted here while `queryParams` replaces the whole set - so arriving at
+   * /events?state=past, changing the keyword and pressing Apply silently dropped the
+   * Time filter from the address bar, and a refresh then showed every date. That
+   * contradicted this page's own reason for keeping the filters in the URL.
+   */
+  private syncUrl(publishStatus: string, state: string, keyword: string): void {
     void this.router.navigate([], {
       relativeTo: this.route,
       // replaceUrl: filtering should not fill the Back button with history.
       replaceUrl: true,
       queryParams: {
         publishStatus: publishStatus === 'all' ? null : publishStatus,
+        state: state === 'all' ? null : state,
         keyword: keyword === '' ? null : keyword,
       },
     });

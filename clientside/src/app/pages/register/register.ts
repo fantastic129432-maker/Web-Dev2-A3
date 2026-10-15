@@ -571,11 +571,18 @@ export class RegisterPage {
           this.submitting.set(false);
 
           if (error instanceof ApiError && error.isConflict) {
-            // 409: this email address is already registered for this event.
-            this.fieldErrors.set({
-              attendeeEmail: error.message || this.i18n.t('error.alreadyRegistered'),
-            });
-            this.summaryMessage.set(error.message || this.i18n.t('error.alreadyRegistered'));
+            /*
+             * 409: this email address is already registered for this event.
+             *
+             * The TRANSLATED sentence is used, not the API's own wording. This API
+             * always sends an English message for this conflict, so preferring it
+             * meant a Chinese, Vietnamese or Japanese visitor read English in the
+             * most common failure this form has - while `error.alreadyRegistered`
+             * sat unused in all four dictionaries, added for exactly this case.
+             */
+            const message = this.i18n.t('error.alreadyRegistered');
+            this.fieldErrors.set({ attendeeEmail: message });
+            this.summaryMessage.set(message);
             this.focusFirstProblem({ attendeeEmail: 'x' });
             return;
           }

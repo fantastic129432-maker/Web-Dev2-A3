@@ -315,8 +315,26 @@
                     @if (tiers().length === 0) {
                       <option value="">{{ 'form.ticketNone' | t }}</option>
                     } @else {
+                      <!--
+                        [selected] is required, and is not a duplicate of the [value]
+                        on the select: these options are created by the loop, so the
+                        select's value is assigned before any option exists, the write
+                        is discarded, and the browser shows the FIRST option. That
+                        made the picker read "Free Community Entry" while the running
+                        total and the POST used the pre-selected paid tier. The same
+                        trap as the language pickers.
+
+                        `toString()` because a DOM select works in strings: the form
+                        holds the tier id as a string while the tier's own id is a
+                        number, and comparing those directly is a type error (TS2367).
+                      -->
                       @for (tier of tiers(); track tier.ticketTypeId) {
-                        <option [value]="tier.ticketTypeId">{{ tierLabel(tier) }}</option>
+                        <option
+                          [value]="tier.ticketTypeId"
+                          [selected]="tier.ticketTypeId.toString() === form().ticketTypeId"
+                        >
+                          {{ tierLabel(tier) }}
+                        </option>
                       }
                     }
                   </select>
