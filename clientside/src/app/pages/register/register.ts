@@ -671,7 +671,16 @@ export class RegisterPage {
     return [
       { labelKey: 'event.registrationsLogin', value: `#${registration.registrationId}` },
       { labelKey: 'form.name', value: registration.attendeeName },
-      { labelKey: 'form.email', value: registration.attendeeEmail },
+      /*
+       * `attendeeEmail` is optional on the Registration type because the PUBLIC
+       * event detail endpoint does not send it (an anonymous visitor must not be
+       * shown anybody's address - see shared/src/models/registration.model.ts).
+       * This is the visitor's OWN receipt, printed from the POST response, which
+       * always carries the address that was just submitted; the empty-string
+       * fallback is therefore only here to satisfy the type, and an empty receipt
+       * line would be a visible symptom rather than a silent wrong value.
+       */
+      { labelKey: 'form.email', value: registration.attendeeEmail ?? '' },
       { labelKey: 'form.date', value: formatDate(String(registration.registeredAt).slice(0, 10)) },
       {
         labelKey: 'form.ticketType',
@@ -707,7 +716,7 @@ export class RegisterPage {
   protected readonly successEmail = computed(() => {
     const registration = this.registration();
     return registration
-      ? this.i18n.t('form.successEmail', { email: registration.attendeeEmail })
+      ? this.i18n.t('form.successEmail', { email: registration.attendeeEmail ?? '' })
       : '';
   });
 }

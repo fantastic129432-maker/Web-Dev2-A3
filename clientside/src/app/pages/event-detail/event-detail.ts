@@ -9,11 +9,13 @@ import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import type { EventDetail, TicketType } from '@charity/shared/models/event.model';
 import type { Registration } from '@charity/shared/models/registration.model';
 import {
+  backerName,
   formatCurrency,
   formatDate,
   formatDateRange,
   formatDateTime,
   formatPrice,
+  formatShortDate,
   formatTimeRange,
   imageUrl,
   stateKey,
@@ -49,6 +51,30 @@ interface DetailState {
  *   for the event, so the registrations table (the key A3 requirement) needs no
  *   second call. That is also why there is no spinner inside the table: the rows
  *   arrive with the event itself.
+ *
+ * WHY THE REGISTRATIONS TABLE SHOWS A MASKED NAME AND NO CONTACT DETAILS
+ *   This page is public and anonymous, so the API does not send an attendee's
+ *   email address or phone number with it at all - the keys are absent from the
+ *   response, not hidden by a template, because publishing a named person's email
+ *   and mobile on a public page breaches the Australian Privacy Principles
+ *   (data minimisation). What arrives instead is `attendeeDisplayName`, the masked
+ *   backer line ("Grace T."), which lets the visitor who booked recognise their
+ *   own row without the page identifying anybody else. The full details still
+ *   exist for staff: the admin screens read GET /api/admin/events/:id, which asks
+ *   for them explicitly. `backerName()` is the one place this page builds that
+ *   label, so there is no second convention to drift.
+ *
+ * WHAT THE PAGE MAY SAY ABOUT REGISTRATION
+ *   Nothing in the schema is a "registration is open" flag, so the status
+ *   sentence and the hero's ticket action are derived from state the page already
+ *   has: a past event cannot be registered for, and an event whose every published
+ *   tier has sold out cannot be registered for either. Everything else IS taking
+ *   registrations now - the register page accepts them - so the page says so
+ *   rather than claiming registration has not opened yet, which is what it used to
+ *   do while the sidebar offered a working Register button and the table below
+ *   listed people who had already booked. The two are computed in one place
+ *   (`registrationOpen`) so the sentence, the button and the register control
+ *   cannot disagree again.
  *
  * THE REGISTRATION LIST IS NOT RE-SORTED HERE
  *   The API orders it `registered_at DESC` - "newest purchase first", which is what
@@ -320,6 +346,115 @@ export class EventDetailPage {
   }
 
   /**
+   * The masked backer line for one row: "Grace T. - 2 tickets - 14 Sept 2026".
+   *
+   * The name half is the API's `attendeeDisplayName` where it was sent and
+   * `maskAttendeeName()` of the full name otherwise, both through `backerName()`,
+   * so the page cannot invent a second masking rule. The other two halves are
+   * dictionary text with values substituted, which is why they are built here
+   * rather than in the template: the words around the numbers have to be
+   * translated, while the numbers themselves must not be.
+   *
+   * This EXISTS BECAUSE THE CONTACT DETAILS ARE GONE. The cell used to print the
+   * attendee's email address and phone number; the API no longer sends either on
+   * this endpoint, and the masked line is what keeps the list useful without
+   * identifying anybody - the person who booked can still find their own row by
+   * its ticket count and purchase date.
+   */
+  protected backerLine(registration: Registration): string {
+    const name = backerName(registration);
+    // The "2 tickets" half is its own translated phrase rather than the word
+    // "Tickets" glued to a number: languages that put the noun first need the
+    // number inside the sentence, so it is substituted into a dictionary key.
+    const tickets = this.i18n.t('event.registrationsBackerTickets', {
+      count: Number(registration.ticketsPurchased),
+    });
+    const date = formatShortDate(String(registration.registeredAt).slice(0, 10));
+
+    if (name === '') {
+      // A row with no name at all is a data problem, not a display one. It stays
+      // identifiable by its registration id rather than rendering an empty cell.
+      return `${this.i18n.t('event.registrationsLogin')} #${registration.registrationId} \u00B7 ${tickets} \u00B7 ${date}`;
+    }
+
+    return this.i18n.t('event.registrationsBacker', {
+      name,
+      tickets,
+      date,
+    });
+  }
+
+  /**
+   * "3 registrations · 14 tickets sold" - the two counts, each named.
+   *
+   * THE BUG THIS FIXES: the hero used to render `registrationCount` (3 orders)
+   * with the label "Tickets sold so far", while the registrations table below
+   * summed `ticketsPurchased` to 14 and called those tickets. One number was
+   * being shown under the other's name, so the page contradicted itself twice
+   * over. Both figures come from the API, which distinguishes them
+   * (`registrationCount` and `ticketsSold`), and both are shown here with their
+   * own noun so neither can be mistaken for the other in any language.
+   */
+  protected readonly availabilityText = computed(() => {
+    const event = this.event();
+    if (!event) return '';
+    const registrations = this.i18n.t('event.registrationsCount', {
+      count: Number(event.registrationCount ?? 0),
+    });
+    const tickets = this.i18n.t('event.registrationsTicketsSold', {
+      count: Number(event.ticketsSold ?? event.totalTicketsSold ?? 0),
+    });
+    return `${registrations} \u00B7 ${tickets}`;
+  });
+
+  /**
+   * True when this event is accepting registrations now.
+   *
+   * There is no "registration open" column in the schema - database/01_schema.sql
+   * stores a publishing status ('active' | 'suspended' | 'cancelled'), the dates,
+   * the capacity and the ticket tiers, and nothing else - so "open" means what the
+   * register page can actually do with the event: a past event cannot be
+   * registered for, a sold-out event cannot be registered for, and everything
+   * else can. The register button, the hero's ticket action and the status
+   * sentence all read this one value, which is what stops the page saying one
+   * thing and doing another.
+   */
+  protected readonly registrationOpen = computed(() => {
+    const event = this.event();
+    if (!event) return false;
+    if (event.eventState === 'past') return false;
+    if (this.soldOut()) return false;
+    return true;
+  });
+
+  /**
+   * True when every published ticket tier has sold out.
+   *
+   * Summed from the registrations the same response carries (the event page is
+   * the only place that shows the tiers against the tickets already sold), and
+   * false when a tier publishes no allocation - an unlimited tier is never sold
+   * out. This mirrors the `remainingForTier()` rule the registration form applies
+   * before it lets a visitor submit, so the two agree about when booking is over.
+   */
+  protected readonly soldOut = computed(() => {
+    const event = this.event();
+    if (!event) return false;
+
+    const tiers = event.ticketTypes ?? [];
+    const limited = tiers.filter(
+      (tier) => tier.quantityAvailable !== null && tier.quantityAvailable !== undefined
+    );
+    if (limited.length === 0) return false;
+
+    return limited.every((tier) => {
+      const sold = (event.registrations ?? [])
+        .filter((row) => Number(row.ticketTypeId) === Number(tier.ticketTypeId))
+        .reduce((sum, row) => sum + Number(row.ticketsPurchased ?? 0), 0);
+      return sold >= Number(tier.quantityAvailable);
+    });
+  });
+
+  /**
    * "14 Sep 2026, 8:57 am" for one purchase.
    *
    * The API sends "YYYY-MM-DD HH:MM:SS"; formatDateTime normalises the space to a
@@ -340,7 +475,22 @@ export class EventDetailPage {
     () => this.state().event?.totalTicketsSold ?? this.state().event?.ticketsSold ?? 0
   );
 
-  /** "This event finished on ..." / "takes place on ..." / "is taking place today." */
+  /**
+   * The "Event status" sentence: what is happening with this event right now.
+   *
+   * THREE STATES, AND THE THIRD IS THE ONE THAT WAS WRONG. A past event has
+   * finished; an event that is taking place today is ongoing; and an upcoming
+   * event is either taking registrations right now or has sold out. The sentence
+   * is driven by `registrationOpen`/`soldOut` rather than by the date alone,
+   * because the old wording ("Registration details will open closer to the date")
+   * appeared on events that had already taken registrations - it contradicted the
+   * Register button, the bookings table and the ticket tiers all at once.
+   *
+   * The tickets figure is worked into the registration-open sentence so the
+   * reader can see how much interest the event has attracted without scrolling to
+   * the hero, and so the sentence cannot repeat the "3 registered / 14 tickets"
+   * confusion in a different form.
+   */
   protected readonly statusSentence = computed(() => {
     const event = this.event();
     if (!event) return '';
@@ -348,7 +498,16 @@ export class EventDetailPage {
       return this.i18n.t('event.statusPast', { date: formatDate(event.dateEnd) });
     }
     if (event.eventState === 'ongoing') return this.i18n.t('event.statusOngoing');
-    return this.i18n.t('event.statusUpcoming', { date: formatDateRange(event) });
+
+    const date = formatDateRange(event);
+    if (this.soldOut()) return this.i18n.t('event.statusRegistrationSoldOut', { date });
+
+    return this.i18n.t('event.statusRegistrationOpen', {
+      date,
+      tickets: this.i18n.t('event.statusRegistrationOpenBooked', {
+        count: Number(event.ticketsSold ?? event.totalTicketsSold ?? 0),
+      }),
+    });
   });
 
   /** How much is still needed to reach the goal, floored at zero. */

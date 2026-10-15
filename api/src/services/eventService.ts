@@ -282,8 +282,14 @@ async function listActiveEvents(query: UntrustedInput = {}) {
  * the lookup: the admin website passes `status: 'all'` so it can open a
  * suspended or cancelled event, which the public route deliberately cannot.
  *
+ * The options are passed through UNCHANGED and the repository applies its own
+ * safe default, so this layer cannot turn the public route into the admin one by
+ * accident. That matters for `includeContactDetails`: the public route omits it
+ * and therefore receives registrations without attendee email addresses or phone
+ * numbers, while /api/admin/events/:id asks for them explicitly.
+ *
  * @param rawId - The id from the route parameter, still unvalidated text.
- * @param options - Which publish states to accept. May be omitted, in which case only an active event is returned.
+ * @param options - Which publish states to accept, and whether the registration rows may carry attendee contact details. May be omitted, in which case only an active event is returned and the registrations are public-safe.
  * @returns The event, with its ticket tiers and progress figures.
  * @throws HttpError with status 400 when the id is not a positive whole number.
  * @throws HttpError with status 404 when no event matches, or when the only match is not active and `status` was not widened.

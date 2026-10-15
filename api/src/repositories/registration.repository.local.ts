@@ -136,6 +136,60 @@ function rawForEvent(eventId: number): DataRecord[] {
 }
 
 /**
+ * Mask an attendee's name as "Grace T.".
+ *
+ * A first name plus the initial of the surname identifies the row to the person
+ * who booked it - "yes, that is my registration" - without publishing a full
+ * identity next to a ticket count and a date, which is what turns a booking list
+ * into a list of contactable people. A single-word name is shown as it is, and an
+ * empty name yields an empty string so the caller can fall back to the
+ * registration id rather than rendering a blank cell.
+ *
+ * The public page renders this inside the `event.registrationsBacker` dictionary
+ * key, so the words around it are translated while the name itself is data.
+ *
+ * @param attendeeName - The name as the registration stored it, or null when the row carries none.
+ * @returns The masked name, for example "Grace T.", or an empty string when no name was stored.
+ */
+function maskAttendeeName(attendeeName: unknown): string {
+  const name = String(attendeeName ?? '').trim();
+  if (name === '') return '';
+  const parts = name.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
+}
+
+/**
+ * Replace an attendee's contact details with the masked line the public page shows.
+ *
+ * WHY THIS EXISTS
+ *   The offline mirror is the twin of repository.mysql.ts, so it must enforce the
+ *   same privacy rule that the narrower SELECT enforces there: `attendee_email`
+ *   and `attendee_phone` are personal information, and the public event detail
+ *   endpoint answers an anonymous visitor whose page renders whatever it receives.
+ *   Publishing a named person's full email address and mobile number on a public
+ *   page breaches the Australian Privacy Principles (APP 3 and APP 11 - collect
+ *   and disclose only what the purpose needs).
+ *
+ *   The two keys are DELETED rather than blanked, so the response shape is
+ *   identical to the MySQL one: `'attendeeEmail' in row` is false in both, which
+ *   is exactly what the test suite asserts. This is a data-minimisation boundary
+ *   rather than a display decision - a template can be changed tomorrow, a row
+ *   that never left the database cannot - which is why it lives beside the query
+ *   it mirrors instead of in the controller.
+ *
+ *   The admin path (GET /api/admin/events/:id) does NOT pass through here: staff
+ *   keep the whole row, because they need the contact details to run the event.
+ *
+ * @param row - One registration in the API shape, as toApiShape() produced it.
+ * @returns A copy of the row without attendeeEmail and attendeePhone, carrying attendeeDisplayName ("Grace T.") instead.
+ */
+function narrowRegistrationToPublic(row: DataRecord): DataRecord {
+  const { attendeeEmail, attendeePhone, ...safe } = row;
+  return { ...safe, attendeeDisplayName: maskAttendeeName(row.attendeeName) };
+}
+
+/**
  * The offline registration repository.
  *
  * It holds the reads the merged object publishes as `registrationQueries`, plus
@@ -157,6 +211,24 @@ const registrationStore = {
    */
   findByEventId(eventId: number): DataRecord[] {
     return rawForEvent(eventId).map(toApiShape);
+  },
+
+  /**
+   * List one event's registrations for the PUBLIC event detail page.
+   *
+   * The same rows, in the same newest-first order, with each row narrowed by
+   * narrowRegistrationToPublic(): no attendee email, no attendee phone, and an
+   * attendeeDisplayName ("Grace T.") in their place. It is a separate method
+   * rather than a flag on findByEventId() so the two shapes cannot be confused at
+   * a call site: a reader of `findPublicForEvent()` cannot accidentally keep the
+   * contact details, and a reader of `findByEventId()` cannot accidentally drop
+   * them from a staff screen.
+   *
+   * @param eventId - The event whose registrations should be listed.
+   * @returns The registrations in the API shape, newest first, without attendee contact details.
+   */
+  findPublicForEvent(eventId: number): DataRecord[] {
+    return rawForEvent(eventId).map((row) => narrowRegistrationToPublic(toApiShape(row)));
   },
 
   /**
@@ -484,4 +556,6 @@ export = Object.assign(registrationStore, {
   rawForEvent,
   normaliseEmail,
   nowStamp,
+  maskAttendeeName,
+  narrowRegistrationToPublic,
 });

@@ -98,9 +98,22 @@ const listAllEvents = asyncHandler(async (req, res) => {
  * That is what lets an admin open a suspended or cancelled record for editing.
  * `status: 'all'` is what widens the lookup; the public detail route uses the
  * default and therefore answers 404 for an event that has been withdrawn.
+ *
+ * `includeContactDetails: true` is the second, deliberate difference from the
+ * public route, and it is why the attendee email and phone still reach the admin
+ * screens (the registrations page and the event editor both render them). The
+ * public endpoint no longer sends them at all, because publishing a named
+ * person's full email address and phone number on a public page breaches the
+ * Australian Privacy Principles - see REGISTRATION_COLUMNS_PUBLIC in
+ * src/repositories/repository.mysql.ts. Asking for them HERE, on the /api/admin
+ * mount, is the supported way to get them: it is the surface that exists for
+ * staff. The privacy fix must not be undone by widening the public default.
  */
 const getEventById = asyncHandler(async (req, res) => {
-  const event = await eventService.getEventById(req.params.id, { status: 'all' });
+  const event = await eventService.getEventById(req.params.id, {
+    status: 'all',
+    includeContactDetails: true,
+  });
   res.json(envelope('event', event, { view: 'admin' }));
 });
 

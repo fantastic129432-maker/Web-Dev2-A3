@@ -109,6 +109,22 @@ export interface Paging {
 export interface FindEventOptions {
   /** Which publish states to accept; the default looks at active events only. */
   status?: 'active' | 'all';
+
+  /**
+   * Whether the registrations attached to the event may carry the attendee's
+   * email address and phone number.
+   *
+   * The default is `false`, which is the privacy-safe answer: the PUBLIC event
+   * detail endpoint serves an anonymous visitor, and publishing an attendee's
+   * full contact details there breaches the Australian Privacy Principles'
+   * data-minimisation principle. Only the admin endpoints (which staff are
+   * authenticated to use - see the authentication note in adminController.ts)
+   * ask for `true`.
+   *
+   * Opting IN rather than opting out is deliberate: a new caller that forgets to
+   * think about this gets the narrowed projection rather than the breach.
+   */
+  includeContactDetails?: boolean;
 }
 
 /** One page of events plus the unpaged total. */
@@ -146,8 +162,18 @@ export interface RegistrationListResult {
  * which is what keeps the two data sources interchangeable.
  */
 export interface RegistrationQueries {
-  /** Every registration belonging to one event, oldest first. */
-  findByEventId(eventId: number): DataRecord[] | Promise<DataRecord[]>;
+  /**
+   * Every registration belonging to one event, newest first.
+   *
+   * `includeContactDetails` decides whether each row carries the attendee's email
+   * address and phone number, and it defaults to false so a caller that has not
+   * thought about it gets the public, privacy-safe projection. Only a caller that
+   * serves staff asks for true - see FindEventOptions.
+   */
+  findByEventId(
+    eventId: number,
+    includeContactDetails?: boolean
+  ): DataRecord[] | Promise<DataRecord[]>;
   /** One registration by its primary key, or null when the id is unknown. */
   findById(
     registrationId: number

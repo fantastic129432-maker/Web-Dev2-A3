@@ -705,12 +705,103 @@ async function testA3Api() {
     const sorted = dates.slice().sort().reverse();
     assert.deepEqual(dates, sorted, 'registrations must be newest first');
 
-    // Every field the page and the admin table display must be present.
+    // Every field the ADMIN table displays must be present. The public endpoint
+    // deliberately does not carry attendeeEmail or attendeePhone - see the two
+    // privacy checks below, which assert that absence rather than assuming it.
     const first = registrations[0];
-    ['registrationId', 'eventId', 'attendeeName', 'attendeeEmail', 'ticketsPurchased',
+    ['registrationId', 'eventId', 'attendeeName', 'ticketsPurchased',
      'registeredAt', 'ticketName', 'totalAmount'].forEach((field) => {
       assert.ok(field in first, `a registration is missing ${field}`);
     });
+  });
+
+  await test('the PUBLIC event detail endpoint sends no attendee email or phone', async () => {
+    // PRIVACY REGRESSION GUARD.
+    //
+    // The public detail response must not carry an attendee's email address or
+    // phone number: the page that renders these rows is open to anyone, so
+    // publishing them breaches the Australian Privacy Principles. The two
+    // assertions below are stronger than "the page does not print them" - they
+    // prove the data never leaves the API, so no future template change can
+    // re-expose it.
+    //
+    // This check INVERTS what the suite used to assert ("a registration is
+    // missing attendeeEmail" was a failure); it is not a removed or relaxed
+    // check, it is the same check pointed at the corrected contract.
+    const { status, body } = await api('/events/1');
+    assert.equal(status, 200);
+
+    const registrations = body.data.registrations;
+    assert.ok(registrations.length > 0, 'this check needs real rows to be meaningful');
+
+    registrations.forEach((row, index) => {
+      assert.ok(
+        !('attendeeEmail' in row),
+        `registration ${index} must not expose attendeeEmail on the public endpoint`
+      );
+      assert.ok(
+        !('attendeePhone' in row),
+        `registration ${index} must not expose attendeePhone on the public endpoint`
+      );
+    });
+
+    // The keys must be absent from the serialised response too, not merely
+    // undefined on the JS object: a JSON body is what a browser or a scraper
+    // actually receives.
+    const serialised = JSON.stringify(body);
+    assert.ok(
+      !serialised.includes('attendeeEmail') && !serialised.includes('attendeePhone'),
+      'the public response body must not mention attendeeEmail or attendeePhone at all'
+    );
+    assert.ok(
+      !/@/.test(serialised.split('"registrations"')[1] || ''),
+      'no email address may appear anywhere in the public registrations payload'
+    );
+
+    // The replace-what-was-removed fields: the page still has to be useful, so the
+    // list keeps a masked backer name, the ticket count, the tier and the date.
+    registrations.forEach((row, index) => {
+      assert.equal(
+        typeof row.attendeeName,
+        'string',
+        `registration ${index} must still carry attendeeName`
+      );
+      assert.ok(row.attendeeName.length > 0);
+      assert.ok(row.attendeeDisplayName, 'the masked backer name must be sent instead');
+      assert.equal(typeof row.ticketsPurchased, 'number');
+      assert.ok(row.registeredAt, 'the purchase date must still be sent');
+      assert.ok(row.ticketName, 'the ticket tier must still be sent');
+    });
+
+    // The mask keeps the first name and the initial of the surname.
+    const publicRow = body.data.registrations.find((row) => row.registrationId === 1);
+    assert.equal(publicRow.attendeeName, 'Amelia Hartley');
+    assert.equal(publicRow.attendeeDisplayName, 'Amelia H.');
+  });
+
+  await test('the ADMIN event endpoint keeps the attendee email and phone for staff', async () => {
+    // The other half of the privacy change: narrowing the public response must not
+    // take the contact details away from the staff screens that need them (the
+    // admin registrations table and the event editor both render them).
+    const { status, body } = await api('/admin/events/1');
+    assert.equal(status, 200);
+
+    const registrations = body.data.registrations;
+    assert.ok(Array.isArray(registrations) && registrations.length > 0);
+    registrations.forEach((row, index) => {
+      assert.ok(
+        'attendeeEmail' in row,
+        `the admin response must still carry attendeeEmail (row ${index})`
+      );
+      assert.ok(
+        'attendeePhone' in row,
+        `the admin response must still carry attendeePhone (row ${index})`
+      );
+    });
+
+    const staffRow = registrations.find((row) => row.registrationId === 1);
+    assert.equal(staffRow.attendeeEmail, 'amelia.hartley@example.com');
+    assert.ok(staffRow.attendeePhone, 'the seeded phone number must still be served');
   });
 
   await test('a registration reports the value of the tickets it bought', async () => {

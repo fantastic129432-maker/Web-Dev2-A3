@@ -115,6 +115,54 @@ export function formatTime(time: string | null | undefined): string {
 }
 
 /**
+ * Mask an attendee's name as "Grace T." for a public list.
+ *
+ * WHY THE PUBLIC PAGE MASKS AT ALL
+ *   The event detail page lists who has registered, which is the feature the
+ *   brief asks for, and that list is visible to anyone. A full name beside a
+ *   ticket count and a purchase date is enough to identify and contact a person,
+ *   so the page shows a first name and the initial of the surname: enough for the
+ *   visitor who booked to recognise their own row ("yes, that is mine"), and not
+ *   enough to publish somebody else's identity. The API does the same thing at the
+ *   query, and this helper is the client-side fallback for a response that carries
+ *   only the full name.
+ *
+ *   A single-word name is returned as it is, because "Grace" has no surname
+ *   initial to take and inventing one would be wrong. An empty name yields an
+ *   empty string so the caller can fall back to the registration id.
+ *
+ * @param attendeeName - The name as stored, in any casing, or null when the row carries none.
+ * @returns The masked name, for example 'Grace T.', or an empty string when there is no name.
+ */
+export function maskAttendeeName(attendeeName: string | null | undefined): string {
+  const name = String(attendeeName ?? '').trim();
+  if (name === '') return '';
+  const parts = name.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
+}
+
+/**
+ * The backer line under a registrations row: who, how many tickets, and when.
+ *
+ * Built from the masked name the API sends (`attendeeDisplayName`) where it is
+ * present, and from the full name via maskAttendeeName() otherwise, so the same
+ * mask is produced whichever shape arrived. The ticket and date halves are added
+ * by the component, because they are dictionary text and belong to the active
+ * language rather than to this function.
+ *
+ * @param registration - The registration row, public or admin shape.
+ * @returns The masked backer name, or an empty string when the row carries no name.
+ */
+export function backerName(registration: {
+  attendeeDisplayName?: string | null;
+  attendeeName?: string | null;
+}): string {
+  const fromApi = String(registration.attendeeDisplayName ?? '').trim();
+  return fromApi !== '' ? fromApi : maskAttendeeName(registration.attendeeName);
+}
+
+/**
  * Format an event's dates, including multi-day events.
  *
  * A single-day event shows one date; the three-week art exhibition shows a range.

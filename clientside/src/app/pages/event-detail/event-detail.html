@@ -64,50 +64,160 @@
                 }
               </span>
               <span class="price">{{ priceSummary() }}</span>
+
+              <!--
+                THE FIRST-SCREEN ACTION (review item 3).
+
+                The Register button lives in the ticket card in the sidebar, which
+                on a phone - and below a large hero illustration - is more than a
+                screen down. This puts the same journey beside the price, where a
+                visitor looking at "$130.00" is already deciding, and it is an
+                in-page fragment link rather than a route: the router has
+                `anchorScrolling: 'enabled'` (app.config.ts), so the browser
+                scrolls to the ticket card instead of reloading the page and losing
+                the reader's place.
+
+                The link is a `routerLink` carrying a `fragment`, NOT a plain
+                `href="#tickets"`. Measured in this application: a plain anchor
+                leaves the routed page entirely and lands on the HOME page with
+                `#tickets` in the URL, because the document has no `<base href>`,
+                so the browser resolves the fragment against the server root
+                (`/events/2` + `#tickets` -> `/#tickets`) and Angular treats that
+                as a navigation. The home page's own `#upcoming-events` anchors
+                survive that by luck - the home page IS `/`. A routerLink with a
+                fragment navigates to the same route with the fragment attached,
+                and `anchorScrolling: 'enabled'` (app.config.ts) then scrolls to
+                the element whose id matches.
+
+                A PAST EVENT gets the same disabled button the sidebar shows,
+                because there is nothing left to book - and an event that has sold
+                out gets the closed label too, since scrolling to a card whose only
+                control refuses the click would be a worse answer than saying so.
+              -->
+              @if (registrationOpen()) {
+                <a class="button button--small event-hero__cta" [routerLink]="[]" fragment="tickets">
+                  {{ 'event.heroGetTickets' | t }}
+                </a>
+              } @else {
+                <button class="button button--small event-hero__cta" type="button" disabled>
+                  {{ 'event.registerClosed' | t }}
+                </button>
+              }
             </div>
 
             <h1>{{ current.eventName }}</h1>
             <p class="event-hero__lead">{{ current.shortDescription }}</p>
 
-            <ul class="fact-list">
-              <li>
-                <span class="fact-list__label">{{ 'event.detailDate' | t }}</span>
-                <span class="fact-list__value">{{ fullDate() }}</span>
-              </li>
-              <li>
-                <span class="fact-list__label">{{ 'event.detailTime' | t }}</span>
-                <span class="fact-list__value">{{ timeRange() }}</span>
-              </li>
-              <li>
-                <span class="fact-list__label">{{ 'event.detailVenue' | t }}</span>
-                <span class="fact-list__value">{{ venueLine() }}</span>
-              </li>
-              <li>
-                <span class="fact-list__label">{{ 'event.detailLocation' | t }}</span>
-                <span class="fact-list__value">{{ locationLine() }}</span>
-              </li>
-              <li>
-                <span class="fact-list__label">{{ 'event.detailOrganiser' | t }}</span>
-                <span class="fact-list__value">{{ current.organizationName }}</span>
-              </li>
-              <li>
-                <span class="fact-list__label">{{ 'event.detailCapacity' | t }}</span>
-                <span class="fact-list__value">
+            <!--
+              THE FACTS, AS BLOCKS RATHER THAN SEVEN LABEL/VALUE LINES (review
+              item 5).
+
+              A `dl` of tiles: each one is an inline SVG icon, its label and its
+              value, so a visitor scans a date and a place instead of reading a
+              column of database fields. Every fact the plain list carried is still
+              here, and nothing was dropped to make room - the last tile carries
+              BOTH counts the API distinguishes, each with its own noun
+              ("3 registrations · 14 tickets sold"), because the old single row
+              printed the registration count under the label "Tickets sold so far"
+              and contradicted the table below it.
+
+              The icons are inline SVG for the reason the header's brand mark
+              records: the project loads no icon font, four lines of path data
+              cannot 404, and the stroke inherits `currentColor` so the dark theme
+              needs no second rule.
+
+              `dt` is the label and `dd` the value, so the pairing survives a
+              screen reader even though the two are laid out as a block.
+            -->
+            <dl class="fact-grid">
+              <div class="fact">
+                <span class="fact__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                    <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                    <path d="M8 3v4M16 3v4M3 10h18"></path>
+                  </svg>
+                </span>
+                <dt class="fact__label">{{ 'event.detailDate' | t }}</dt>
+                <dd class="fact__value">{{ fullDate() }}</dd>
+              </div>
+
+              <div class="fact">
+                <span class="fact__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
+                </span>
+                <dt class="fact__label">{{ 'event.detailTime' | t }}</dt>
+                <dd class="fact__value">{{ timeRange() }}</dd>
+              </div>
+
+              <div class="fact">
+                <span class="fact__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"></path>
+                    <circle cx="12" cy="10" r="2.6"></circle>
+                  </svg>
+                </span>
+                <dt class="fact__label">{{ 'event.detailVenue' | t }}</dt>
+                <dd class="fact__value">{{ venueLine() }}</dd>
+              </div>
+
+              <div class="fact">
+                <span class="fact__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H19v16H6.5A2.5 2.5 0 0 1 4 17.5z"></path>
+                    <path d="M8 2v20"></path>
+                  </svg>
+                </span>
+                <dt class="fact__label">{{ 'event.detailLocation' | t }}</dt>
+                <dd class="fact__value">{{ locationLine() }}</dd>
+              </div>
+
+              <div class="fact">
+                <span class="fact__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3l7 3v6c0 4.6-2.9 7.9-7 9-4.1-1.1-7-4.4-7-9V6z"></path>
+                    <path d="M9.2 12.2l2 2 3.6-3.9"></path>
+                  </svg>
+                </span>
+                <dt class="fact__label">{{ 'event.detailOrganiser' | t }}</dt>
+                <dd class="fact__value">{{ current.organizationName }}</dd>
+              </div>
+
+              <div class="fact">
+                <span class="fact__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 9h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path>
+                    <path d="M9 9V6.5A2.5 2.5 0 0 1 11.5 4h1A2.5 2.5 0 0 1 15 6.5V9"></path>
+                  </svg>
+                </span>
+                <dt class="fact__label">{{ 'event.detailCapacity' | t }}</dt>
+                <dd class="fact__value">
                   @if (current.capacity) {
                     {{ 'event.capacityPlaces' | t: { count: current.capacity } }}
                   } @else {
                     {{ 'event.capacityUnlimited' | t }}
                   }
+                </dd>
+              </div>
+
+              <!--
+                A3: how much interest the event has attracted. Both figures are
+                named, because the API distinguishes them and the page used to
+                print one under the other's label.
+              -->
+              <div class="fact">
+                <span class="fact__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3.5 8.5A2.5 2.5 0 0 1 6 6h12a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 18 18H6a2.5 2.5 0 0 1-2.5-2.5z"></path>
+                    <path d="M4 10.5h16M4 13.5h16"></path>
+                  </svg>
                 </span>
-              </li>
-              <!-- A3: how many registrations the event has attracted so far. -->
-              <li>
-                <span class="fact-list__label">{{ 'event.registrationsTotal' | t }}</span>
-                <span class="fact-list__value">
-                  {{ 'event.registeredCount' | t: { count: current.registrationCount || 0 } }}
-                </span>
-              </li>
-            </ul>
+                <dt class="fact__label">{{ 'event.detailAvailability' | t }}</dt>
+                <dd class="fact__value">{{ availabilityText() }}</dd>
+              </div>
+            </dl>
           </div>
 
           <div class="event-hero__media">
@@ -163,6 +273,13 @@
             } @else {
               <p class="registrations__lead">
                 {{ 'event.registrationsLead' | t: { count: registrations().length } }}
+                <!--
+                  The names below are deliberately partial, so the page says so once
+                  rather than leaving a visitor wondering whether the site is
+                  broken. The note is part of the same sentence, not a second
+                  paragraph, so it reads as the lead's own explanation.
+                -->
+                {{ 'event.registrationsPrivacy' | t }}
               </p>
 
               <div class="table-wrap">
@@ -181,28 +298,29 @@
                     @for (registration of registrations(); track registration.registrationId) {
                       <tr>
                         <!--
-                          The attendee cell carries the name plus the contact
-                          details underneath, so the table stays narrow on a phone
-                          while still showing the email and phone.
+                          THE ATTENDEE CELL IS A MASKED BACKER LINE, NOT A CONTACT CARD.
+
+                          This table is on a public page, so it must not identify the
+                          people who booked. It used to print each attendee's full
+                          email address and phone number; the API does not send
+                          either any more (the keys are absent from the public
+                          response - see REGISTRATION_COLUMNS_PUBLIC in
+                          api/src/repositories/repository.mysql.ts), and what replaces
+                          them is a first name, the initial of the surname, the number
+                          of tickets and the purchase date:
+
+                            Grace T. · 2 tickets · 14 Sep 2026
+
+                          which is enough for the visitor who booked to recognise
+                          their own row and not enough to publish anyone else's
+                          identity. The words around the numbers come from the
+                          dictionary (all four languages), the numbers do not.
+
+                          `backerLine()` builds the whole line, so there is exactly
+                          one place that decides how a backer is described.
                         -->
                         <th scope="row">
-                          @if (registration.attendeeName) {
-                            <span class="data-table__primary">{{ registration.attendeeName }}</span>
-                            <span class="data-table__secondary">
-                              {{ registration.attendeeEmail }}
-                              @if (registration.attendeePhone) {
-                                &nbsp;&middot;&nbsp;{{ registration.attendeePhone }}
-                              }
-                            </span>
-                          } @else {
-                            <!--
-                              A registration with no name is a data problem, not a
-                              display one, but the row stays identifiable by its id.
-                            -->
-                            <span class="data-table__primary">
-                              {{ 'event.registrationsLogin' | t }} #{{ registration.registrationId }}
-                            </span>
-                          }
+                          <span class="data-table__primary">{{ backerLine(registration) }}</span>
                         </th>
                         <td>
                           @if (registration.ticketName) {
@@ -270,14 +388,33 @@
                       }
                     </ul>
                   }
-                </div>
 
-                <!-- The "bring a coat" hint, added only when rain is forecast. -->
-                @if (weatherWet()) {
-                  <p class="weather__hint">{{ 'weather.bringACoat' | t }}</p>
-                }
-                <p class="weather__hint">{{ 'weather.outdoorHint' | t }}</p>
-                <p class="weather__credit">{{ 'weather.attribution' | t }}</p>
+                  <!--
+                    THE SMALL PRINT LIVES IN THE CARD (review item 6).
+
+                    "Rain is likely...", "Check the forecast..." and the Open-Meteo
+                    credit used to render as three loose paragraphs under the card,
+                    floating in the page rather than belonging to anything. They are
+                    the forecast's own notes, so they are the forecast card's footer:
+                    one bordered strip inside `.weather__card`, separated from the
+                    figures by a hairline rule.
+
+                    The attribution stays A VISIBLE LINE OF TEXT rather than moving
+                    into a tooltip or a `title` attribute. Open-Meteo's terms ask for
+                    the credit on the page, and a credit a visitor has to hover to
+                    find is not a credit; burying it would also break the
+                    accessibility rule that a screen reader must reach it. The
+                    dictionary keys are unchanged, so all four languages still carry
+                    the same sentence - only its position moved.
+                  -->
+                  <footer class="weather__footer">
+                    @if (weatherWet()) {
+                      <p class="weather__hint">{{ 'weather.bringACoat' | t }}</p>
+                    }
+                    <p class="weather__hint">{{ 'weather.outdoorHint' | t }}</p>
+                    <p class="weather__credit">{{ 'weather.attribution' | t }}</p>
+                  </footer>
+                </div>
               } @else if (forecastSettled()) {
                 <!-- The request finished without a forecast: say so, instead of
                      showing a loading indicator that never resolves. -->
@@ -324,8 +461,26 @@
             </ul>
           </div>
 
-          <!-- Ticket tiers, plus the Register / Registration closed control. -->
-          <div class="panel panel--accent">
+          <!--
+            Ticket tiers, plus the Register / Registration closed control.
+
+            THE STICKY CARD, AND THE SCROLL TARGET (review items 3 and 4).
+
+            This panel carries `id="tickets"`, which is what the hero's "Get
+            tickets" button scrolls to, and `.panel--sticky` makes it follow the
+            viewport while the description is read. It is the RIGHT control to keep
+            in view: it holds the prices and the Register button, so the primary
+            action stays reachable instead of being nearly two screens down.
+
+            It is the panel - not the whole side column - that sticks. A sticky
+            column moves as one block, which is what leaves a tall empty area under
+            the last card once the column has scrolled past; a sticky card travels
+            on its own while the goal and organiser cards scroll normally, so the
+            lower right of the page stays occupied by the thing the visitor came to
+            do. The stylesheet turns this off below 1000px, where the grid collapses
+            to one column and there is no second column to fill.
+          -->
+          <div class="panel panel--accent panel--sticky" id="tickets">
             <h2>{{ 'event.ticketsHeading' | t }}</h2>
 
             @if (current.ticketTypes.length === 0) {
@@ -355,15 +510,21 @@
               submit. Everything else links to the registration page carrying the
               event id in the URL, which is the "pass the event ID between pages"
               mechanism the brief suggests.
+
+              A SOLD-OUT EVENT TAKES THE SAME BRANCH as a past one, because the
+              register page would refuse the submission for the same reason: a tier
+              with nothing left cannot be booked. `registrationOpen` is that rule -
+              the same value the status sentence and the hero's action read - so the
+              button, the sentence above and the hero cannot disagree.
             -->
-            @if (current.eventState === 'past') {
-              <button class="button button--block" type="button" disabled>
-                {{ 'event.registerClosed' | t }}
-              </button>
-            } @else {
+            @if (registrationOpen()) {
               <a class="button button--block" [routerLink]="['/register', current.eventId]">
                 {{ 'event.register' | t }}
               </a>
+            } @else {
+              <button class="button button--block" type="button" disabled>
+                {{ 'event.registerClosed' | t }}
+              </button>
             }
           </div>
 

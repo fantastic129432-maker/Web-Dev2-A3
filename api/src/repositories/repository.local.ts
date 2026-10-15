@@ -418,6 +418,15 @@ const repository: EventReadRepository = {
    * active event only, while `status: 'all'` (the admin pages) accepts any
    * status. The registrations come from the same store the event page reads, and
    * they are in newest-first order there.
+   *
+   * WHICH REGISTRATIONS COME BACK IS DECIDED HERE, MIRRORING THE MYSQL SELECT.
+   * `includeContactDetails` defaults to false, so the public route gets
+   * findPublicForEvent() - the rows without an attendee email address or phone
+   * number, and with a masked attendeeDisplayName instead. The admin route passes
+   * `true` explicitly and keeps the whole row for staff. Those two calls are the
+   * local twins of REGISTRATION_COLUMNS_PUBLIC and REGISTRATION_COLUMNS in
+   * repository.mysql.ts; changing one without the other is what the suite runs
+   * the offline data source to catch.
    */
   async findEventById(eventId, options = {}) {
     const allowAnyStatus = options.status === 'all';
@@ -425,11 +434,15 @@ const repository: EventReadRepository = {
     const event = source.find((row) => row.eventId === Number(eventId));
     if (!event) return null;
 
+    const includeContactDetails = options.includeContactDetails === true;
+
     return {
       ...event,
       daysUntil: daysBetween(today(), event.dateStart),
       // A3: newest first, which is the order the brief asks the page to show.
-      registrations: registrationStore.findByEventId(event.eventId),
+      registrations: includeContactDetails
+        ? registrationStore.findByEventId(event.eventId)
+        : registrationStore.findPublicForEvent(event.eventId),
       totalTicketsSold: event.ticketsSold,
     };
   },

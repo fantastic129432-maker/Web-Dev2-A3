@@ -374,8 +374,14 @@ const repository: EventReadRepository = {
    * reads vw_public_events and therefore cannot see a suspended event, while
    * `status: 'all'` lets the admin website open one for editing.
    *
+   * The second decision this method makes is what the attached registrations are
+   * allowed to contain. `includeContactDetails` defaults to false, so the public
+   * route (which passes only `status`) gets the narrowed projection with no
+   * attendee email or phone; the admin route, which passes `true` explicitly,
+   * still gets them for staff.
+   *
    * @param eventId - The id of the event to read.
-   * @param options - Which publish states to accept. May be omitted, in which case only an active event is returned.
+   * @param options - Which publish states to accept, and whether the registrations may carry attendee contact details. May be omitted, in which case only an active event is returned and the registrations are narrowed to the public fields.
    * @returns The event with its ticket tiers, days remaining and registrations, or `null` when the view has no such row.
    */
   async findEventById(eventId, options = {}) {
@@ -392,7 +398,7 @@ const repository: EventReadRepository = {
 
     // rows.length was checked above, so there is always a row to normalise.
     const event = normaliseEvent(rows[0]) as DataRecord;
-    return decorateEventDetail(event, eventId);
+    return decorateEventDetail(event, eventId, options.includeContactDetails === true);
   },
 
   /**
@@ -559,11 +565,21 @@ const repository: EventReadRepository = {
  * force the caller to de-duplicate it. Kept as a plain function so
  * repository.local.ts can reuse the identical field names and ordering rules.
  *
+ * The registration query is the one place a public response could leak an
+ * attendee's personal information, so it is also where that is decided:
+ * `includeContactDetails` is threaded through from the route rather than assumed,
+ * and it defaults to false - see the privacy note on REGISTRATION_COLUMNS_PUBLIC.
+ *
  * @param event - The event row that has already been normalised.
  * @param eventId - The event's id, used by the follow-up queries.
+ * @param includeContactDetails - True only for the admin path, which keeps the attendee's email and phone on each registration row. May be omitted, in which case the public projection is used.
  * @returns The same event object, with `ticketTypes`, `daysUntil`, `registrations` and `totalTicketsSold` added.
  */
-async function decorateEventDetail(event: DataRecord, eventId: number): Promise<DataRecord> {
+async function decorateEventDetail(
+  event: DataRecord,
+  eventId: number,
+  includeContactDetails = false
+): Promise<DataRecord> {
   const tickets = await q.query(
     `SELECT ticket_type_id      AS ticketTypeId,
             ticket_name         AS ticketName,
@@ -593,8 +609,10 @@ async function decorateEventDetail(event: DataRecord, eventId: number): Promise<
 
   // A3: the event detail endpoint now also returns every registration for the
   // event, newest first, which is exactly the order the brief asks the page to
-  // display ("sorted by the latest date when the tickets were purchased").
-  event.registrations = await registrationQueries.findByEventId(eventId);
+  // display ("sorted by the latest date when the tickets were purchased"). The
+  // projection - and therefore whether an attendee's email and phone are in the
+  // response at all - is decided by `includeContactDetails`, not here.
+  event.registrations = await registrationQueries.findByEventId(eventId, includeContactDetails);
   event.totalTicketsSold = event.registrations.reduce(
     (sum: number, row: DataRecord) => sum + row.ticketsPurchased,
     0
@@ -604,11 +622,16 @@ async function decorateEventDetail(event: DataRecord, eventId: number): Promise<
 }
 
 /**
- * The registration columns shared by the read queries.
+ * The registration columns shared by the read queries that serve STAFF.
  *
  * The joined form is used wherever the tier name, the price and the event name
  * are needed; the amounts are computed in SQL so both data sources report the
  * same total for a registration.
+ *
+ * This projection carries `attendee_email` and `attendee_phone`, so it must only
+ * ever be selected for the admin routes. The public counterpart is
+ * REGISTRATION_COLUMNS_PUBLIC below, and the two differ on purpose - see the
+ * privacy note there before adding a caller.
  */
 const REGISTRATION_COLUMNS = `
   r.registration_id      AS registrationId,
@@ -625,7 +648,43 @@ const REGISTRATION_COLUMNS = `
   (r.tickets_purchased * COALESCE(t.price, 0)) AS totalAmount,
   e.event_name           AS eventName`;
 
-/** Unqualified version of the same list, for statements without a join. */
+/**
+ * The registration columns for the PUBLIC endpoints: the same rows, MINUS the
+ * attendee's email address and phone number.
+ *
+ * WHY THIS PROJECTION EXISTS AND MUST NOT BE "COMPLETED"
+ *   `attendee_email` and `attendee_phone` are personal information. The public
+ *   event detail endpoint answers an anonymous visitor, and the page renders the
+ *   rows it returns, so selecting those two columns published a named person's
+ *   full email address and mobile number on a public web page - a breach of the
+ *   Australian Privacy Principles (APP 3 and APP 11: collect and hold only what
+ *   the purpose needs, and do not disclose it). They are therefore NOT selected
+ *   here, so no later change to the template, the client or the serialiser can
+ *   put them back on the page: the data never leaves the database.
+ *
+ *   A future reader adding a column to this list must keep that rule. If a screen
+ *   genuinely needs an attendee's contact details, it is a staff screen and it
+ *   must read the admin endpoint (GET /api/admin/events/:id), which asks for
+ *   REGISTRATION_COLUMNS above - never this list. The public page shows a masked
+ *   backer line instead ("Grace T."), which is built from attendeeName alone.
+ *
+ * Everything the public page legitimately needs is still here: the attendee's
+ * name, how many tickets they bought, the tier they bought and when.
+ */
+const REGISTRATION_COLUMNS_PUBLIC = `
+  r.registration_id      AS registrationId,
+  r.event_id             AS eventId,
+  r.ticket_type_id       AS ticketTypeId,
+  r.attendee_name        AS attendeeName,
+  r.tickets_purchased    AS ticketsPurchased,
+  r.registered_at        AS registeredAt,
+  r.notes                AS notes,
+  t.ticket_name          AS ticketName,
+  t.price                AS ticketPrice,
+  (r.tickets_purchased * COALESCE(t.price, 0)) AS totalAmount,
+  e.event_name           AS eventName`;
+
+/** Unqualified version of the staff projection, for statements without a join. */
 const REGISTRATION_COLUMNS_BARE = `
   r.registration_id      AS registrationId,
   r.event_id             AS eventId,
@@ -678,12 +737,24 @@ const registrationQueries: RegistrationQueries = {
    * the tickets were purchased"; registration_id DESC breaks a tie between two
    * rows written in the same second, so the order is always stable.
    *
+   * WHICH COLUMNS COME BACK IS THE CALLER'S DECISION, AND THE SAFE DEFAULT IS
+   * THE NARROW ONE. `includeContactDetails` defaults to false, so the public
+   * event detail endpoint selects REGISTRATION_COLUMNS_PUBLIC and never sees an
+   * attendee's email address or phone number. Only a caller that has explicitly
+   * established that it serves staff (`getEventById(..., { status: 'all',
+   * includeContactDetails: true })`, reached through /api/admin/events/:id)
+   * selects the full list.
+   *
    * @param eventId - The event whose registrations should be listed.
+   * @param includeContactDetails - True only for the admin path, which keeps the
+   *   attendee's email and phone for staff. May be omitted, in which case the
+   *   public projection without contact details is used.
    * @returns The registration rows, normalised, newest first.
    */
-  async findByEventId(eventId) {
+  async findByEventId(eventId, includeContactDetails = false) {
+    const columns = includeContactDetails ? REGISTRATION_COLUMNS : REGISTRATION_COLUMNS_PUBLIC;
     const rows = await q.query(
-      `SELECT ${REGISTRATION_COLUMNS}
+      `SELECT ${columns}
          FROM event_registrations r
          LEFT JOIN ticket_types t ON t.ticket_type_id = r.ticket_type_id
          LEFT JOIN events e       ON e.event_id       = r.event_id
@@ -843,6 +914,7 @@ export = Object.assign(repository, {
   SORT_COLUMNS,
   EVENT_COLUMNS,
   REGISTRATION_COLUMNS,
+  REGISTRATION_COLUMNS_PUBLIC,
   REGISTRATION_COLUMNS_BARE,
   PRIMARY_PRICE,
   LIKE_ESCAPE,

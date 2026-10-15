@@ -1394,24 +1394,188 @@ textarea:focus { border-color: var(--brand-500); }
 }
 .event-hero__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+/*
+ * The hero fact tiles.
+ *
+ * WHAT THIS REPLACES, AND WHY
+ *   These facts were seven plain label/value lines - "Date  Saturday 14 November
+ *   2026", "Venue  Ocean Shores Golf Club" - which read like a database row rather
+ *   than like a page. They are now blocks of a grid: an inline SVG icon, the label
+ *   and the value, so the date and the place are found by shape before the text is
+ *   read. No fact was dropped to make room (see the template), and nothing here
+ *   hardcodes a colour, so the dark theme needs no second rule.
+ *
+ * `auto-fit` + `minmax(190px, 1fr)` does the responsive work: four tiles per row
+ * on a wide hero, two beside the illustration, one on a phone - without a media
+ * query per breakpoint.
+ */
+.fact-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-5);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-3);
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'icon label'
+    'icon value';
+  align-content: start;
+  column-gap: var(--space-3);
+  row-gap: 0.15rem;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-50);
+}
+
+.fact__icon {
+  grid-area: icon;
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: var(--brand-100);
+  color: var(--brand-700);
+}
+
+.fact__label {
+  grid-area: label;
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.fact__value {
+  grid-area: value;
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ink-900);
+}
+
+/*
+ * The legacy plain fact list is KEPT.
+ *
+ * `.fact-list` is still what the registration page's summary panel renders (see
+ * register.html), so removing it here would break that page rather than tidy this
+ * one. The event hero simply no longer uses it.
+ */
 .fact-list { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: grid; gap: var(--space-3); }
 .fact-list li { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); font-size: 0.95rem; }
 .fact-list dt, .fact-list__label { color: var(--ink-500); font-weight: bold; }
 .fact-list__value { color: var(--ink-900); }
 
+/*
+ * The first-screen action beside the price.
+ *
+ * `align-self: center` keeps it on the meta row's baseline rather than stretching
+ * to the row height, and the small size keeps it a peer of the price pill while
+ * still reading as the button that starts the booking.
+ */
+.event-hero__cta { align-self: center; }
+
+/*
+ * The sticky ticket card.
+ *
+ * `top` clears the sticky site header (as `.side-column` and `.registration-summary`
+ * both do), and the card follows the viewport while the description is read so the
+ * prices and the Register button stay reachable. It is the CARD that sticks, not
+ * the whole side column: a sticky column moves as one block, which is what leaves
+ * a tall empty area under the last card once the column has scrolled away.
+ *
+ * `scroll-margin-top` is what makes the "Get tickets" fragment land the card just
+ * below the header instead of under it.
+ *
+ * HOW FAR IT TRAVELS IS DECIDED BY `.side-column` BELOW, not by this rule: a
+ * sticky element is confined to its containing block, so the card can only follow
+ * the reader as far as the column it lives in is tall. The column therefore puts
+ * this card in a grid row of its own that spans the other two, which is what gives
+ * it the whole column's height to move in.
+ */
+.panel--sticky {
+  position: sticky;
+  top: 96px;
+  scroll-margin-top: 110px;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: var(--space-7);
-  align-items: start;
   padding: var(--space-7) 0;
 }
+
+/*
+ * The prose column sits at the top of the row rather than being stretched.
+ *
+ * `align-items: start` on the GRID would have done this too, but it also made the
+ * SIDE column fit its content - and a sticky element can only travel as far as its
+ * containing block is tall, so a content-height sidebar limited the ticket card to
+ * about 300px of movement no matter where it sat inside it. Measured with the card
+ * as a `grid-row: 1 / -1` item in a content-height column: pinned at scrollY 1400,
+ * already pushed off the top at scrollY 1900.
+ *
+ * Putting the start alignment on the one column that wants it leaves the side
+ * column stretched to the height of the description, which is what gives the
+ * sticky card the whole column to move in. Measured after the change, on event 2
+ * at 1440x1000: the card's top holds at exactly 96px - just under the header -
+ * from scrollY 900 through scrollY 1800, and only releases at the very end of the
+ * description (scrollY 2013, where the column's bottom arrives).
+ */
+.prose { align-self: start; }
 
 .prose h2 { margin-top: var(--space-6); }
 .prose h2:first-child { margin-top: 0; }
 .prose p { color: var(--ink-700); }
 
-.side-column { display: grid; gap: var(--space-5); position: sticky; top: 96px; }
+/*
+ * The side column: three panels, with the ticket card given a row of its own.
+ *
+ * WHY THE EXPLICIT ROWS
+ *   The stickiness is measured, not assumed. With the three panels as three
+ *   ordinary grid rows the ticket card was confined to its own row's height - a
+ *   sticky element travels only inside its containing block - so it unpinned after
+ *   about 300px of scrolling and slid away with the goal card.
+ *
+ *   `grid-template-rows` therefore spells the column out - goal panel, the ticket
+ *   card's own row, the organiser panel - and the card spans all three
+ *   (`grid-row: 1 / -1`), so its containing block is the column rather than a
+ *   single row. The goal and organiser cards scroll past underneath it.
+ *
+ *   The column is NOT itself sticky any more. A sticky column moves as one block,
+ *   which is what left the tall empty area in the lower right: it scrolls away
+ *   entirely once its own bottom passes the viewport, and the ticket card that
+ *   fills that space goes with it.
+ */
+.side-column {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-5);
+}
+
+/*
+ * The card spans the column's rows so its containing block is the column, but it
+ * must NOT be stretched by them.
+ *
+ * A grid item stretches to fill its area by default, and an 1,100px-tall ticket
+ * card with one button at the top of it is a block of empty panel - the very
+ * "large empty area" this change is meant to remove, moved inside the card.
+ * `align-self: start` keeps the card at its natural height while the spanning row
+ * still gives sticky positioning the whole column to travel in.
+ */
+.side-column .panel--sticky {
+  grid-row: 1 / -1;
+  align-self: start;
+}
 
 .panel {
   background: #fff;
@@ -1715,6 +1879,34 @@ textarea:focus { border-color: var(--brand-500); }
 
 .weather__credit { margin-top: var(--space-1); color: var(--ink-500); font-size: 0.78rem; }
 
+/*
+ * The forecast card's footer (review item 6).
+ *
+ * The "bring a coat" hint, the "check the forecast" note and the Open-Meteo
+ * attribution used to render as three loose paragraphs UNDER the card, floating
+ * in the page rather than belonging to the thing they describe. They are now one
+ * strip inside the card, separated from the figures by a hairline rule.
+ *
+ * `flex-basis: 100%` is what puts it on its own line: `.weather__card` is a
+ * wrapping flex row (glyph, summary, details), so a full-basis child wraps below
+ * the other three without a nested container or a change to the row itself.
+ *
+ * The attribution stays a visible line of TEXT rather than a tooltip. Open-Meteo's
+ * terms ask for the credit on the page, and a credit that only appears on hover
+ * would also be unreachable for a screen reader - which is the more serious
+ * problem of the two.
+ */
+.weather__footer {
+  flex-basis: 100%;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+/* Inside the footer the hints stack without the top margin that spaced them from
+   the card when they were loose siblings. */
+.weather__footer .weather__hint:first-child { margin-top: 0; }
+
 /* --------------------------------------------------------------------------
    Registration page
    -------------------------------------------------------------------------- */
@@ -1850,7 +2042,12 @@ textarea:focus { border-color: var(--brand-500); }
      what would make a tall filter form awkward to scroll past on a phone. */
   .filter-panel { position: static; }
   .detail-grid { grid-template-columns: 1fr; gap: var(--space-6); }
+  /* Stacked layout: one column, so there is no second column for the ticket card
+     to fill and the card follows the form down the page instead of the viewport.
+     A sticky card in a single-column layout would also sit over the prose it just
+     scrolled past. */
   .side-column { position: static; }
+  .panel--sticky { position: static; }
   .hero__inner { grid-template-columns: 1fr; }
   .event-hero__grid { grid-template-columns: 1fr; }
   /* A3: the event summary stacks above the form. */
@@ -1883,6 +2080,9 @@ textarea:focus { border-color: var(--brand-500); }
   .site-header__controls { flex: 1 1 100%; }
   .form-row { grid-template-columns: 1fr; }
   .fact-list li { grid-template-columns: 1fr; gap: var(--space-1); }
+  /* One tile per row on a phone: two 190px tiles plus the container padding no
+     longer fit, and a squeezed tile breaks a venue name over three lines. */
+  .fact-grid { grid-template-columns: 1fr; }
   .site-footer__bottom { flex-direction: column; align-items: flex-start; }
   /* A3: the table keeps its column layout and scrolls inside .table-wrap
      instead of collapsing, because a stacked table is unreadable. */
