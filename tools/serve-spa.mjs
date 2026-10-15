@@ -80,7 +80,19 @@ const server = http.createServer((request, response) => {
   const candidate = path.join(ROOT, requestedPath);
 
   // Never serve anything outside the built application.
-  if (!candidate.startsWith(ROOT)) {
+  //
+  // The comparison is against ROOT PLUS A SEPARATOR. A plain
+  // `candidate.startsWith(ROOT)` is a STRING prefix, not a directory boundary, and
+  // path.join has already normalised away any `..` in the request - so a sibling
+  // directory whose name merely begins with the served directory's name
+  // ("site-secret" next to "site") passed the check and its files were served:
+  //
+  //   GET /../site-secret/secret.txt   -> 200, a file outside the application
+  //
+  // Demonstrated with a raw HTTP request, which - unlike a browser - sends the
+  // path verbatim instead of normalising it first. This server is used only
+  // locally and by the test suite, but the fix is one comparison.
+  if (candidate !== ROOT && !candidate.startsWith(ROOT + path.sep)) {
     response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     response.end('Forbidden');
     return;

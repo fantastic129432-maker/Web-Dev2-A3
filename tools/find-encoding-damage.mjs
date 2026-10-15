@@ -38,11 +38,20 @@ const EXTENSIONS = new Set([
 const SKIP = new Set(['node_modules', '.git', '.shots', 'mysql', '.mysql-install']);
 
 /**
- * Mojibake markers.
+ * Mojibake markers, matched as a RUN of two or more.
  *
- * The characters below belong to the CJK blocks and appear only when UTF-8 bytes
- * have been read as GBK and written back, so a box-drawing character or a short
- * Chinese word is replaced by a run of them.
+ * The characters below sit in the CJK blocks that UTF-8 bytes land in when they
+ * are read as GBK, and real damage replaces a whole word or box-drawing run with
+ * a SEQUENCE of them.
+ *
+ * WHY TWO OR MORE, NOT ONE
+ *   Several of these code points are also perfectly ordinary Chinese characters -
+ *   0x94fa 铺 (to lay out), 0x94a2 钢 (steel), 0x94dc 铜 (copper), 0x94f6 银
+ *   (silver). A single-character pattern therefore flags legitimate writing, and
+ *   this project's deployment guide is written in Chinese: it reported four clean
+ *   sentences as damaged the moment someone used the word 铺. Requiring a run
+ *   matches the stated intent ("replaced by a run of them") and keeps the check
+ *   meaningful, because genuine mojibake never produces just one.
  *
  * They are written as code points rather than literals for two reasons: a file
  * that contains the marker sequences would flag itself (which is exactly what
@@ -65,7 +74,7 @@ const DAMAGE_CODEPOINTS = [
 
 /** Vietnamese and Japanese text is legitimate here, so only the test above is used. */
 const DAMAGE_PATTERN = new RegExp(
-  `[${DAMAGE_CODEPOINTS.map((code) => `\\u{${code.toString(16)}}`).join('')}]`,
+  `[${DAMAGE_CODEPOINTS.map((code) => `\\u{${code.toString(16)}}`).join('')}]{2,}`,
   'u'
 );
 
