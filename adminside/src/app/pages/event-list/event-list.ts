@@ -39,6 +39,19 @@ import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
  * states) exactly as the archived page did: a filtered view can be refreshed or
  * shared, and the dashboard's "review the registrations" style links can
  * preselect a filter.
+ *
+ * THE TOTALS ROW
+ *   Every figure in it comes from the API's own per-event columns
+ *   (`registrationCount`, `ticketsSold`, `raisedAmount`, `goalAmount`) rather
+ *   than from counting anything in the browser: the browser only ever sees the
+ *   page of events it was given, so a count derived from the DOM would silently
+ *   become a count of the rows that happen to be on screen. It is summed here
+ *   only because the row is a total of THIS list, and the two money figures are
+ *   restricted to the published rows so that they equal the dashboard's own
+ *   totals for the same data - see totalRaised(), which is where that rule and
+ *   the reason for it are written down. Sums are rendered with the shared
+ *   formatCurrency, the same formatter the dashboard's money tile uses, so a
+ *   figure does not read one way on this page and another way there.
  */
 @Component({
   selector: 'admin-event-list',
@@ -299,13 +312,73 @@ export class EventList {
 
   /* -------------------------------------------------------------- totals ---- */
 
-  /** Total registrations across the rows on screen. */
+  /**
+   * Total registrations across the rows on screen.
+   *
+   * @returns The sum of the per-event registration counts the API returned.
+   */
   protected totalRegistrations(): number {
     return this.events().reduce((sum, event) => sum + Number(event.registrationCount || 0), 0);
   }
 
-  /** Total tickets sold across the rows on screen. */
+  /**
+   * Total tickets sold across the rows on screen.
+   *
+   * @returns The sum of the per-event ticket counts the API returned.
+   */
   protected totalTickets(): number {
     return this.events().reduce((sum, event) => sum + Number(event.ticketsSold || 0), 0);
+  }
+
+  /**
+   * Total raised across the rows the DASHBOARD counts as well.
+   *
+   * WHY THE ROWS ARE FILTERED BY STATUS
+   *   The dashboard's "Total raised" tile is `stats.totalRaised`, which
+   *   /api/stats reads from the PUBLIC view - fixed to `status = 'active'` - so
+   *   a suspended event's money is not in that figure. Summing every row of this
+   *   list instead would print $99,440 here against the dashboard's $99,290 for
+   *   the same data, and two pages disagreeing about one number is worse than a
+   *   summary that is deliberately narrower than the table above it. The
+   *   suspended row and any cancelled row are therefore excluded from both money
+   *   totals, which is the rule the class comment states as well.
+   *
+   *   The COUNT totals are not filtered, and that is the same decision: /api/stats
+   *   counts registrations and tickets from the registrations table, which has no
+   *   status filter, so those two agree with this page already.
+   *
+   * @returns The sum of the raised amounts of the published rows on screen.
+   */
+  protected totalRaised(): number {
+    return this.publishedEvents().reduce((sum, event) => sum + Number(event.raisedAmount || 0), 0);
+  }
+
+  /**
+   * Total fundraising goal across the same published rows.
+   *
+   * The scope matches totalRaised() so that the two lines of the summary's
+   * RAISED / GOAL cell are read together, exactly as they are in the rows above.
+   * The API's `stats.activeGoal` is deliberately NOT used: it counts only the
+   * UPCOMING published events' goals, which is a third scope again, and the
+   * dashboard does not display it, so there would be nothing for it to agree
+   * with.
+   *
+   * @returns The sum of the goal amounts of the published rows on screen.
+   */
+  protected totalGoal(): number {
+    return this.publishedEvents().reduce((sum, event) => sum + Number(event.goalAmount || 0), 0);
+  }
+
+  /**
+   * The rows the dashboard's money figures cover: everything the public website
+   * would publish.
+   *
+   * This is the one place that decides which rows a money total includes, so the
+   * raised and the goal totals cannot drift apart. It returns the `active` rows
+   * in the order they are shown; a row whose status is missing is left out, since
+   * only `active` is what the public view counts.
+   */
+  private publishedEvents(): readonly CharityEvent[] {
+    return this.events().filter((event) => event.status === 'active');
   }
 }

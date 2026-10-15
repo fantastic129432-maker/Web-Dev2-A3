@@ -195,9 +195,28 @@ if (counts.event_registrations < 10) {
   }
 }
 
+/**
+ * One documentation line per mirrored table.
+ *
+ * The generated file is held to the project's TSDoc standard like any other
+ * source file, and an earlier regeneration replaced hand-written comments on
+ * each table with nothing at all. The wording therefore lives in the generator:
+ * `npm run docs` reads these blocks, so a regeneration must not quietly empty
+ * the offline mirror's documentation.
+ */
+const TABLE_DOCS = {
+  organizations: 'The seed rows for the organisations table.',
+  categories: 'The seed rows for the categories table.',
+  locations: 'The seed rows for the locations table, the venues the events are held at.',
+  events: 'The seed rows for the events table, which the read repository decorates.',
+  ticket_types: 'The seed rows for the ticket_types table, one or more per event.',
+  donations: "The seed rows for the donations table, which drive each event's progress.",
+  event_registrations: 'The seed rows for the event_registrations table, copied into the mutable store.',
+};
+
 const banner = `/**
- * src/repositories/local-data.ts
- * ---------------------------------------------------------------------------
+ * @file The offline mirror of the seeded sample data.
+ *
  * GENERATED FILE - do not edit by hand.
  * Produced by: node tools/generate-local-data.js
  * Source     : database/02_seed.sql
@@ -219,10 +238,19 @@ import type { DataRecord } from '../types';
 `;
 
 const body = WANTED_TABLES.map(
-  (table) => `const ${table}: DataRecord[] = ${JSON.stringify(data[table] || [], null, 2)};\n`
+  (table) =>
+    `/** ${TABLE_DOCS[table]} */\n` +
+    `const ${table}: DataRecord[] = ${JSON.stringify(data[table] || [], null, 2)};\n`
 ).join('\n');
 
 const footer = `
+/**
+ * The whole snapshot, keyed by the table name the SQL uses.
+ *
+ * The keys keep the database's snake_case names (\`ticket_types\`,
+ * \`event_registrations\`) so a difference from the seed file is easy to spot, and
+ * local-store.ts is the only module that mutates any of it.
+ */
 export = {
 ${WANTED_TABLES.map((table) => `  ${table},`).join('\n')}
 };

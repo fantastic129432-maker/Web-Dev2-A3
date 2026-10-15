@@ -106,7 +106,13 @@
             </th>
 
             <!-- Publishing status AND the derived time state side by side: an
-                 "active" event can still be past, and both facts matter here. -->
+                 "active" event can still be past, and both facts matter here.
+
+                 The two tags share ONE line. They used to wrap when they did not
+                 fit - SUSPENDED is longer than ACTIVE or UPCOMING - which made
+                 that row taller than its neighbours and left the column ragged;
+                 see the .data-table--admin .cell-badges rule in styles.css, which
+                 holds the line and lets the column take the width it needs. -->
             <td>
               <span class="cell-badges">
                 <span [class]="statusClass(event.status)">{{ 'status.' + event.status | t }}</span>
@@ -144,9 +150,40 @@
             </td>
 
             <td>
+              <!--
+                ONE line per row.
+
+                The three controls used to be labelled buttons, and they wrapped
+                in this column: Edit and View on the first line, Delete on a
+                second, so the actions cell - not the data - set the height of
+                every row and a single-value cell like TICKETS sat stranded in
+                the middle of it. The review offered compact icon buttons or an
+                Edit button plus a "..." overflow menu; the icons were chosen
+                because an overflow menu costs a second interaction for View and
+                Delete, and it would also hide the disabled "Deletion blocked"
+                state below, which exists to keep the data-integrity rule visible
+                beside the data rather than only in a banner.
+
+                Every action keeps its ONE click, its own control in the row, and
+                the same confirm dialog as before. The icon is decorative
+                (`aria-hidden`); the accessible name is the `sr-only` text, which
+                is the same word the button used to show, so a screen reader
+                hears the row exactly as it did. `title` is the sighted tooltip -
+                a content-derived name wins over it, so nothing is announced
+                twice - and `:focus-visible` from the design system draws the
+                keyboard ring.
+              -->
               <div class="row-actions">
-                <a class="button button--small button--outline" [routerLink]="['/events', event.eventId, 'edit']">
-                  {{ 'events.edit' | t }}
+                <a
+                  class="button button--small button--outline row-action"
+                  [routerLink]="['/events', event.eventId, 'edit']"
+                  [title]="'events.edit' | t"
+                >
+                  <svg class="row-action__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M4.5 19.5h3.6L18.6 9a2.1 2.1 0 0 0 0-3l-.6-.6a2.1 2.1 0 0 0-3 0L4.5 15.9z"></path>
+                    <path d="M14.4 6.3l3.3 3.3"></path>
+                  </svg>
+                  <span class="sr-only">{{ 'events.edit' | t }}</span>
                 </a>
 
                 <!--
@@ -156,23 +193,46 @@
                   same tab on purpose: Back returns to this list with its filters
                   intact, since the filters live in the URL.
                 -->
-                <a class="button button--small button--outline" [href]="publicSiteBase + 'events/' + event.eventId">
-                  {{ 'events.view' | t }}
+                <a
+                  class="button button--small button--outline row-action"
+                  [href]="publicSiteBase + 'events/' + event.eventId"
+                  [title]="'events.view' | t"
+                >
+                  <svg class="row-action__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M2.6 12S6.1 6 12 6s9.4 6 9.4 6-3.5 6-9.4 6-9.4-6-9.4-6z"></path>
+                    <circle cx="12" cy="12" r="2.8"></circle>
+                  </svg>
+                  <span class="sr-only">{{ 'events.view' | t }}</span>
                 </a>
 
                 <!--
                   Every row offers Delete, even a row the API will refuse. Hiding
-                  the button would make the data-integrity rule invisible; the 409
+                  the control would make the data-integrity rule invisible; the 409
                   names the event and its registrations and the button then reads
                   "Deletion blocked", which is more useful than a missing control.
+                  That label stays as WORDS for the same reason: an icon alone
+                  would hide the one state a staff member has to act on. It is the
+                  only control in the column that is ever wider than the icons,
+                  and it still holds one line.
                 -->
                 @if (blockedReason(event.eventId); as reason) {
                   <button class="button button--small button--danger" type="button" disabled [title]="reason">
                     {{ 'delete.blockedTitle' | t }}
                   </button>
                 } @else {
-                  <button class="button button--small button--danger" type="button" (click)="askDelete(event)">
-                    {{ 'events.delete' | t }}
+                  <button
+                    class="button button--small button--danger row-action"
+                    type="button"
+                    (click)="askDelete(event)"
+                    [title]="'events.delete' | t"
+                  >
+                    <svg class="row-action__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                      <path d="M4 7h16"></path>
+                      <path d="M9.5 7V4.8h5V7"></path>
+                      <path d="M6.4 7l.9 12.2h9.4L17.6 7"></path>
+                      <path d="M10.4 10.5v6M13.6 10.5v6"></path>
+                    </svg>
+                    <span class="sr-only">{{ 'events.delete' | t }}</span>
                   </button>
                 }
               </div>
@@ -181,13 +241,24 @@
         }
       </tbody>
 
-      <!-- A totals row for the two columns where a sum means something. -->
+      <!-- A totals row for the two columns where a sum means something. RAISED /
+           GOAL is totalled on both of its lines, and the two money figures carry
+           the same meaning they do in a row above; see totalRaised() for why the
+           money totals are narrower than the table and the counts are not. -->
       <tfoot>
         <tr>
           <th scope="row" colspan="5">{{ 'events.heading' | t }}</th>
           <td class="is-numeric">{{ totalRegistrations() }}</td>
           <td class="is-numeric">{{ totalTickets() }}</td>
-          <td colspan="2"></td>
+          <td class="is-numeric">
+            <span class="cell-stack">
+              <span class="cell-stack__primary">{{ formatCurrency(totalRaised()) }}</span>
+              <span class="cell-stack__secondary">
+                {{ 'events.goal' | t }}: {{ formatCurrency(totalGoal()) }}
+              </span>
+            </span>
+          </td>
+          <td></td>
         </tr>
       </tfoot>
     </table>

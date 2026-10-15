@@ -444,7 +444,7 @@ const events: DataRecord[] = [
     "organization_id": 6,
     "category_id": 3,
     "location_id": 7,
-    "event_name": "Midnight Desert Auction (suspended)",
+    "event_name": "Midnight Desert Auction",
     "short_description": "Suspended pending a fundraising compliance review.",
     "description": "This event has been suspended by the organisation while a fundraising compliance review is completed. It must not be displayed on the public website. The record is retained so that the organisation can restore or cancel it once the review concludes.",
     "purpose": "Suspended - pending compliance review.",

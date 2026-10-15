@@ -176,7 +176,13 @@ VALUES
    10000.00, 0, 700, 'active', 'fun-run.svg'),
   -- 11. SUSPENDED - policy breach, must never appear on the public site,
   --     but MUST appear in the admin list (Part 4 requirement).
-  (11, 6, 3, 7, 'Midnight Desert Auction (suspended)',
+  --     The publishing status is NOT part of the name. It is stored in the
+  --     `status` column below and the admin list renders its own badge from
+  --     that column, so a name carrying "(suspended)" printed the same fact
+  --     twice on one row - and, because the badge is then longer than
+  --     ACTIVE / UPCOMING, it wrapped onto a second line and broke the
+  --     alignment of the status column.
+  (11, 6, 3, 7, 'Midnight Desert Auction',
    'Suspended pending a fundraising compliance review.',
    'This event has been suspended by the organisation while a fundraising compliance review is completed. It must not be displayed on the public website. The record is retained so that the organisation can restore or cancel it once the review concludes.',
    'Suspended - pending compliance review.',
