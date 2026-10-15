@@ -296,10 +296,9 @@ const SORT_KEYS: Record<string, string> = {
  * @param sort - The requested sort key; an unknown key falls back to `defaultSort`.
  * @param direction - `desc` reverses the order; anything else is ascending.
  * @param defaultSort - The key to use when `sort` is not in the whitelist. May be omitted, in which case `date` is used.
- * @param defaultDir - The direction used for the fallback. May be omitted, in which case ascending order is used.
  * @returns A new, sorted array.
  */
-function sortEvents(events: DataRecord[], sort: string, direction: string, defaultSort = 'date', defaultDir = 'ASC'): DataRecord[] {
+function sortEvents(events: DataRecord[], sort: string, direction: string, defaultSort = 'date'): DataRecord[] {
   const key = SORT_KEYS[sort] || SORT_KEYS[defaultSort];
   const dir = String(direction).toLowerCase() === 'desc' ? -1 : 1;
 
@@ -385,7 +384,7 @@ const repository: EventReadRepository = {
     // caller keeps the active-only rule.
     const source = filters.audience === 'admin' ? allEvents() : publicEvents();
     const matched = source.filter((event) => matches(event, filters));
-    const sorted = sortEvents(matched, paging.sort, paging.direction, 'date', 'ASC');
+    const sorted = sortEvents(matched, paging.sort, paging.direction, 'date');
     const page = sorted.slice(paging.offset, paging.offset + paging.limit);
     return { total: sorted.length, events: page };
   },

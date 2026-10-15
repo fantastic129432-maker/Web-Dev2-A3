@@ -185,10 +185,9 @@ const SORT_COLUMNS: Record<string, string> = {
  * @param sort - The requested sort key; an unknown key falls back to `defaultSort`.
  * @param direction - `desc` reverses the order; anything else is ascending.
  * @param defaultSort - The key to use when `sort` is not in the whitelist. May be omitted, in which case `date` is used.
- * @param defaultDir - The direction used with the fallback key. May be omitted, in which case ascending order is used.
  * @returns The ORDER BY fragment, ready to interpolate into a statement.
  */
-function buildOrderBy(sort: string, direction: string, defaultSort = 'date', defaultDir = 'ASC'): string {
+function buildOrderBy(sort: string, direction: string, defaultSort = 'date'): string {
   const column = SORT_COLUMNS[sort] || SORT_COLUMNS[defaultSort];
   const dir = String(direction).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
   return `ORDER BY ${column} ${dir}, eventId ASC`;
@@ -283,8 +282,7 @@ const repository: EventReadRepository = {
     const orderBy = buildOrderBy(
       paging.sort,
       paging.direction,
-      filters.audience === 'admin' ? 'date' : 'date',
-      filters.audience === 'admin' ? 'DESC' : 'ASC'
+        'date'
     );
     // A3: the admin list must include suspended and cancelled events, so it
     // reads vw_all_events. Everything else keeps the safe public view.

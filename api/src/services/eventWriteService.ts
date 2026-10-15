@@ -202,8 +202,8 @@ function validateEventBody(
     if (!Array.isArray(body.ticketTypes)) {
       errors.push({ field: 'ticketTypes', message: 'ticketTypes must be a list.' });
     } else {
-      const tiers = body.ticketTypes.map((ticket: UntrustedInput, index: number) =>
-        validateTicketType(ticket, index, errors)
+      const tiers = body.ticketTypes.map((ticket: UntrustedInput) =>
+        validateTicketType(ticket, errors)
       );
       values.ticketTypes = tiers.filter(Boolean);
       if (values.ticketTypes.length === 0) delete values.ticketTypes;
@@ -223,17 +223,13 @@ function validateEventBody(
  * tiers are still reported and the caller can filter the nulls out.
  *
  * @param ticket - The untrusted ticket tier object. May be omitted, in which case the tier is reported as missing its name.
- * @param index - The tier's position in the submitted list, used in the field names of any problem.
  * @param errors - The shared problem list that this helper appends to.
  * @returns The normalised tier, or `null` when it has no usable name.
  */
 function validateTicketType(
   ticket: UntrustedInput = {},
-  index: number,
   errors: ValidationIssue[]
 ): DataRecord | null {
-  const label = `ticketTypes[${index}]`;
-
   const ticketName = requiredText(ticket, 'ticketName', errors, {
     required: true,
     min: 2,

@@ -10,7 +10,7 @@ import { TranslationService } from '@charity/shared/i18n/translation.service';
 import type { EventInput } from '@charity/shared/models/event.model';
 import type { ReferenceData } from '@charity/shared/models/reference.model';
 
-import { banner, errorBanner, type Banner } from '../../core/feedback';
+import { errorBanner, type Banner } from '../../core/feedback';
 import { usePageTitle } from '../../core/page-title';
 import { EventForm } from '../../shared/event-form/event-form';
 import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';

@@ -30,7 +30,7 @@
 'use strict';
 
 import db = require('../db/event_db');
-import type { DataRecord, RegistrationWriteRepository } from '../types';
+import type { RegistrationWriteRepository } from '../types';
 import { HttpError } from '../utils/errors';
 import mysqlRepository = require('./repository.mysql');
 

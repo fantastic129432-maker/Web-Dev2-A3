@@ -13,7 +13,6 @@ import type {
   DataRecord,
   EventFilters,
   FindEventOptions,
-  Paging,
   UntrustedInput,
   ValidationIssue,
 } from '../types';

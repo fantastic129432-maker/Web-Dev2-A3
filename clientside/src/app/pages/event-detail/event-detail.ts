@@ -14,7 +14,6 @@ import {
   formatDateRange,
   formatDateTime,
   formatPrice,
-  formatTime,
   formatTimeRange,
   imageUrl,
   stateKey,
