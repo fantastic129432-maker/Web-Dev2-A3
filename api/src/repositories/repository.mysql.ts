@@ -649,8 +649,39 @@ const REGISTRATION_COLUMNS = `
   e.event_name           AS eventName`;
 
 /**
+ * The attendee's name as the SQL mask below reads it: every whitespace character
+ * is folded to a space, and the ends are then trimmed.
+ *
+ * The offline mask trims the name and splits it on /\s+/, so a tab, a newline and
+ * a run of spaces all separate two words equally. MySQL's TRIM() removes spaces
+ * only, and SUBSTRING_INDEX() splits on the one delimiter it is given, so the
+ * ASCII whitespace a stored name can carry is folded to a space first and the
+ * TRIM() runs last: "Grace\tTurner" and "  Grace  Turner  " then reach the CASE
+ * in REGISTRATION_COLUMNS_PUBLIC as "Grace Turner", instead of falling to its
+ * single-word branch and being published in full.
+ *
+ * The five REPLACEs cover tab, line feed, vertical tab, form feed and carriage
+ * return - the ASCII half of what Javascript's trim() and /\s+/ accept, and the
+ * half that means the same thing under every connection charset (a CHAR(160) or
+ * a CHAR(12288) means whatever the session's collation says it means). The
+ * non-ASCII spaces that Javascript also splits on (a non-breaking space, U+2000
+ * to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, U+FEFF) are deliberately
+ * not folded: a name whose only word separator is one of those has no space left
+ * after this expression, so it takes the single-word branch below and is
+ * published unchanged. That residue is recorded rather than hidden - it is the
+ * only place the two masks can still disagree - and it stays narrow because
+ * spelling out nineteen more characters would multiply the projection by two
+ * kilobytes and tie the mask to the connection charset.
+ */
+const ATTENDEE_NAME_FOR_MASK = [
+  `TRIM(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(r.attendee_name,`,
+  ` CHAR(9), ' '), CHAR(10), ' '), CHAR(11), ' '), CHAR(12), ' '), CHAR(13), ' '))`,
+].join('');
+
+/**
  * The registration columns for the PUBLIC endpoints: the same rows, MINUS the
- * attendee's email address and phone number.
+ * attendee's email address and phone number, PLUS the masked backer name that
+ * replaces the full one.
  *
  * WHY THIS PROJECTION EXISTS AND MUST NOT BE "COMPLETED"
  *   `attendee_email` and `attendee_phone` are personal information. The public
@@ -665,17 +696,50 @@ const REGISTRATION_COLUMNS = `
  *   A future reader adding a column to this list must keep that rule. If a screen
  *   genuinely needs an attendee's contact details, it is a staff screen and it
  *   must read the admin endpoint (GET /api/admin/events/:id), which asks for
- *   REGISTRATION_COLUMNS above - never this list. The public page shows a masked
- *   backer line instead ("Grace T."), which is built from attendeeName alone.
+ *   REGISTRATION_COLUMNS above - never this list.
+ *
+ * WHY THE BACKER NAME IS DERIVED HERE RATHER THAN SENT RAW
+ *   The public page still has to say who a registration belongs to, and it shows
+ *   a masked backer line ("Grace T."). That line is derived in SQL - the CASE on
+ *   attendeeDisplayName below - rather than shipping `attendee_name` and masking
+ *   it in the page, for the same reason the two contact columns are not selected:
+ *   a response that never carried the full name cannot publish it, whatever a
+ *   template, a client or a future export later renders. Masking on the way out
+ *   of the database is a data-minimisation boundary, not a display decision.
+ *
+ *   The CASE is the twin of maskAttendeeName() in
+ *   registration.repository.local.ts, and it has to reproduce it exactly: an
+ *   empty or whitespace-only name masks to an empty string, a single word is
+ *   returned unchanged, and anything longer keeps the first word and the
+ *   upper-cased initial of the last word followed by a full stop. Only the
+ *   offline twin can be run by the suite here, so tests/run-tests.js reads this
+ *   CASE back out of this constant and compares the two on the same inputs.
+ *
+ *   The admin projection above is deliberately NOT masked, and neither is the
+ *   write read-back in registration.repository.mysql.ts: staff need the whole
+ *   name and both contact details, and the offline twin keeps them raw in exactly
+ *   the same places.
  *
  * Everything the public page legitimately needs is still here: the attendee's
- * name, how many tickets they bought, the tier they bought and when.
+ * masked name, how many tickets they bought, the tier they bought and when.
  */
 const REGISTRATION_COLUMNS_PUBLIC = `
   r.registration_id      AS registrationId,
   r.event_id             AS eventId,
   r.ticket_type_id       AS ticketTypeId,
   r.attendee_name        AS attendeeName,
+  CASE
+    WHEN ${ATTENDEE_NAME_FOR_MASK} = ''
+      THEN ''
+    WHEN ${ATTENDEE_NAME_FOR_MASK} NOT LIKE '% %'
+      THEN ${ATTENDEE_NAME_FOR_MASK}
+    ELSE CONCAT(
+      SUBSTRING_INDEX(${ATTENDEE_NAME_FOR_MASK}, ' ', 1),
+      ' ',
+      UPPER(LEFT(SUBSTRING_INDEX(${ATTENDEE_NAME_FOR_MASK}, ' ', -1), 1)),
+      '.'
+    )
+  END                    AS attendeeDisplayName,
   r.tickets_purchased    AS ticketsPurchased,
   r.registered_at        AS registeredAt,
   r.notes                AS notes,

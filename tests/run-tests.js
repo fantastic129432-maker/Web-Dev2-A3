@@ -1545,6 +1545,332 @@ async function testA3Api() {
   });
 }
 
+/* ---------------------------------------------------------------------
+ * A small MySQL expression reader, for the mask drift check in PART E.
+ *
+ * The suite runs the offline data source, so it cannot ask MySQL what the CASE
+ * inside REGISTRATION_COLUMNS_PUBLIC returns. It can read that CASE out of the
+ * compiled repository, though, and that is what these functions evaluate: the
+ * operands (string, number, column), the calls the mask is allowed to make
+ * (TRIM, REPLACE, SUBSTRING_INDEX, UPPER, LEFT, CONCAT, CHAR), the comparisons
+ * =, <> and LIKE/NOT LIKE, and CASE WHEN ... THEN ... ELSE ... END.
+ *
+ * Anything else - an unknown function, a column the check does not supply, a
+ * character the tokeniser cannot read - throws, so a rewritten mask has to be
+ * understood here before it can pass rather than quietly drifting away from the
+ * offline twin. This models MySQL rather than proving it: it is why the same
+ * inputs are also walked through by hand, and why the two functions the mask
+ * relies on most (SUBSTRING_INDEX with a negative count, and LIKE) are written
+ * to MySQL's documented behaviour rather than to the Javascript that reads
+ * most naturally.
+ * --------------------------------------------------------------------- */
+
+/**
+ * Split one SQL expression into a flat list of tokens.
+ *
+ * String literals are unescaped ('It''s' is the SQL spelling of It's), and an
+ * identifier keeps its qualifier, so `r.attendee_name` stays one token and can
+ * be looked up in the row the evaluator is given.
+ *
+ * @param sql - The expression text, for example the CASE taken out of a projection.
+ * @returns The tokens, in order: { type, value } with a type of string, number, word, operator or punctuation.
+ * @throws Error when a character in the expression is not part of the subset this reader understands.
+ */
+function tokeniseSqlMask(sql) {
+  const tokens = [];
+  let at = 0;
+
+  while (at < sql.length) {
+    const character = sql[at];
+    if (/\s/.test(character)) {
+      at += 1;
+      continue;
+    }
+
+    if (character === "'") {
+      let value = '';
+      at += 1;
+      while (at < sql.length) {
+        if (sql[at] === "'") {
+          if (sql[at + 1] === "'") {
+            value += "'";
+            at += 2;
+            continue;
+          }
+          at += 1;
+          break;
+        }
+        value += sql[at];
+        at += 1;
+      }
+      tokens.push({ type: 'string', value });
+      continue;
+    }
+
+    const word = /^[A-Za-z_][\w$]*(?:\.[A-Za-z_][\w$]*)?/.exec(sql.slice(at));
+    if (word) {
+      tokens.push({ type: 'word', value: word[0] });
+      at += word[0].length;
+      continue;
+    }
+
+    const number = /^\d+/.exec(sql.slice(at));
+    if (number) {
+      tokens.push({ type: 'number', value: number[0] });
+      at += number[0].length;
+      continue;
+    }
+
+    if ('(),'.includes(character)) {
+      tokens.push({ type: 'punctuation', value: character });
+      at += 1;
+      continue;
+    }
+
+    const operator = /^(<>|!=|<=|>=|=|<|\+|-|\*|\/)/.exec(sql.slice(at));
+    if (operator) {
+      tokens.push({ type: 'operator', value: operator[0] });
+      at += operator[0].length;
+      continue;
+    }
+
+    throw new Error(`the SQL mask has a character this check cannot read: ${JSON.stringify(character)}`);
+  }
+
+  return tokens;
+}
+
+/**
+ * Parse one SQL expression into the small tree the evaluator walks.
+ *
+ * The grammar is only as wide as the mask needs: a comparison of two primaries,
+ * a primary being a literal, a column, a function call or a CASE. Keywords are
+ * matched in any casing, because a rewrite that lower-cases `case` is still the
+ * same statement.
+ *
+ * @param sql - The expression text to parse.
+ * @returns The root node of the parsed expression.
+ * @throws Error when the expression uses a construct, or an argument count, this reader cannot parse.
+ */
+function parseSqlMask(sql) {
+  const tokens = tokeniseSqlMask(sql);
+  let at = 0;
+
+  const peek = () => tokens[at];
+  const next = () => tokens[at++];
+  const isWord = (value) => {
+    const token = peek();
+    return !!token && token.type === 'word' && token.value.toUpperCase() === value;
+  };
+  const expectWord = (...values) => {
+    const token = next();
+    if (!token || token.type !== 'word' || !values.includes(token.value.toUpperCase())) {
+      throw new Error(
+        `the SQL mask expected ${values.join(' or ')} but found ${token ? JSON.stringify(token.value) : 'the end'}`
+      );
+    }
+  };
+
+  function primary() {
+    const token = peek();
+    if (!token) throw new Error('the SQL mask ends before its expression does');
+
+    if (token.type === 'string') {
+      next();
+      return { kind: 'literal', value: token.value };
+    }
+    if (token.type === 'number') {
+      next();
+      return { kind: 'literal', value: Number(token.value) };
+    }
+    // A signed number, so SUBSTRING_INDEX(..., ' ', -1) reads as the argument it is.
+    if (token.type === 'operator' && (token.value === '-' || token.value === '+')) {
+      next();
+      const operand = primary();
+      if (operand.kind !== 'literal' || typeof operand.value !== 'number') {
+        throw new Error(`the SQL mask applies ${token.value} to something that is not a number`);
+      }
+      return { kind: 'literal', value: token.value === '-' ? -operand.value : operand.value };
+    }
+    if (token.type === 'punctuation' && token.value === '(') {
+      next();
+      const inner = comparison();
+      const close = next();
+      if (!close || close.value !== ')') throw new Error('the SQL mask has an unclosed "("');
+      return inner;
+    }
+    if (token.type === 'word' && token.value.toUpperCase() === 'CASE') return caseExpression();
+    if (token.type === 'word') {
+      next();
+      if (peek() && peek().value === '(') {
+        next();
+        const args = [];
+        if (!(peek() && peek().value === ')')) {
+          args.push(comparison());
+          while (peek() && peek().value === ',') {
+            next();
+            args.push(comparison());
+          }
+        }
+        const close = next();
+        if (!close || close.value !== ')') {
+          throw new Error(`the SQL mask has an unclosed call to ${token.value}`);
+        }
+        return { kind: 'call', name: token.value.toUpperCase(), args };
+      }
+      return { kind: 'column', name: token.value };
+    }
+
+    throw new Error(`the SQL mask uses ${JSON.stringify(token.value)}, which this check cannot read`);
+  }
+
+  function comparison() {
+    const left = primary();
+    if (isWord('NOT')) {
+      next();
+      expectWord('LIKE');
+      return { kind: 'compare', operator: 'NOT LIKE', left, right: primary() };
+    }
+    if (isWord('LIKE')) {
+      next();
+      return { kind: 'compare', operator: 'LIKE', left, right: primary() };
+    }
+    const token = peek();
+    if (token && token.type === 'operator' && ['=', '<>', '!='].includes(token.value)) {
+      next();
+      return { kind: 'compare', operator: token.value, left, right: primary() };
+    }
+    return left;
+  }
+
+  function caseExpression() {
+    expectWord('CASE');
+    const whens = [];
+    while (isWord('WHEN')) {
+      next();
+      const when = comparison();
+      expectWord('THEN');
+      whens.push({ when, then: comparison() });
+    }
+    let otherwise = null;
+    if (isWord('ELSE')) {
+      next();
+      otherwise = comparison();
+    }
+    expectWord('END');
+    if (whens.length === 0) throw new Error('the SQL mask has a CASE with no WHEN');
+    return { kind: 'case', whens, otherwise };
+  }
+
+  const tree = comparison();
+  if (at !== tokens.length) {
+    throw new Error(`the SQL mask has trailing text: ${JSON.stringify(tokens[at].value)}`);
+  }
+  return tree;
+}
+
+/**
+ * Match a value against a SQL LIKE pattern.
+ *
+ * Only the two wildcards SQL defines are translated - `%` for any run of
+ * characters and `_` for exactly one - and the match ignores case, which is
+ * what the database's case-insensitive collation does. The mask's own pattern is
+ * a single space, so this is only here to keep the reader honest about `_` and
+ * `%` if the expression ever grows.
+ *
+ * @param value - The value on the left of the LIKE.
+ * @param pattern - The pattern on the right of the LIKE.
+ * @returns `true` when the value matches the whole pattern.
+ */
+function sqlLike(value, pattern) {
+  const source = String(pattern)
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/%/g, '[\\s\\S]*')
+    .replace(/_/g, '.');
+  return new RegExp(`^${source}$`, 'i').test(String(value));
+}
+
+/**
+ * The MySQL functions the mask may call, with MySQL's semantics.
+ *
+ * NULL in, NULL out is the rule every one of them follows in SQL, and TRIM
+ * removes spaces only - not the tabs and newlines Javascript's trim() removes -
+ * which is exactly why the projection folds them first.
+ */
+const MYSQL_MASK_FUNCTIONS = {
+  TRIM: (value) => (value === null ? null : String(value).replace(/^ +| +$/g, '')),
+  REPLACE: (value, from, to) =>
+    value === null ? null : String(value).split(String(from)).join(String(to)),
+  SUBSTRING_INDEX: (value, delimiter, count) => {
+    if (value === null) return null;
+    const parts = String(value).split(String(delimiter));
+    const index = Number(count);
+    if (index > 0) return parts.slice(0, index).join(String(delimiter));
+    if (index < 0) return parts.slice(index).join(String(delimiter));
+    return '';
+  },
+  UPPER: (value) => (value === null ? null : String(value).toUpperCase()),
+  LEFT: (value, length) => (value === null ? null : String(value).slice(0, Number(length))),
+  CONCAT: (...args) => (args.some((arg) => arg === null) ? null : args.map(String).join('')),
+  CHAR: (code) => String.fromCharCode(Number(code)),
+};
+
+/**
+ * Evaluate one parsed node against a row.
+ *
+ * @param node - A node from parseSqlMask().
+ * @param row - The column values, keyed as the expression spells them ("r.attendee_name").
+ * @returns The value of the node: a string, a number, or null where SQL would be NULL.
+ * @throws Error when the node reads a column the row does not carry or calls a function this check does not know.
+ */
+function evaluateSqlMaskNode(node, row) {
+  switch (node.kind) {
+    case 'literal':
+      return node.value;
+    case 'column':
+      if (!(node.name in row)) {
+        throw new Error(`the SQL mask reads ${node.name}, which this check does not supply`);
+      }
+      return row[node.name];
+    case 'call': {
+      const fn = MYSQL_MASK_FUNCTIONS[node.name];
+      if (!fn) throw new Error(`the SQL mask calls ${node.name}(), which this check cannot evaluate`);
+      return fn(...node.args.map((arg) => evaluateSqlMaskNode(arg, row)));
+    }
+    case 'compare': {
+      const left = evaluateSqlMaskNode(node.left, row);
+      const right = evaluateSqlMaskNode(node.right, row);
+      // A comparison with NULL is UNKNOWN in SQL, and a CASE branch only runs on
+      // TRUE, so UNKNOWN has to stay distinct from false here.
+      if (left === null || right === null) return null;
+      if (node.operator === '=') return left === right;
+      if (node.operator === '<>' || node.operator === '!=') return left !== right;
+      const matched = sqlLike(left, right);
+      return node.operator === 'NOT LIKE' ? !matched : matched;
+    }
+    case 'case':
+      for (const branch of node.whens) {
+        if (evaluateSqlMaskNode(branch.when, row) === true) {
+          return evaluateSqlMaskNode(branch.then, row);
+        }
+      }
+      return node.otherwise === null ? null : evaluateSqlMaskNode(node.otherwise, row);
+    default:
+      throw new Error(`the SQL mask has a node this check cannot evaluate: ${node.kind}`);
+  }
+}
+
+/**
+ * Evaluate a MySQL mask expression for one attendee name.
+ *
+ * @param sql - The mask expression, as it appears in the compiled projection.
+ * @param name - The value of the name column to mask.
+ * @returns What the expression evaluates to, which the check compares with maskAttendeeName().
+ */
+function evaluateSqlMask(sql, name) {
+  return evaluateSqlMaskNode(parseSqlMask(sql), { 'r.attendee_name': name });
+}
+
 /* =====================================================================
  * PART E - repository unit checks
  * ===================================================================== */
@@ -1666,6 +1992,123 @@ async function testRepositoryUnits() {
     const city = mysqlRepository.buildEventFilter({ city: '_' });
     assert.match(city.where, /e\.city LIKE \? ESCAPE '\\\\'/);
     assert.deepEqual(city.params, ['%\\_%']);
+  });
+
+  await test('the public SQL mask and the offline mask agree on the same names', async () => {
+    /*
+     * The public projection derives attendeeDisplayName in SQL, and the offline
+     * twin derives it in maskAttendeeName(). Only the offline one can be run
+     * here, so this check reads the CASE back out of the compiled MySQL
+     * projection and evaluates it with the reader above, then compares the two
+     * on the same names: the ones a naive expression gets wrong - a blank name,
+     * a single word, a doubled space, a tab - as well as the ordinary ones.
+     *
+     * A MySQL server is not needed for the comparison, and cannot be: the mask
+     * is a function of one column, so its text is the whole implementation. What
+     * this cannot prove is that MySQL evaluates that text the way a developer
+     * reads it, which is why the same inputs were also walked through by hand
+     * when the expression was written.
+     *
+     * The row SHAPES are compared too, because that is the point of the change:
+     * the masked name is added to the public row and the two contact columns stay
+     * absent from it. The staff projection is asserted to be untouched, so the
+     * admin screens keep the full name and both contact fields.
+     */
+    const mysqlRepository = require(
+      path.join(API_SRC, 'src', 'repositories', 'repository.mysql.js')
+    );
+    const registrationRepository = require(
+      path.join(API_SRC, 'src', 'repositories', 'registration.repository.local.js')
+    );
+
+    const projection = mysqlRepository.REGISTRATION_COLUMNS_PUBLIC;
+    const mask = /CASE[\s\S]*?\bEND\b/i.exec(projection);
+    assert.ok(mask, 'the public projection must derive attendeeDisplayName with a CASE');
+
+    // The alias has to be exactly attendeeDisplayName: the client reads that key,
+    // and a near miss ("attendeeDisplayname", "attendeeName") would silently fall
+    // back to the full name on the page.
+    const alias = /^\s*AS\s+([A-Za-z_][\w$]*)/i.exec(projection.slice(mask.index + mask[0].length));
+    assert.equal(
+      alias && alias[1],
+      'attendeeDisplayName',
+      'the derived column must be aliased attendeeDisplayName'
+    );
+
+    // Every name below separates its words with ASCII whitespace on purpose.
+    // The SQL mask deliberately does not fold the non-ASCII spaces Javascript
+    // splits on - the note above ATTENDEE_NAME_FOR_MASK in repository.mysql.ts
+    // records why - so an input such as "Anne\u00a0Marie" would fail this
+    // comparison by design rather than by drift.
+    const names = [
+      '',
+      '   ',
+      '\t\n\r\v\f',
+      'Grace',
+      '  Grace  ',
+      'Grace Turner',
+      'Amelia  Hartley',
+      'Amelia Rose Hartley',
+      '  Amelia   Rose   Hartley  ',
+      '\tAmelia\tRose\tHartley\t',
+      'Grace\t Turner',
+      'aMELIA hARTLEY',
+      "O'Brien Smith",
+      'Jean-Luc  Picard',
+    ];
+
+    names.forEach((name) => {
+      const offline = registrationRepository.maskAttendeeName(name);
+      assert.equal(
+        evaluateSqlMask(mask[0], name),
+        offline,
+        `the SQL mask must match maskAttendeeName() for ${JSON.stringify(name)}`
+      );
+    });
+
+    // The three cases below are pinned by value as well, so the check still says
+    // what the mask is supposed to produce if both implementations are ever
+    // changed together.
+    assert.equal(evaluateSqlMask(mask[0], ''), '', 'a blank name masks to nothing');
+    assert.equal(evaluateSqlMask(mask[0], 'Grace'), 'Grace', 'a single word is kept as it is');
+    assert.equal(evaluateSqlMask(mask[0], 'Amelia  Hartley'), 'Amelia H.');
+
+    // The offline public row is built by the offline repository's own two
+    // functions rather than from a hand-written list, so this compares the real
+    // shapes. The values do not matter to a key set, but they are the seeded
+    // registration's, which keeps the row recognisable.
+    const offlineRow = registrationRepository.narrowRegistrationToPublic(
+      registrationRepository.toApiShape({
+        registration_id: 1,
+        event_id: 1,
+        ticket_type_id: 1,
+        attendee_name: 'Amelia Hartley',
+        attendee_email: 'amelia.hartley@example.com',
+        attendee_phone: '0400 000 000',
+        tickets_purchased: 2,
+        registered_at: '2026-01-01 10:00:00',
+        notes: null,
+      })
+    );
+
+    const sqlKeys = [...projection.matchAll(/\bAS\s+([A-Za-z_][\w$]*)/gi)]
+      .map((match) => match[1])
+      .sort();
+
+    assert.deepEqual(
+      sqlKeys,
+      Object.keys(offlineRow).sort(),
+      'the MySQL public projection and the offline public row must expose the same keys'
+    );
+    assert.ok(sqlKeys.includes('attendeeDisplayName'), 'the masked name must be in that set');
+    assert.ok(
+      !/attendee_email|attendee_phone/.test(projection),
+      'the public projection must still not select the two contact columns'
+    );
+    assert.ok(
+      !/attendeeDisplayName/.test(mysqlRepository.REGISTRATION_COLUMNS),
+      'the staff projection must keep the whole row: no masked name for staff'
+    );
   });
 }
 
