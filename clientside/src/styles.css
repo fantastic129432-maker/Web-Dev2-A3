@@ -1011,6 +1011,26 @@ textarea {
 }
 .stat__label { color: var(--ink-500); font-size: 0.9rem; }
 
+/*
+ * The scope note under a statistic whose headline does not name its own scope.
+ *
+ * Only the funding-goal card carries one (see the note on HomePage.statCards()). It
+ * is deliberately the quietest line in the card - it qualifies the figure above it
+ * rather than being a figure itself - and it wraps rather than being clipped, because
+ * the four languages differ in length by roughly two to one.
+ *
+ * --ink-500 on the card's --surface-0 is the pair `.stat__label` already uses: 4.63:1
+ * in the light theme and 6.40:1 in the dark one, both above the 4.5:1 this 0.8rem text
+ * is held to. The margin is written in ems so the note keeps its distance from the
+ * label at any root font size, and `.stat` is a grid cell that stretches to the
+ * tallest card in the row, so a second line here cannot change the row's height.
+ */
+.stat__scope {
+  color: var(--ink-500);
+  font-size: 0.8rem;
+  margin: 0.4em 0 0;
+}
+
 .info-card {
   background: #fff;
   border: 1px solid var(--line);

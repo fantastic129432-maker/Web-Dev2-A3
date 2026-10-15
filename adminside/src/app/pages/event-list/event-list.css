@@ -12,3 +12,37 @@
 .data-table tfoot th {
   text-align: left;
 }
+
+/*
+ * The scope note under the totals row's GOAL figure: which events it covers.
+ *
+ * It is a second, smaller line rather than another figure, so the money line above
+ * it stays the one the eye lands on. Size and wrapping are all this rule adds -
+ * the colour comes from `.cell-stack__secondary`, and
+ * `.data-table tfoot .cell-stack__secondary` (src/styles.css) is what darkens it
+ * for this row's tinted background: --ink-700 measures 8.59:1 there, while the
+ * shared --ink-500 would measure 4.46:1, just under the 4.5:1 this text is held to.
+ *
+ * `white-space: normal` is the part that cannot be inherited. The totals cell is
+ * `.is-numeric`, and base.css sets `white-space: nowrap` on that class as a whole,
+ * so without this override the note could not wrap - it would widen the money
+ * column until every numeric cell in the table read as part of the sentence, and
+ * the Japanese and Vietnamese notes are long enough to do it. Wrapping inside the
+ * cell keeps the column width decided by the figures rather than by this note.
+ *
+ * `max-width` is the same guard one step further: left unbounded, the sentence
+ * claims the width it wants from the table algorithm (155px for the English note
+ * without a cap) and the column grows to fit a line break rather than a figure.
+ * 32ch was measured in a browser against all four languages, both themes and 1440
+ * and 1100px: it holds every translation to two lines at BOTH widths, where 28ch
+ * and below broke the English note over three at 1100px. It costs 45px on the money
+ * column at 1440px (124px without the note, 169px with it, in English) and nothing
+ * at all in Vietnamese, whose "Mục tiêu gây quỹ hiện tại" label already sets that
+ * column to 203px. `.table-wrap` scrolls horizontally below the table's 1250px, so
+ * the cap spends no space the table was not already spending.
+ */
+.cell-stack__note {
+  font-size: 0.72rem;
+  white-space: normal;
+  max-width: 32ch;
+}

@@ -105,6 +105,15 @@
           <div class="stat">
             <div class="stat__value">{{ card.value }}</div>
             <div class="stat__label">{{ card.labelKey | t }}</div>
+            <!--
+              What the figure measures, for the one card whose label cannot say it on
+              its own: the funding goal counts the events still to come, not every
+              event the site lists. Rendered only when the card carries a note, so the
+              three self-explanatory headlines keep the card they already had.
+            -->
+            @if (card.noteKey) {
+              <p class="stat__scope">{{ card.noteKey | t }}</p>
+            }
           </div>
         }
       }

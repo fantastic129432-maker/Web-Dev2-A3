@@ -52,6 +52,19 @@ import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
  *   the reason for it are written down. Sums are rendered with the shared
  *   formatCurrency, the same formatter the dashboard's money tile uses, so a
  *   figure does not read one way on this page and another way there.
+ *
+ * THE TOTALS ROW SAYS WHAT IT COVERS
+ *   Both money lines are narrower than the table above them, which cannot be seen
+ *   from the figures alone. The registrations page's footer solves exactly that
+ *   problem with a note under its totals row (`registrations.totalScope`), so the
+ *   GOAL line here carries one too (`events.totalGoalScope`) - and it is the line
+ *   that needs it most, because the public home page publishes a funding goal as
+ *   well. On the seeded data that card reads $197,000 ("Current funding goal",
+ *   `stats.activeGoal`) and this cell reads $300,000, and the two are not meant to
+ *   be the same number: the card counts the goal of the events that have not
+ *   finished, this cell counts the goal of every published event, including the
+ *   ones that have (see totalGoal()). Neither computation is changed; each figure
+ *   states its own scope in words.
  */
 @Component({
   selector: 'admin-event-list',
@@ -362,6 +375,31 @@ export class EventList {
    * UPCOMING published events' goals, which is a third scope again, and the
    * dashboard does not display it, so there would be nothing for it to agree
    * with.
+   *
+   * WHICH SCOPES THE TWO GOAL FIGURES ARE, VERIFIED AGAINST THE RUNNING API
+   *   On the seeded data the public home page's card shows $197,000 and this cell
+   *   shows $300,000, and both are correct for what they measure:
+   *
+   *     Goal: $197,000   the events still to come. The six published events whose
+   *                      state is `upcoming` - 60,000 + 35,000 + 45,000 + 12,000 +
+   *                      15,000 + 30,000. It is `SUM(goal_amount) WHERE status =
+   *                      'active' AND event_state <> 'past'` (repository.mysql.ts,
+   *                      findStats), i.e. exactly what /api/stats reports as
+   *                      activeGoal.
+   *     Goal: $300,000   the eleven rows this table lists minus the suspended one:
+   *                      the same six events, plus the four published events that
+   *                      have already finished (25,000 + 18,000 + 50,000 + 10,000).
+   *                      This cell is the sum of the goal of every `active` row,
+   *                      and it is deliberately WIDER than the public card.
+   *
+   *   The suspended event (Midnight Desert Auction, $20,000) is in NEITHER total:
+   *   the public view fixes `status = 'active'` before the state filter is applied,
+   *   and publishedEvents() repeats that rule here - which is also why the table
+   *   above this footer sums to $320,000 while the footer says $300,000. So the gap
+   *   between the two figures is the four finished published events - 103,000 - and
+   *   not a missing or double-counted amount. Since this cell sits below rows the
+   *   public site hides, the note under it has to say which rows it covers; see the
+   *   class comment.
    *
    * @returns The sum of the goal amounts of the published rows on screen.
    */

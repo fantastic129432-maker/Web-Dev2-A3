@@ -256,6 +256,27 @@
               <span class="cell-stack__secondary">
                 {{ 'events.goal' | t }}: {{ formatCurrency(totalGoal()) }}
               </span>
+              <!--
+                The scope of the GOAL line above, in words, INSIDE its cell so it
+                reads as part of the figure rather than as a note about the table.
+
+                It is needed here and nowhere else in the row: RAISED is the same
+                published scope the dashboard's "Total raised" tile reports, while
+                the public home page publishes a funding goal of its own
+                (`stats.activeGoal`) that counts only the events still to come. Two
+                correct figures three scopes apart read as a calculation bug, so the
+                narrower one is stated. See totalGoal() for the arithmetic.
+
+                `cell-stack__secondary` is the class this column already uses for a
+                quieter line - and `.data-table tfoot .cell-stack__secondary` (in the
+                admin stylesheet) is the rule that darkens it for the totals row's
+                tinted background, so the note keeps that verified contrast pair
+                instead of introducing a new one. Its own class only makes the line
+                smaller and lets it wrap; see .cell-stack__note in event-list.css.
+              -->
+              <span class="cell-stack__secondary cell-stack__note">
+                {{ 'events.totalGoalScope' | t }}
+              </span>
             </span>
           </td>
           <td></td>

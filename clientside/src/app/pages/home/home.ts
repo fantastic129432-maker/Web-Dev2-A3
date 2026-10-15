@@ -29,6 +29,17 @@ const HOME_LISTING_QUERY: EventQuery = { sort: 'date', direction: 'asc' };
 interface StatCard {
   value: string;
   labelKey: string;
+  /**
+   * The translation key of the note saying what the figure measures, or an empty
+   * string when the headline names its own scope.
+   *
+   * Only the funding-goal card carries one: "Current funding goal" is measured over
+   * the events the site still lists (see the note on statCards()), so which events
+   * the money covers has to be said in words. The other three headlines state their
+   * own scope ("Raised through events", "Upcoming events listed"), and a note on
+   * every card would be noise rather than explanation.
+   */
+  noteKey: string;
 }
 
 /** What the event grid is currently doing. */
@@ -165,15 +176,37 @@ export class HomePage {
    */
   protected readonly heroEvents = computed(() => this.eventsState().events.slice(0, 4));
 
-  /** The four impact cards, formatted and paired with their translation keys. */
+  /**
+   * The four impact cards, formatted and paired with their translation keys.
+   *
+   * THE GOAL CARD NAMES ITS OWN SCOPE
+   *   `activeGoal` is the sum of the goal amounts of the events that are still to
+   *   come - the published events whose derived state is `upcoming` or `ongoing`,
+   *   which is the `event_state <> 'past'` filter in repository.mysql.ts and the
+   *   filter in repository.local.ts. That is a real scope rather than the whole
+   *   table: an event that has already finished keeps its goal in the database but
+   *   is left out of this figure, and so is a suspended one, because the public view
+   *   is what /api/stats reads. Read on its own, "Current funding goal" could equally
+   *   mean every published event's goal, so the card carries a note under the figure
+   *   (`home.statGoalScope`) instead of leaving a visitor to infer the scope from the
+   *   number - the admin events list totals a wider set and says so in its own note,
+   *   so the two figures have to be readable as two scopes rather than one mistake.
+   *
+   * @returns One card per headline figure, already formatted; empty until /api/stats
+   *   has answered.
+   */
   protected readonly statCards = computed<StatCard[]>(() => {
     const current = this.stats();
     if (!current) return [];
     return [
-      { value: String(current.upcomingEvents), labelKey: 'home.statUpcoming' },
-      { value: String(current.organizations), labelKey: 'home.statPartners' },
-      { value: this.formatCompactCurrency(current.totalRaised), labelKey: 'home.statRaised' },
-      { value: this.formatCompactCurrency(current.activeGoal), labelKey: 'home.statGoal' },
+      { value: String(current.upcomingEvents), labelKey: 'home.statUpcoming', noteKey: '' },
+      { value: String(current.organizations), labelKey: 'home.statPartners', noteKey: '' },
+      { value: this.formatCompactCurrency(current.totalRaised), labelKey: 'home.statRaised', noteKey: '' },
+      {
+        value: this.formatCompactCurrency(current.activeGoal),
+        labelKey: 'home.statGoal',
+        noteKey: 'home.statGoalScope',
+      },
     ];
   });
 
