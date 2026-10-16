@@ -100,10 +100,26 @@
                     <td class="is-numeric">{{ registration.ticketsPurchased }}</td>
                     <td class="is-numeric">{{ formatCurrency(registration.totalAmount) }}</td>
                     <td>{{ formatDateTime(registration.registeredAt) }}</td>
-                    <td>
+                    <td class="is-numeric">
+                      <!--
+                        NEUTRAL AT REST, WARNING ON HOVER (hierarchy round).
+
+                        This was a `button--danger`, so each row of this table
+                        carried a red-bordered, red-labelled Delete at the same
+                        weight as the data beside it. Deleting a registration
+                        destroys a customer record and releases a ticket, so the
+                        control must not invite the same casual click as the
+                        harmless things around it: it is now the outlined secondary
+                        box the row's Edit link uses, with the warning pair
+                        (--danger on --danger-bg, 5.72:1 light and 6.32:1 dark)
+                        appearing on hover and on keyboard focus - see
+                        `.button--danger-quiet` in src/styles.css. It is still one
+                        control with one click, and the confirmation dialog behind
+                        it is unchanged.
+                      -->
                       <div class="row-actions">
                         <button
-                          class="button button--small button--danger"
+                          class="button button--small button--outline button--danger-quiet"
                           type="button"
                           (click)="askDeleteRegistration(registration)"
                         >

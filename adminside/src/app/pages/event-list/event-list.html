@@ -79,7 +79,9 @@
         <tr>
           <th scope="col" class="is-numeric">{{ 'events.colId' | t }}</th>
           <th scope="col">{{ 'events.colName' | t }}</th>
-          <th scope="col">{{ 'events.colStatus' | t }}</th>
+          <!-- Centred, because this column holds two short tags and nothing else;
+               see `.data-table .is-centred` in src/base.css. -->
+          <th scope="col" class="is-centred">{{ 'events.colStatus' | t }}</th>
           <th scope="col">{{ 'events.colWhen' | t }}</th>
           <th scope="col">{{ 'events.colVenue' | t }}</th>
           <th scope="col" class="is-numeric">{{ 'events.colRegistrations' | t }}</th>
@@ -113,7 +115,7 @@
                  that row taller than its neighbours and left the column ragged;
                  see the .data-table--admin .cell-badges rule in styles.css, which
                  holds the line and lets the column take the width it needs. -->
-            <td>
+            <td class="is-centred">
               <span class="cell-badges">
                 <span [class]="statusClass(event.status)">{{ 'status.' + event.status | t }}</span>
                 <span [class]="stateClass(event.eventState)">{{ stateKey(event.eventState) | t }}</span>
@@ -149,7 +151,21 @@
               </span>
             </td>
 
-            <td>
+            <!--
+              The actions cell takes the same alignment as its own heading.
+
+              The heading has been `is-numeric` (flush right) since the row actions
+              moved into a `.row-actions` flex box, and the CELL was left at the
+              table's default `left` - so the column reported `text-align: right`
+              above and `text-align: left` below, and the two agreed only because
+              `justify-content: flex-end` happened to push the buttons to the same
+              edge. Measured on the built page before this line: header right, cell
+              left. The controls do not move (the flex box still ends them at the
+              right edge); what changes is that the box they sit in says so too, which
+              is what the review's "report the computed alignment per column" asks
+              for.
+            -->
+            <td class="is-numeric">
               <!--
                 ONE line per row.
 
@@ -214,6 +230,26 @@
                   would hide the one state a staff member has to act on. It is the
                   only control in the column that is ever wider than the icons,
                   and it still holds one line.
+
+                  ALSO BORROWED FROM THE REGISTRATIONS PAGE: THIS CONTROL IS
+                  NEUTRAL AT REST AND WARNS ON HOVER (hierarchy round). It was
+                  `button--danger row-action`, so it carried a red border and red
+                  text at rest beside a grey Edit link - on a list where the same
+                  button repeats eleven times, that made the destructive action the
+                  loudest thing in every row, which is what the review objected to.
+                  It now wears exactly the registrations page's treatment:
+                  `button--outline row-action row-action--delete`, so at rest it is
+                  the same neutral box as Edit and View, and the warning colour
+                  appears when the pointer or the keyboard is on it. Note that the
+                  class it was missing is the one the COMMENT ABOVE is about:
+                  `.row-action--delete` (src/styles.css) existed, documented the
+                  tint, and could not match this button, so the hover here was the
+                  solid `--danger` fill the note says the row action avoids.
+
+                  The DISABLED state keeps `button--danger` on purpose: "Deletion
+                  blocked" is a refusal the staff member has to notice, not a
+                  control inviting a click, and it is muted by `.button--danger
+                  [disabled]`'s own opacity.
                 -->
                 @if (blockedReason(event.eventId); as reason) {
                   <button class="button button--small button--danger" type="button" disabled [title]="reason">
@@ -221,7 +257,7 @@
                   </button>
                 } @else {
                   <button
-                    class="button button--small button--danger row-action"
+                    class="button button--small button--outline row-action row-action--delete"
                     type="button"
                     (click)="askDelete(event)"
                     [title]="'events.delete' | t"

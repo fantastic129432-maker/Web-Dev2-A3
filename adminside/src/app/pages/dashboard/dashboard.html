@@ -255,11 +255,15 @@
                       </span>
                     </a>
 
-                    <!-- Cancel: outlined rather than filled, so the destructive
-                         action stays secondary to the data on the row (the
-                         registrations page makes the same choice for Delete). -->
+                    <!-- Cancel: it was already outlined rather than filled, so the
+                         destructive action stayed secondary to the data on the
+                         row; the hierarchy round took the last red pixel off it at
+                         rest. It now wears the same neutral box as the View link
+                         beside it and warns on hover and on keyboard focus
+                         (`.button--danger-quiet`, src/styles.css), which is the
+                         treatment the registrations page gives its Delete. -->
                     <button
-                      class="button button--small button--danger"
+                      class="button button--small button--outline button--danger-quiet"
                       type="button"
                       (click)="askCancel(registration)"
                     >

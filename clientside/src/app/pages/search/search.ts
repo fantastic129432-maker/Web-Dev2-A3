@@ -53,6 +53,15 @@ const ARRIVAL_LIMIT = 9;
 const FULL_LIMIT = 60;
 
 /**
+ * How long a typed control waits before its search runs. See `runSearchSoon`.
+ *
+ * Long enough to include a whole word rather than a keystroke, short enough that
+ * the results feel like they follow the typing: the loading state is shown at once,
+ * so this is the only delay a visitor sees.
+ */
+const TYPING_DEBOUNCE_MS = 350;
+
+/**
  * The complete filter form as one value.
  *
  * A single object rather than eight signals, because every filter is submitted
@@ -218,6 +227,39 @@ interface LocationOption {
  *    there - and the message slots now bind their text with `[textContent]` so
  *    `.field-message:empty` can collapse them.
  *
+ * 6. The filter panel filters as the visitor changes it, and it says so.
+ *    Every control in the panel applies itself: a tick, a radio, the venue or the
+ *    sort order runs the search at once, and the two date fields and the keyword box
+ *    run it 350ms after the last keystroke (`runSearchSoon`) so a word is searched
+ *    once rather than once per letter. The rule is stated in the panel's action row
+ *    through `search.resultsHint`, in all four languages.
+ *
+ *    WHY THIS RATHER THAN AN EXPLICIT SUBMIT WITH A PINNED ACTION ROW - which is
+ *    the other model the review offered - is a measured decision, not a preference.
+ *    The pinned row was built first: `position: sticky; bottom: 0` on the action
+ *    row, with the model sentence inside it. Sweeping every scroll position at 60px
+ *    steps and measuring the overlap between the pinned row's box and every control
+ *    in the panel, the worst case was 100% - the bar FULLY covered `category-7` at
+ *    1440x900 and the venue field at 390x844, on first paint, which is exactly the
+ *    "it floated over the form it belongs to and covered the City field on first
+ *    paint" the previous round recorded against pinning this row. A row pinned to
+ *    the viewport bottom overlays whatever the panel has at that height, at every
+ *    scroll offset, and no amount of trimming its height fixes that. So the panel
+ *    applies itself instead, nothing floats, and the page still scrolls once.
+ *
+ *    THE SUBMIT BUTTON STAYS, as the explicit "search now" control at the end of the
+ *    panel: pressing it re-runs the query the live model has already applied, which
+ *    is idempotent for a GET, and the end-to-end suite finds it by its text
+ *    (tests/angular-e2e.mjs, read-only). Before this round the panel was a mixture -
+ *    the category boxes, the chips and the sort dropdown re-ran the search as they
+ *    changed while the dates, the venue, the keyword, the free-events box and the
+ *    event-state radios waited for the button - which is what made the model
+ *    unanswerable from the outside. The sort dropdown and a chip's remove button act
+ *    on the result set already on screen and behave exactly as they did; the chips
+ *    describe the applied set rather than the form (see `applied`), so a search still
+ *    in its debounce window cannot leave the chips describing results they did not
+ *    produce.
+ *
  * The category and venue lists are loaded with `forkJoin` so both requests are in
  * flight at the same time; each half also has its own `catchError`, so a failed
  * category lookup still leaves a usable city and date search rather than an empty
@@ -258,6 +300,59 @@ export class SearchPage {
 
   /** The live form contents. */
   protected readonly form = signal<FilterForm>(emptyForm());
+
+  /**
+   * Queue the search a TYPED control asks for, 350ms after the last keystroke.
+   *
+   * WHY TYPED CONTROLS ARE DEBOUNCED AND TICKS ARE NOT. The panel filters as the
+   * visitor changes it (see decision 6 in the class comment), and a date field or
+   * the keyword box fires `input` once per keystroke: without this, typing "Lismore"
+   * would issue eight searches, each one cancelled by the next through the
+   * pipeline's `switchMap` - correct, but eight round trips to answer a question
+   * the visitor has not finished asking. A checkbox, a radio, the venue select and
+   * the sort dropdown commit their answer in one event, so they call `runSearch()`
+   * and apply at once.
+   *
+   * 350ms is the usual "pause in typing" figure and is deliberately longer than the
+   * pipeline's own latency: the `results` panel goes to its loading state
+   * immediately, so the visitor always has feedback that a search is coming, and
+   * the request itself is held back just long enough to include the whole word.
+   *
+   * The timer is cleared on destroy, so a search cannot run after the page has
+   * gone; it is a plain `setTimeout` rather than an rxjs `debounceTime` because it
+   * belongs to the TEMPLATE's event handling (which control was touched), not to the
+   * query stream, and the stream's own `switchMap` already guarantees that only the
+   * newest search can paint.
+   */
+  protected runSearchSoon(): void {
+    if (this.typingTimer !== null) clearTimeout(this.typingTimer);
+    this.typingTimer = setTimeout(() => {
+      this.typingTimer = null;
+      this.runSearch();
+    }, TYPING_DEBOUNCE_MS);
+  }
+
+  /** The pending debounced search from a typed control, or null. */
+  private typingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * The filters the results on screen were actually produced by.
+   *
+   * WHY THERE ARE TWO, WITH A LIVE PANEL. Every control applies itself, so the form
+   * and the applied set differ for only two windows: the 350ms a typed control waits
+   * before its search runs (`runSearchSoon`), and the time a request is in flight. In
+   * both of those windows the results below are still the PREVIOUS search's, and
+   * anything that DESCRIBES those results must not read the half-typed form. The
+   * "active filters" chips are exactly that description ("these are the filters the
+   * results below use"), so they read `applied`, which is written in `runSearch()` at
+   * the moment the query is sent.
+   *
+   * It is written for every search, including the arrival one and a restored deep
+   * link, because every one of those paths goes through `runSearch()`. A failed
+   * search still writes it: the visitor did ask for those filters, and the panel
+   * says so while the error is displayed.
+   */
+  private readonly applied = signal<FilterForm>(emptyForm());
 
   /** The category checkboxes, each with its active event count. */
   protected readonly categories = signal<Category[]>([]);
@@ -373,12 +468,18 @@ export class SearchPage {
   /**
    * The active filters as removable chips.
    *
-   * The dates are read from the form rather than from the URL, because a date
-   * input only exposes a value in its own format and the URL is written as a side
-   * effect of searching - reading the form keeps the two in step.
+   * The dates are read from the APPLIED filters rather than straight from the live
+   * form, because the chips describe the results underneath them: with a live panel
+   * the two can differ for the 350ms a typed control waits (and while a request is
+   * in flight), and a chip list built from the form announced "Category: Fun Run"
+   * the moment the box was ticked while the grid beside it still held the previous
+   * search's events. See `applied` above.
+   *
+   * The URL is written as a side effect of searching, so reading the applied set
+   * keeps the chips, the address bar and the results in step with one another.
    */
   protected readonly activeFilters = computed<FilterChip[]>(() => {
-    const current = this.form();
+    const current = this.applied();
     const chips: FilterChip[] = [];
 
     if (current.from || current.to) {
@@ -520,6 +621,11 @@ export class SearchPage {
      */
     const deepLink = this.applyFiltersFromUrl();
     if (!deepLink) this.runSearch('arrival');
+
+    // A pending debounced search must not outlive the page that queued it.
+    this.destroyRef.onDestroy(() => {
+      if (this.typingTimer !== null) clearTimeout(this.typingTimer);
+    });
   }
 
   /* ==================================================================
@@ -635,10 +741,14 @@ export class SearchPage {
   /**
    * Validate, then search.
    *
-   * Called from the form's submit handler, from a chip being removed, from a
-   * category being ticked and from the sort dropdown - a category toggle re-runs
-   * the search because the visitor has narrowed the result set, and leaving the
-   * previous list on screen would make the checkbox look broken.
+   * WHO CALLS IT: every control in the filter panel (the typed ones through
+   * `runSearchSoon`), the form's submit handler, a chip being removed, and the sort
+   * dropdown. That is the point of decision 6 in the class comment: the panel has no
+   * "pending" state, so a caller is never asking "should this apply now?" - it
+   * applies.
+   *
+   * It also writes `applied`, the filter set the results belong to, which is what
+   * the chips describe - see the field's own comment.
    *
    * @param scope - `'arrival'` for the first, deliberately small request that
    *   fills the page when it opens; `'full'` for every search the visitor drives,
@@ -664,8 +774,15 @@ export class SearchPage {
     this.validationMessage.set(null);
     this.invalidField.set(null);
 
+    const current = this.form();
     const query = this.buildQuery(scope === 'arrival' ? ARRIVAL_LIMIT : FULL_LIMIT);
     this.syncUrl(query);
+
+    // The results this search is about to produce belong to THIS filter set, so the
+    // chips stop describing the form the moment the request is issued - a search
+    // that then fails still leaves the panel naming the filters the visitor asked
+    // for.
+    this.applied.set(current);
 
     // Hand the query to the one search subscription set up in the constructor,
     // which cancels the request this one supersedes. The subscriber writes the

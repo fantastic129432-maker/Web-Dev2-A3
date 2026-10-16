@@ -322,9 +322,38 @@ textarea {
 
 /* --brand-100 flips to a dark teal and --brand-900 to a light one, so the pair
    stayed low contrast in the dark theme. A solid fill with --on-brand works in
-   both. */
-.badge--upcoming { background: var(--brand-700); color: var(--on-brand); }
+   both - and that fill is now ACTIVE's alone. */
+.badge--active   { background: var(--brand-700); color: var(--on-brand); }
+
+/*
+ * UPCOMING IS NEUTRAL; THE BRAND FILL BELONGS TO ACTIVE.
+ *
+ * This rule is the admin copy of the one in clientside/src/styles.css, which
+ * carries the full before/after measurement; the short version is that
+ * `statusClass()` in pages/event-list/event-list.ts used to dress an ACTIVE event
+ * in this very class, so "published" and "not yet started" were one colour
+ * (#0f7b6c on both). ACTIVE now claims the brand fill above and UPCOMING takes
+ * the base `.badge` pair, which follows both themes without an override:
+ * measured on the rendered badge, 8.59:1 light and 9.97:1 dark.
+ *
+ * Measured on the events table in both themes, both tags, all four languages: the
+ * state badge is the second of the two in the cell (.cell-badges), so the two
+ * now differ by fill as well as by word.
+ */
+.badge--upcoming { background: var(--surface-100); color: var(--ink-700); }
 .badge--ongoing  { background: var(--success-bg); color: var(--success); }
+
+/*
+ * CANCELLED, which had no colour of its own.
+ *
+ * `statusClass()` returned a bare `badge` for it, so it wore the neutral pair -
+ * which is now also UPCOMING's. Two statuses wearing one grey is exactly the
+ * defect the rule above fixes, so cancelled takes the design system's own
+ * danger pair: --danger on --danger-bg measures 5.72:1 in the light theme and
+ * 6.32:1 in the dark one (the pair .row-action--delete already verifies), above
+ * the 4.5:1 that 12px bold badge text is held to.
+ */
+.badge--cancelled { background: var(--danger-bg); color: var(--danger); }
 /* --ink-900, not --ink-500. This is 12px bold text, which WCAG measures as
    normal text and therefore holds to 4.5:1; the muted ink measured 4.27:1 on
    this background, and the admin site uses this badge for a suspended event. */
@@ -569,6 +598,27 @@ textarea[aria-invalid='true'] {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * A STATUS OR TAG COLUMN IS CENTRED (review item: text columns left, status/tags
+ * centred, numbers and money right).
+ *
+ * The three alignments are three different questions, and this is the one the
+ * admin tables had not been asked: a cell holding one or two short pill-shaped
+ * tags is neither prose (which wants the left edge its neighbours share) nor a
+ * number (which wants the right edge for its digits to line up). Left-aligned, the
+ * badges in the events list hung off the left edge of a column whose width is set
+ * by the longest translation - measured 12px of empty column to the right of
+ * SUSPENDED in English and 44px in Japanese - while the column heading sat above
+ * the first badge rather than over the group.
+ *
+ * WHY `text-align` AND NOT A FLEX BOX: the badges are `inline-flex`
+ * (`.cell-badges`), so `text-align: center` on the cell centres the group, and the
+ * group keeps wrapping/`nowrap` behaviour it already had. The alignment is
+ * reported per column in the measurement pass; `is-numeric` above is untouched, so
+ * the ID, registrations, tickets and money columns are still flush right.
+ */
+.data-table .is-centred { text-align: center; }
 
 .data-table tfoot th,
 .data-table tfoot td {

@@ -118,7 +118,10 @@
                  "YYYY-MM-DD HH:MM:SS" the API stores. -->
             <td>{{ formatDateTime(registration.registeredAt) }}</td>
 
-            <td>
+            <!-- The actions cell carries the same alignment as its heading (see the
+                 note on the events list's actions cell): measured before this line,
+                 the heading was flush right and the cell reported `left`. -->
+            <td class="is-numeric">
               <div class="row-actions">
                 <a class="button button--small button--outline" [routerLink]="['/events', registration.eventId, 'edit']">
                   {{ 'events.edit' | t }}

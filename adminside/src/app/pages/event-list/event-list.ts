@@ -286,13 +286,24 @@ export class EventList {
   /**
    * The badge class for a publishing status.
    *
-   * Deliberately the same vocabulary the public site uses for an event's state,
-   * so "suspended" reads as the muted past-grey rather than as an error: it is a
+   * Two of the three statuses borrow the public site's state vocabulary, so
+   * "suspended" reads as the muted past-grey rather than as an error: it is a
    * staff decision, not a fault.
+   *
+   * ACTIVE USED TO BORROW UPCOMING'S CLASS, and that is what the review saw as
+   * "ACTIVE and UPCOMING sit close together in hue": this method returned
+   * 'badge badge--upcoming' for 'active', so a published event and an event that
+   * has not started were one colour (#0f7b6c, the brand fill). The brand fill now
+   * belongs to ACTIVE alone (`badge--active`, declared beside the other badges in
+   * src/base.css), UPCOMING is neutral, and CANCELLED - which had no class at all
+   * and so wore the same neutral pair UPCOMING now wears - gets the danger pair.
+   * The two badges in a cell (see the template's .cell-badges) therefore differ by
+   * fill as well as by word in every status/state combination.
    */
   protected statusClass(status: string | null | undefined): string {
-    if (status === 'active') return 'badge badge--upcoming';
+    if (status === 'active') return 'badge badge--active';
     if (status === 'suspended') return 'badge badge--past';
+    if (status === 'cancelled') return 'badge badge--cancelled';
     return 'badge';
   }
 

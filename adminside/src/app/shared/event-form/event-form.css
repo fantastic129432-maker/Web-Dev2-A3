@@ -32,19 +32,206 @@
      eye had just read, and the ticket-description column - the one field that
      holds sentences - was the same width as the price box beside it.
 
-   61rem = 976px is the OUTER width of the form's content column at the 17px root
-   size the admin site sets; with the panel's own padding removed the fields
-   themselves measure ~820px, inside the 760-840px the review asked for. It is
-   expressed in rem so the column follows the reader's font size rather than
-   pinning a pixel count, and it is capped by 100% so it can never exceed the
-   space the shell gives it.
+   76rem = 1216px is the OUTER width of the form at the 16px root size, and it is
+   the number section 1b below works from: the two-column grid spends 22rem of it
+   on the sidebar and a 2rem gap on the space between the columns, which leaves the
+   left column - the fields themselves, since this form is not inside a panel - at
+   832px, the ~820px the earlier round measured and settled on. (Before that round
+   the cap was 61rem = 976px, and at a 1440px viewport the whole of it was ONE
+   column of fields.) It is expressed in rem so the column follows the reader's font
+   size rather than pinning a pixel count, and it is capped by 100% so it can never
+   exceed the space the shell gives it.
 
-   Centre it with margin-inline: a 976px column left-aligned in a 1440px band
-   would leave a 440px gutter on one side and read as a layout accident. */
+   Centre it with margin-inline: a 1216px column left-aligned in a 1440px band
+   would leave a 224px gutter on one side and read as a layout accident. */
 :host {
   display: block;
-  width: min(100%, 61rem);
+  width: min(100%, 76rem);
   margin-inline: auto;
+}
+
+/* ==========================================================================
+   1b. The two-column form (review item: basics on the left, artwork
+   preview / publishing status / weather preview on the right)
+   ==========================================================================
+   WHY THE COLUMN COUNT CHANGED RATHER THAN THE UNITS.
+   The form was ONE column of up to 61rem (976px), and at a 1440px viewport the
+   Event name box measured 1392px before that cap existed and 976px after it. The
+   review's remaining complaint is not that a field is too wide to read - it is
+   that a wide window makes a single line of the form's CONTENTS hard to follow:
+   every field, hint and message is strung down one 976px column, so the eye
+   travels the full width of the band to find the next control.
+
+   So the form now spends that width on a second column: `--main` for the fields
+   the staff member fills in, and a narrower `--side` column for the three things
+   that describe the event rather than being written - publishing status, artwork
+   and its preview, and the weather preview for the chosen venue and date.
+
+   THE WIDTH THE LEFT COLUMN KEEPS IS THE MEASURED ONE, NOT A NEW GUESS.
+   The host is 76rem (1216px at the 16px root) and the sidebar is 22rem (352px)
+   with a 2rem gap, which leaves the left column 832px - the ~820px the previous
+   round measured and settled on for a long-text field (the comment at the top of
+   this file records the 26rem cap that used to cut those fields to 416px). The
+   extra 240px the host gained over 61rem is the space the sidebar occupies, and
+   it comes out of the 1440px admin band's gutters rather than out of any field:
+   measured on the built pages, the Event name input was 976px wide before this
+   round and is 832px at 1440x900 and 1920x1080 alike after it, while the sidebar
+   is 352px and the five-column ticket row - which stays below both columns - keeps
+   its measured shape (tracks 355.19 / 177.61 / 177.59 / 355.20 / 118.41px at
+   1920x1080, against 283.19 / 141.61 / 141.59 / 283.20 / 94.41px when the same row
+   shared the narrower single-column form). The form still has 24 controls before
+   and after: nothing was dropped or hidden to make the columns.
+
+   WHY `minmax(0, 1fr)` AND NOT `1fr`: a grid track's automatic minimum is its
+   content's min-content width, and the ticket-table fallback inside this form (a
+   `.data-table--admin` with `min-width: 1250px`) is not in these columns - but the
+   selects and date inputs in them are, and `min-width: 0` on the track plus the
+   `min-width: 0` base.css already puts on every control is what lets the pair
+   shrink on a narrow window instead of overflowing the form.
+
+   BELOW 900px THE GRID IS ONE COLUMN, which is the same breakpoint the five-column
+   ticket row becomes two rows of two at (section 5). At that width a 352px sidebar
+   beside a 500px field column gives neither of them a usable measure, so the
+   sidebar stacks under the fields in the order it is written: status, artwork,
+   forecast.
+   -------------------------------------------------------------------------- */
+.admin-form__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.admin-form__main,
+.admin-form__side {
+  min-width: 0;
+}
+
+/* The sidebar is a column of fields, so the form rhythm applies to it unchanged:
+   `.field` carries its own bottom margin and the headings are the same
+   `.admin-form__heading` as the left column's. Its last child keeps no trailing
+   margin, so the column bottom lines up with the panel the weather card ends with. */
+.admin-form__side > :last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .admin-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+}
+
+/*
+ * THE END DATE'S REVEAL (review item: the single-day control's effect jumps).
+ *
+ * Ticking "Single-day event" removes the End date box and clearing it puts the box
+ * back; both used to happen in one frame.
+ *
+ * MEASURED, AND THE JUMP DEPENDS ON THE WIDTH - which is why the fix is a real
+ * transition and not just a fade. At 1920x1080 the two date fields sit side by side
+ * in a `.form-row`, so the row is 81.42px tall in BOTH states and the form does not
+ * change height at all: what a visitor saw there was a control appearing with no
+ * transition whatever. At 390x844 the row is one column (`base.css` drops
+ * `.form-row` to a single track), so the same tick jumped the row from 79.83px to
+ * 171.66px - 91.83px of form below it moved instantly, and back again on the clear.
+ * Sampled frame by frame on the built page at 390x844, before this change: the row
+ * was 171.66px on the very first frame after the click. After it, with the same
+ * sampling: 100.86, 117.38, 132.20, 145.28, 156.31, 164.94, 170.36 ... 171.66 over
+ * 240ms, and the collapse runs 81.42 -> 80.44 -> 73.80 -> 62.66 -> 48.08 ... -> 0
+ * over 200ms, which is the whole point of the class pair below.
+ *
+ * `animate.enter` / `animate.leave` (event-form.html) put these two classes on the
+ * wrapper and take them off when the animation ends, so all this CSS has to do is
+ * describe the two states. `grid-template-rows: 0fr -> 1fr` is the one CSS
+ * technique that animates to "as tall as the contents" without a measured pixel
+ * height: the wrapper is a one-cell grid, the cell's content is the field, and the
+ * track is what grows (measured on the same run: `grid-template-rows` read
+ * 9.22 -> 26.06 -> 41.22 -> 54.53 -> 65.78 -> 74.55 -> 80.11 -> 81.42px, and the
+ * inner field's own box tracked it exactly). The child needs `min-height: 0` for
+ * the 0fr end to be able to shrink it, which is the standard requirement of the
+ * pattern.
+ *
+ * THE ELEMENT SURVIVES THE LEAVE UNTIL THE SHRINK IS DONE, which the same sampling
+ * shows: `#dateEnd` was still in the DOM at t=60 with the wrapper at 48.08px, so
+ * the row cannot collapse to one track before the box has gone.
+ *
+ * `overflow: hidden` IS ONLY ON WHILE THE ANIMATION RUNS. It has to be there - the
+ * field is taller than the collapsing track and would otherwise paint outside it -
+ * but it also clips the input's focus ring, so it is attached to the two animation
+ * classes rather than to the wrapper. When nothing is moving, the wrapper clips
+ * nothing and the ring is drawn in full.
+ *
+ * The 240ms/200ms pair is the design system's own duration (`--transition` is not a
+ * token here; `.button` uses 0.18s, `.admin-link__external` 0.18s), kept a little
+ * slower because this moves a whole row rather than a 2px arrow, and the two ends
+ * are eased so the field arrives softly rather than decelerating into place. Users
+ * who ask for reduced motion get the change with no travel at all: the animation
+ * still runs, at 1ms, so `animate.leave` still removes the element and the row
+ * still ends up the right height.
+ *
+ * AND IT NEVER ANIMATES ON ARRIVAL. `revealArmed` (event-form.ts) gates the enter
+ * class on the switch having been touched, which was checked on a genuinely
+ * multi-day event (/events/7/edit, 4-20 December): the wrapper is in the DOM with
+ * no animation class and `animation-name: none` on first paint, while the same page
+ * has `singleDay` unchecked and `#dateEnd` holding "2026-12-20" - the value a save
+ * sends, because hiding a control does not clear its FormControl.
+ */
+.admin-form__reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-width: 0;
+}
+
+.admin-form__reveal > .field {
+  /* Inside the row, the field's own bottom margin is redundant - the row's gap and
+     the row's own bottom margin are the spacing (see `.admin-form .form-row >
+     .field` in src/styles.css). The selector has to name the wrapper because the
+     field is no longer a direct child of `.form-row`. */
+  margin-bottom: 0;
+  min-height: 0;
+}
+
+.admin-form__reveal-in,
+.admin-form__reveal-out {
+  overflow: hidden;
+}
+
+@keyframes admin-form-reveal-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.admin-form__reveal-in {
+  animation: admin-form-reveal-in 240ms ease-out both;
+}
+
+@keyframes admin-form-reveal-out {
+  from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+.admin-form__reveal-out {
+  animation: admin-form-reveal-out 200ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-form__reveal-in,
+  .admin-form__reveal-out {
+    animation-duration: 1ms;
+  }
 }
 
 /*

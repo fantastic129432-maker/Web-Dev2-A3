@@ -32,6 +32,26 @@
          categories, a select for the venue or town, a toggle for free
          events and a radio group for the event state.
 
+         ONE MODEL: THE PANEL FILTERS AS THE VISITOR CHANGES IT (review item:
+         the interaction model was ambiguous). Every control here applies
+         itself - a tick, a pick or a typed date updates the results below -
+         and the rule is stated in the pinned-then-rejected action row at
+         the end of the panel through `search.resultsHint`. The review
+         offered either this or an explicit submit with a pinned action row;
+         the pin was built and measured and rejected because it fully
+         covered a control on first paint at every viewport (see
+         `.filter-actions` in styles.css for the numbers), which is the
+         defect the round before this one had already recorded against
+         pinning this row. The submit button stays as an explicit "search
+         now" control, and the end-to-end suite still finds it by its text.
+
+         TEXT FIELDS ARE DEBOUNCED, TICKS ARE NOT. The two dates and the
+         keyword call `runSearchSoon()`, which waits 350ms after the last
+         keystroke; a checkbox, a radio, the venue select and the sort
+         dropdown call `runSearch()` and apply at once. Nothing here waits
+         for the button - the button re-runs what is already applied, which
+         is idempotent for a GET.
+
          (input) and (change) write into one `form` signal rather than
          using ngModel: there is no form model to validate with Angular's
          forms module, because the single rule that can fail (a reversed
@@ -77,7 +97,7 @@
                 aria-describedby="filter-from-message"
                 [attr.aria-invalid]="invalidField() === 'from' ? 'true' : null"
                 [value]="form().from"
-                (input)="setTextField('from', from.value)"
+                (input)="setTextField('from', from.value); runSearchSoon()"
               />
               <p
                 class="field-message field-message--error"
@@ -98,7 +118,7 @@
                 aria-describedby="filter-to-message"
                 [attr.aria-invalid]="invalidField() === 'to' ? 'true' : null"
                 [value]="form().to"
-                (input)="setTextField('to', to.value)"
+                (input)="setTextField('to', to.value); runSearchSoon()"
               />
               <p
                 class="field-message field-message--error"
@@ -123,7 +143,7 @@
               #location
               aria-describedby="filter-location-hint"
               [value]="form().location"
-              (change)="setLocation(location.value)"
+              (change)="setLocation(location.value); runSearch()"
             >
               <option value="">{{ 'search.cityPlaceholder' | t }}</option>
               <!--
@@ -192,7 +212,7 @@
               name="isFree"
               #free
               [checked]="form().isFree"
-              (change)="setFreeOnly(free.checked)"
+              (change)="setFreeOnly(free.checked); runSearch()"
             />
             <span>{{ 'search.freeOnly' | t }}</span>
           </label>
@@ -206,7 +226,7 @@
               #keyword
               [attr.placeholder]="'search.keywordPlaceholder' | t"
               [value]="form().keyword"
-              (input)="setTextField('keyword', keyword.value)"
+              (input)="setTextField('keyword', keyword.value); runSearchSoon()"
             />
           </div>
         </fieldset>
@@ -228,7 +248,7 @@
                 name="state"
                 value="upcoming"
                 [checked]="form().state === 'upcoming'"
-                (change)="setState('upcoming')"
+                (change)="setState('upcoming'); runSearch()"
               />
               <span>{{ 'search.stateUpcoming' | t }}</span>
             </label>
@@ -238,7 +258,7 @@
                 name="state"
                 value="all"
                 [checked]="form().state === 'all'"
-                (change)="setState('all')"
+                (change)="setState('all'); runSearch()"
               />
               <span>{{ 'search.stateAll' | t }}</span>
             </label>
@@ -248,14 +268,42 @@
                 name="state"
                 value="past"
                 [checked]="form().state === 'past'"
-                (change)="setState('past')"
+                (change)="setState('past'); runSearch()"
               />
               <span>{{ 'search.statePast' | t }}</span>
             </label>
           </div>
         </fieldset>
 
+        <!--
+          THE ACTION ROW STATES THE MODEL.
+
+          The sidebar mixes checkboxes with a large button, so a visitor cannot tell
+          whether ticking a box filters immediately or waits for the button. The model
+          chosen is FILTER AS YOU CHANGE (see the FILTER FORM comment above and
+          decision 6 in search.ts), and this row is where it is said out loud: the
+          sentence is `search.resultsHint`, now "The results below update as you
+          change the filters." in all four languages. It sits directly above the two
+          buttons because that is where a visitor's question about the model is
+          actually asked.
+
+          THE TWO BUTTONS STAY, and neither of them decides whether a filter applies:
+          "Search events" re-runs the query the live model has already applied
+          (idempotent for a GET) and is the control the end-to-end suite clicks by its
+          text; "Clear filters" resets everything at once and re-runs the default
+          search. They share one row because they are one pair of decisions about the
+          same query.
+
+          NOTE FOR THE NEXT EDITOR: this row was pinned to the viewport bottom first,
+          as the review offered, and measured. It fully covered a form control at
+          every viewport tried - `category-7` at 1440x900, the venue field at
+          390x844 - which is the same "floats over the form it belongs to" defect the
+          previous round had already recorded against pinning it. The measurements
+          are recorded on `.filter-actions` in styles.css.
+        -->
         <div class="filter-actions">
+          <p class="filter-actions__hint">{{ 'search.resultsHint' | t }}</p>
+
           <!--
             The submit button is deliberately NOT disabled while a search is in
             flight. A disabled control would lose focus the moment it was pressed,

@@ -1,6 +1,7 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { APP_CONFIG } from '@charity/shared/config/app-config';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import type { Event } from '@charity/shared/models/event.model';
 import {
@@ -26,12 +27,15 @@ import { ProgressBarComponent } from './progress-bar';
  *     THE EVENT IS NOT UPCOMING, so a state that differs from the ordinary one is
  *     visible before anything is read
  *   * category chip and a price pill
- *   * title, linking to the event's own page
+ *   * title, carrying the card's ONE link to the event's own page - a link that
+ *     covers the whole card, so the artwork and the empty space around the text
+ *     are part of the same target (see WHY THE WHOLE CARD IS ONE LINK NOW)
  *   * short description
  *   * a three-row list of When / Where / Cause - the three questions a visitor
  *     asks before clicking
  *   * the compact fundraising bar
- *   * a "View details" button
+ *   * a "View details" affordance, drawn with the button's own appearance and read
+ *     as decoration: the card is already the control it appears to be
  *
  * WHY THE STATE BADGE IS SHOWN ONLY FOR A NON-UPCOMING EVENT
  *   This card is shared, so the rule lives in the card and not behind a per-page
@@ -47,12 +51,20 @@ import { ProgressBarComponent } from './progress-bar';
  *   makes - so it never invents a "Past event" badge for an event that has not
  *   happened.
  *
- * WHY THE WHOLE CARD IS NOT A LINK
- *   Only the artwork and the title are links, and the button is a third. Nesting
- *   them would produce nested anchors, which is invalid HTML, and it would also
- *   stop a visitor from selecting the summary text. Every link carries an
- *   aria-label naming the event, because "View details" on its own tells a screen
- *   reader nothing when a page shows twelve cards.
+ * WHY THE WHOLE CARD IS ONE LINK NOW
+ *   This used to be the opposite decision, and the paragraph that recorded it is
+ *   kept here because the trade-off it named is still real: "only the artwork and
+ *   the title are links, and the button is a third. Nesting them would produce
+ *   nested anchors, which is invalid HTML, and it would also stop a visitor from
+ *   selecting the summary text." The review asked for the whole card to be a
+ *   target, so the three anchors became ONE - the title's, stretched over the card
+ *   by `.event-card__link` in styles.css - which is what removes the nesting
+ *   problem the old note was about rather than working around it. The cost the
+ *   note named is accepted and is now the card's documented behaviour: the overlay
+ *   sits above the summary, so selecting that text by dragging takes a modifier
+ *   key. Nothing else about the card changed: the artwork is still a described
+ *   <img>, the button is still drawn with its visible words, and every link still
+ *   carries an accessible name that names the event.
  *
  * WHY REGISTRATION IS NOT OFFERED HERE
  *   Registering is per event, so it starts from the event's own page where the
@@ -67,6 +79,17 @@ import { ProgressBarComponent } from './progress-bar';
 export class EventCardComponent {
   /** The event to render. Required, so a card can never appear without one. */
   readonly event = input.required<Event>();
+
+  /**
+   * Set once the artwork has failed to load.
+   *
+   * The component's only piece of state, and it exists because a photograph that
+   * 404s is not the same thing as an event with no image at all: `imageUrl()`
+   * already resolves the second case to the project's fallback artwork, while the
+   * first left the browser's broken-image glyph in the media box. One-way, because
+   * a dead URL stays dead for the life of the page - see `image()`.
+   */
+  private readonly imageFailed = signal(false);
 
   /** `event-card event-card--upcoming`, matching the legacy class convention. */
   protected readonly cardClass = computed(() => `event-card event-card--${this.event().eventState ?? 'upcoming'}`);
@@ -93,8 +116,33 @@ export class EventCardComponent {
     () => `badge badge--${this.event().eventState ?? 'upcoming'}`
   );
 
-  /** The artwork path, resolved against assets/images by the shared helper. */
-  protected readonly image = computed(() => imageUrl(this.event()));
+  /**
+   * The artwork the media box shows.
+   *
+   * Normally whatever `imageUrl()` resolves - a bundled illustration, or an
+   * absolute photograph URL an administrator pasted. If that photograph failed to
+   * load, the project's fallback artwork is used instead, built from the same two
+   * values `imageUrl()` falls back to (APP_CONFIG.imageBaseUrl + fallbackImage) so
+   * the two paths cannot point at different pictures.
+   *
+   * Both cases fill the same 16:9 box and neither changes its height: the box is
+   * sized by `.event-card__media`, and the image inside is `object-fit: cover`, so
+   * a portrait photograph is cropped rather than squashed and the grid below it
+   * never moves.
+   */
+  protected readonly image = computed(() =>
+    this.imageFailed() ? `${APP_CONFIG.imageBaseUrl}${APP_CONFIG.fallbackImage}` : imageUrl(this.event())
+  );
+
+  /**
+   * Swap in the fallback artwork after a failed load.
+   *
+   * Bound to the <img>'s `(error)`, which is how a photograph whose host is down
+   * or whose file was moved reaches the same picture an event with no image gets.
+   */
+  protected onImageError(): void {
+    this.imageFailed.set(true);
+  }
 
   /**
    * "On now" / "Past event", as a translation key.

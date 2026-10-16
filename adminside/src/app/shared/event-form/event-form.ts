@@ -97,6 +97,27 @@ export class EventForm implements OnInit {
   protected readonly showAllErrors = signal(false);
 
   /**
+   * True once the single-day switch has been touched, which ARMS the end date's
+   * reveal animation.
+   *
+   * WHY IT IS NEEDED AT ALL. `animate.enter` runs whenever the element is inserted,
+   * including the first render - so an edit page for a multi-day event would open
+   * by sliding the End date box into place, as though the visitor had just done
+   * something. The switch is the only thing that can create that box, so the switch
+   * is what arms the animation: the first change of `singleDay` sets this, and the
+   * `[animate.enter]` binding on the wrapper reads it (see event-form.html).
+   *
+   * It has nothing to do with what the form SAVES. Whether the end date is on
+   * screen is view state; whether the event is multi-day is `singleDay`, which
+   * `isStoredSingleDay()` in core/event-form.ts sets from the stored dates - so an
+   * untouched multi-day event cannot be collapsed by a save just because a
+   * transition was, or was not, animated. The end date's FormControl is never
+   * removed from the group when the control leaves the DOM, either: hidden is not
+   * cleared, which is the behaviour that comment in core/event-form.ts protects.
+   */
+  protected readonly revealArmed = signal(false);
+
+  /**
    * The form is BUILT LAZILY, on the first read.
    *
    * An Angular component's field initialisers run BEFORE its inputs are set, so
@@ -246,6 +267,22 @@ export class EventForm implements OnInit {
     this.form.controls.dateStart.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((date) => this.form.controls.eventDate.setValue(date, { emitEvent: false }));
+
+    /*
+     * ARM THE END DATE'S REVEAL ON THE FIRST TOUCH OF THE SWITCH.
+     *
+     * The end date is wrapped in `@if (!singleDay.value)` with `animate.enter` /
+     * `animate.leave` on the wrapper, so the row GROWS and SHRINKS instead of
+     * jumping when the box is ticked and cleared. `animate.enter` also runs on the
+     * first render, which is why the class it applies is gated behind
+     * `revealArmed`: a multi-day event opens with its end date already there, and
+     * animating it on arrival would read as a reaction to something the visitor had
+     * not done yet. One subscription, one write - the flag is never cleared, because
+     * every later insert IS a reaction to the switch.
+     */
+    this.form.controls.singleDay.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.revealArmed.set(true));
 
     /*
      * A FREE EVENT HAS NO PRICES.

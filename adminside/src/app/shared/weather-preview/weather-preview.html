@@ -6,7 +6,13 @@
      ================================================================== -->
 
 <section class="panel weather-preview" aria-labelledby="weather-preview-heading">
-  <h3 id="weather-preview-heading">{{ 'weather.heading' | t }}</h3>
+  <!-- An <h2>, not an <h3>: this card now lives in the event form's right-hand
+       column, so it is a sibling of the form's own section headings
+       (`.admin-form__heading` is an h2) rather than a subsection of one of them -
+       as an h3 it would have read as belonging to "Artwork and publishing", which
+       is the heading directly above it. The visual weight is unchanged: no rule in
+       weather-preview.css or in the admin stylesheet matches the heading level. -->
+  <h2 id="weather-preview-heading">{{ 'weather.heading' | t }}</h2>
 
   @if (loading()) {
     <p class="weather-preview__note">{{ 'weather.loading' | t }}</p>

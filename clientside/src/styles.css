@@ -43,6 +43,32 @@
   --ink-900: #10242b;
   --ink-700: #2c4a53;
   --ink-500: #5b7480;
+  /*
+   * THE SMALL-METADATA STEP (review item: the card's metadata is a light grey
+   * that risks failing 4.5:1 on white; use something like #4B5563 or darker).
+   *
+   * WHAT WAS ACTUALLY THERE, measured in headless Edge against the built page in
+   * both themes: the event card's summary and its When/Where/Cause labels are
+   * painted with --ink-500, which is #5b7480 and resolves to 4.94:1 on the card's
+   * white surface - NOT the #666/#777 the review names, and NOT below 4.5:1. So
+   * the review's premise was a misreading; its REQUEST still improves the margin,
+   * because 4.94:1 passes with 0.44:1 to spare and a card summary is 0.95rem text
+   * a visitor reads in passing.
+   *
+   * WHY A NEW STEP RATHER THAN --ink-700. #4b5563 as requested measures 7.56:1
+   * light and 8.16:1 dark (both measured on the rendered card) and stays visibly
+   * quieter than the card's fact values, which are --ink-700 (9.50:1) - the card
+   * keeps the reading order "summary, then the facts". Recolouring --ink-500
+   * itself would have moved every hint, count and secondary line on the site to
+   * fix two rules, and every ratio those rules carry in their own comments with
+   * them.
+   *
+   * The dark theme gets its own value rather than the light one: darkening is what
+   * improves the margin on white, and the reverse is true on a dark card. #a8bab8
+   * measures 8.16:1 there against --ink-500's 6.61:1, so both themes improve and
+   * neither theme's figure is quoted from the other's surface.
+   */
+  --ink-600: #4b5563;
   --ink-300: #9db1b8;
 
   --surface-0: #ffffff;
@@ -178,6 +204,10 @@
   --ink-900: #eef4f3;
   --ink-700: #c5d3d2;
   --ink-500: #93a8a7;
+  /* The small-metadata step, lifted here because on a dark surface the LIGHTER
+     value is the one with the margin: 8.16:1 against --ink-500's 6.61:1. See the
+     token's own comment in :root for the before/after measurements. */
+  --ink-600: #a8bab8;
   --ink-300: #6b7f7e;
 
   --surface-0: #16211f;
@@ -620,10 +650,35 @@ textarea {
   color: var(--ink-700);
 }
 
-/* --brand-100 flips to a dark teal and --brand-900 to a light one, so the pair
-   stayed low contrast in the dark theme. A solid fill with --on-brand works in
-   both. */
-.badge--upcoming { background: var(--brand-700); color: var(--on-brand); }
+/*
+ * UPCOMING IS NEUTRAL; THE BRAND FILL BELONGS TO ACTIVE (review item: ACTIVE and
+ * UPCOMING sit close together in hue - give UPCOMING a neutral treatment, light
+ * grey ground and dark grey text, and reserve the brand green for ACTIVE).
+ *
+ * WHAT WAS ACTUALLY THERE. This rule painted UPCOMING with the brand teal, and
+ * the admin's event list painted its ACTIVE publishing status with the SAME class
+ * (`statusClass()` in adminside/src/app/pages/event-list/event-list.ts returned
+ * 'badge badge--upcoming' for 'active'), so in the events table a published event
+ * and an event that has not started yet were literally one colour: measured
+ * #0f7b6c on both, 5.16:1 with the white ink. The review called them "close in
+ * hue"; they were identical, which is the same complaint one step further on.
+ *
+ * SO THE TEAL MOVED TO .badge--active - declared in the admin stylesheet, because
+ * a publishing status is only rendered there - and UPCOMING takes the base
+ * `.badge` pair. That pair is used rather than a written grey so it follows both
+ * themes with no [data-theme] rule of its own: measured on the rendered badge,
+ * #2c4a53 on #eef5f3 is 8.59:1 in the light theme and #c5d3d2 on #1c2725 is
+ * 9.97:1 in the dark one, against 5.16:1 for the fill it replaces. (The old
+ * comment here explained that --brand-100/--brand-900 could not be paired because
+ * both flip, which is still why the pair above is a BACKGROUND token with a
+ * foreground token from a different family.)
+ *
+ * CANCELLED GOT A COLOUR OF ITS OWN AT THE SAME TIME. It was the only status left
+ * on the base `.badge` pair, so withdrawing the brand fill from UPCOMING would
+ * have made "not yet started" and "called off" the same grey - the defect this
+ * rule fixes, one state along. See .badge--cancelled in adminside/src/styles.css.
+ */
+.badge--upcoming { background: var(--surface-100); color: var(--ink-700); }
 .badge--ongoing  { background: var(--success-bg); color: var(--success); }
 /* --ink-900, not --ink-500. This is 12px bold text, which WCAG measures as
    normal text and therefore holds to 4.5:1; the muted ink measured 4.27:1 on
@@ -1351,32 +1406,65 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
+  /* The containing block for `.event-card__link`'s stretched overlay, which is what
+     makes the whole card the link's click target. */
+  position: relative;
+  /* The card as a whole is a target now, so the pointer says so everywhere on it -
+     not only over the three words of the title. */
+  cursor: pointer;
   /* Flat at rest: see the rule on `.event-card:has(...)` below and the border
      versus elevation statement above `.stat`. */
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 /*
- * THE AMBIGUOUS CARD, AND THE CHOICE MADE (review item D2).
+ * THE CARD IS THE CONTROL NOW, AND IT STILL DOES NOT FLOAT AT REST.
  *
- * An event card is not clickable as a whole: the artwork is a link, the title is
- * a link and "View details" is a link, but the card element itself carries no
- * handler and the summary, the when/where/cause list and the progress bar are
- * read-only. Under "only interactive elements get elevation, display-only data
- * gets a border" that makes the CARD display-only - so it no longer floats at
- * rest, and it measures the same as the `.stat` cards beside it on the home page.
+ * The earlier decision recorded here (review item D2) was that an event card was
+ * display-only - the artwork, the title and the button were links, but the card
+ * element itself carried no handler - and that under "only interactive elements
+ * get elevation, display-only data gets a border" such a card must not float at
+ * rest, which is also what keeps it measuring the same as the `.stat` cards beside
+ * it on the home page. That is why the lift is tied to the interaction rather than
+ * to the element: the card rises while one of the links inside it is hovered or
+ * keyboard-focused and sits flat the rest of the time.
  *
- * The lift is kept, but it is now tied to the interaction that justifies it: the
- * card rises while one of the links inside it is hovered or keyboard-focused,
- * which is what the elevation always meant to say. `:has()` is what makes that
- * expressible without a click handler on the card (and without making the whole
- * card clickable, which would be a behaviour change this round was not asked
- * for). The transition stays on `.event-card` so the movement is still animated;
- * a browser without `:has()` simply never lifts the card, which loses decoration
- * rather than function.
+ * WHAT CHANGED THIS ROUND is which element carries the interaction. The card holds
+ * ONE link (`.event-card__link`) and the stylesheet stretches it over the card, so
+ * hovering ANYWHERE on the card hovers it - the pointer no longer has to find the
+ * title, and a thumb no longer has to find the button. The state is therefore
+ * three signals and not a colour on its own: the card rises 3px, casts
+ * `--shadow`, and takes a `--brand-500` border, while `:focus-visible` adds the
+ * design system's ring to the whole card so a keyboard user sees the target
+ * rather than a three-word underline.
+ *
+ * `:has()` is what lets a rule on the card answer a state on the link inside it
+ * without a click handler. Measured in the Edge this project verifies with: it is
+ * honoured there, and a browser without it simply never lifts the card - the
+ * decoration is lost, the function is not.
+ *
+ * MEASURED, English, 1920x1080, light theme, before and after, on one card of the
+ * search results. BEFORE: three anchors to `/events/2` (artwork, title, button) and
+ * three focusable elements inside the card; `elementFromPoint` at the card's middle
+ * and at 5% from its left edge landed on `p.event-card__summary` and
+ * `div.event-card__body`, neither of which was a link. AFTER: one anchor
+ * (`a.event-card__link`) and one focusable element; all four sample points - 12%
+ * down (the artwork), the middle (the summary), 92% down (the footer) and 5% in
+ * from the left edge - resolve to that anchor, and the hover state measured with a
+ * real pointer is `transform: translateY(-3px)`, `box-shadow rgba(16, 36, 43, 0.1)
+ * 0 6px 18px 0` and `border-color rgb(23, 160, 140)`.
  */
-.event-card:has(a:hover, button:hover, a:focus-visible, button:focus-visible) {
+.event-card:has(.event-card__link:hover),
+.event-card:has(.event-card__link:focus-visible) {
   transform: translateY(-3px);
   box-shadow: var(--shadow);
+  border-color: var(--brand-500);
+}
+
+/* The keyboard half, on the card rather than on the link: see the note on
+   `.event-card__link` below for why the inner ring is suppressed. */
+.event-card:has(.event-card__link:focus-visible) {
+  outline: 3px solid var(--accent-500);
+  outline-offset: 2px;
 }
 .event-card--past { opacity: 0.94; }
 .event-card--past .event-card__media img { filter: grayscale(0.45); }
@@ -1413,6 +1501,34 @@ textarea {
   aspect-ratio: 16 / 9;
   overflow: hidden;
 }
+
+/*
+ * THE BOX IS THE SAME BOX FOR AN ILLUSTRATION, A PHOTOGRAPH AND THE FALLBACK (the
+ * review asked for the media to work with real photography rather than only with
+ * the flat vector artwork the seeded data carries).
+ *
+ * `object-fit: cover` is the whole answer to the aspect-ratio question: the image
+ * is scaled until it covers the 16:9 box and the excess is CROPPED, never
+ * squashed, so a portrait phone photograph and a 21:9 panorama both fill the box
+ * edge to edge with the subject's own proportions intact. Measured on the built
+ * card at 1920x1080 by pointing one card's <img> at four sources in turn - the
+ * bundled 267x150 illustration, a 600x600 square, a 600x800 portrait and a
+ * 1260x540 panorama: the rendered box is 371 x 208.69px (ratio 1.778) in all four
+ * cases and the card's own height is 644.94px in all four, while `width: 100%` +
+ * `height: 100%` means the picture never dictates the box.
+ *
+ * The box itself is what keeps the layout still between those cases, and between
+ * "the photograph has not arrived yet" and "the photograph failed": the ratio is
+ * declared on the CONTAINER, so the media box is 16:9 before the first byte of the
+ * image is decoded and after an `(error)` swap to the fallback artwork. The fifth
+ * source in that pass was a URL that does not exist: before this round
+ * `naturalWidth` was 0 and the browser's broken-image glyph sat in the middle of
+ * the 208.69px box; after it, `(error)` swaps in the shared fallback artwork
+ * (fun-run.svg, 267x150) and the box and the card are the same 208.69px and
+ * 644.94px as the other four. A card whose image is slow, missing or broken
+ * therefore reserves exactly the height it will end up with, and the grid below it
+ * never jumps - the background colour below is what shows through in the meantime.
+ */
 .event-card__media img {
   width: 100%;
   height: 100%;
@@ -1442,11 +1558,58 @@ textarea {
 .event-card__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .event-card__title { margin: 0; font-size: 1.15rem; }
 .event-card__title a { color: var(--brand-900); }
-.event-card__summary { margin: 0; color: var(--ink-500); font-size: 0.95rem; }
+
+/*
+ * THE ONE LINK, AND THE OVERLAY THAT MAKES IT THE WHOLE CARD.
+ *
+ * `::after` with `inset: 0` is laid over the nearest positioned ancestor, which is
+ * the card itself (`position: relative` above), so this single anchor owns the
+ * card's whole click target: the artwork, the body padding, the summary and the
+ * progress bar are all inside it. It is the "stretched link" pattern, and its
+ * virtue here is that none of it is JavaScript - touch, mouse, middle click,
+ * "open in a new tab" and the browser's own link affordances behave exactly as
+ * they do for any other link, which a click handler on the <article> could not
+ * promise - while the card keeps ONE tab stop and ONE accessible name. That is
+ * what the review's "a card must not contain two competing links to the same
+ * place" asks for: the artwork's and the button's anchors are gone, and the button
+ * is now a span that is drawn but not focusable (see event-card.html).
+ *
+ * WHY `outline: none` HERE: the focus ring is drawn on the card instead (`.event-
+ * card:has(.event-card__link:focus-visible)` above). Without this the keyboard
+ * would see two rings - a card-sized one and a second one around three words of
+ * it. The ring is moved, not removed, and the card's ring is 3px of `--accent-500`
+ * with 2px of offset, the same as the design system's own.
+ *
+ * THE COST, WHICH IS DELIBERATE AND IS THE REASON THIS CARD USED TO HAVE THREE
+ * LINKS INSTEAD OF ONE: the overlay sits above the summary text, so selecting
+ * that text by dragging needs a modifier key. The review asked for the whole card
+ * to be a target, so this is the trade it made; it is recorded here and in
+ * event-card.ts rather than left for someone to discover with a mouse.
+ *
+ * KEYBOARD, MEASURED: Tab alone reaches the link (the 28th stop on the search page
+ * in English at 1920x1080 - header, filter panel, sort control, then the first
+ * card), `document.activeElement` is the anchor, `:focus-visible` matches, and the
+ * ring appears on the CARD as `outline: solid 3px rgb(240, 160, 75)` with a 2px
+ * offset while the anchor's own outline computes to `none`. Pressing Enter from
+ * there navigated to `/events/2`. The accessible name is
+ * "View full details for <event name>" (the `aria-label` on the anchor), so it
+ * names the event and not just the action.
+ */
+.event-card__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.event-card__link:focus-visible { outline: none; }
+/* The card's two pieces of small metadata. They were --ink-500 (4.94:1 on this
+   card's white surface); --ink-600 is the step this round added for exactly this
+   text and measures 7.56:1 light and 8.16:1 dark. See the token's comment in
+   section 1 for why the global muted ink was not the thing to move. */
+.event-card__summary { margin: 0; color: var(--ink-600); font-size: 0.95rem; }
 
 .event-card__details { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
 .event-card__details li { display: grid; grid-template-columns: 62px 1fr; gap: var(--space-2); font-size: 0.9rem; }
-.event-card__label { color: var(--ink-500); font-weight: bold; }
+.event-card__label { color: var(--ink-600); font-weight: bold; }
 .event-card__value { color: var(--ink-700); }
 
 .event-card__footer {
@@ -1781,12 +1944,44 @@ input:focus,
 select:focus,
 textarea:focus { border-color: var(--brand-500); }
 
+/*
+ * THE CATEGORY LIST LAYS OUT IN FULL (review item: the category list scrolls
+ * inside itself).
+ *
+ * WHAT WAS HERE: `max-height: 230px` with `overflow-y: auto`, which gave "3. What
+ * kind of event" a scrollbar of its own inside a sidebar that already scrolls. The
+ * panel holds six to eight options today and the review's point is that the cap
+ * does not depend on them: two scroll regions in one column means the wheel
+ * catches in the inner one, and a visitor who scrolls to the end of the panel can
+ * still have options left unseen below the fold of a box they cannot tell is a
+ * box. The cap, the `overflow-y` and the padding that only existed to inset the
+ * scrollbar are gone, so the options lay out in full and the PAGE scrolls once.
+ *
+ * MEASURED, English, 1920x1080, light theme, against the built pages (the "before"
+ * numbers come from a build of the previous commit served on a scratch port, so
+ * both sides are the same data and the same viewport): 8 options, the list box
+ * 230px tall with `scrollHeight 310 / clientHeight 228` - 82px of options, about
+ * two and a half of the eight, sat below a scrollbar inside a box nobody could
+ * tell was a box. The panel itself was 1297.03px and NOT internally scrolled
+ * (`scrollHeight === clientHeight` = 1295), and a walk of every element inside it
+ * found exactly one element with `overflow-y: auto` and content taller than its
+ * box: this one. After the change the same eight options lay out in a 311.88px box
+ * with `scrollHeight === clientHeight` (310), the panel is 1408.91px with
+ * `scrollHeight === clientHeight` (1407), and the walk finds NO internal scroller:
+ * the page's own scrollbar is the only one in the column. The option count is 8
+ * before and after, and the counts beside the options are the API's own.
+ *
+ * THE SIDEBAR IS STILL SANE AT A SHORT HEIGHT, which is the other half of the
+ * request: the panel is `position: sticky` and taller than a short window, and a
+ * sticky box taller than its scrollport simply stops moving once its top edge
+ * reaches its offset (see the `.filter-panel` note) - so nothing is trapped and
+ * nothing is hidden. Its own scrolling was never the thing keeping it reachable:
+ * the pinned action row below is.
+ */
 .checkbox-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-1);
-  max-height: 230px;
-  overflow-y: auto;
   padding: var(--space-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -1840,17 +2035,58 @@ textarea:focus { border-color: var(--brand-500); }
 .filter-actions { display: grid; gap: var(--space-2); }
 
 /*
-     * The action row sits at the end of the card, in normal flow.
-     *
-     * It was briefly pinned to the viewport bottom so the buttons stayed reachable
-     * while the tall card scrolled past - but the card is taller than most windows, so
-     * the row floated over the form it belongs to and covered the City field on first
-     * paint, which reads as a broken form. With the card no longer scrolling
-     * internally there is nothing left to pin it against: the buttons end the card.
-     */
+ * THE ACTION ROW IS AN ACTION PAIR, IN NORMAL FLOW (review item: make the filter's
+ * interaction model explicit).
+ *
+ * WHICH MODEL WAS CHOSEN, AND WHY IT IS NOT THE SUBMIT ONE.
+ *   The panel holds seven kinds of control - two dates, a venue, six to eight
+ *   category boxes, a free-events box, a keyword and a radio group - and the review
+ *   offered two ways to make its model obvious: filter as the visitor changes a
+ *   control, or keep the explicit submit and pin this row so it is always reachable.
+ *   The pin was built first and MEASURED, and it reintroduces the defect the earlier
+ *   round recorded against pinning this very row: it floats over the form, and at
+ *   first paint it FULLY covered a control at every viewport tested - `category-7`
+ *   at 1440x900, the venue field (`filter-location`) at 390x844, and two of the
+ *   category boxes at 1920x1080. (Numbers from a scroll sweep at 60px steps: the
+ *   worst overlap with any panel control was 100% at both 1440x900 and 390x844.)
+ *   That is the "it covered the City field on first paint, which reads as a broken
+ *   form" the earlier note in this file is about, and a 118px bar cannot avoid it:
+ *   a row pinned to the viewport bottom overlays whatever the panel has at that
+ *   height, at every scroll offset.
+ *
+ *   So the OTHER branch of the review's choice is taken: the panel filters as the
+ *   visitor changes a control. Nothing is pinned, nothing floats, nothing is
+ *   covered, and the page still scrolls once - the category list lays out in full
+ *   (see `.checkbox-grid` above) and the sidebar has no scroll region of its own.
+ *   The rule is stated in the row itself, in all four languages, by
+ *   `search.resultsHint`; the sort dropdown and a chip's remove button act on the
+ *   result set directly, exactly as they always did.
+ *
+ * WHERE THAT LEAVES THE SUBMIT BUTTON: it stays, with its words and its place at
+ * the end of the panel, as the explicit "search now" control - pressing it re-runs
+ * the same query the live model has already applied, which is idempotent for a GET
+ * and is what the end-to-end suite clicks by its text. It is no longer the thing
+ * that decides whether the filters are applied, so a visitor who never presses it
+ * still sees the results update.
+ *
+ * THE TWO BUTTONS STACK, as they always have. Side by side was tried and measured:
+ * the panel's content column is 280px at 1920x1080, so each button would get a
+ * 136px track, and "Search events" at 0.95rem bold needs about 153px inside its own
+ * padding - the label wrapped onto two lines and the pair grew taller than the
+ * stacked version. With nothing pinned, the row's height costs nothing, so the
+ * full-width pair stays.
+ */
 .filter-panel .filter-actions {
   padding-top: var(--space-3);
   padding-bottom: var(--space-1);
+}
+
+/* The sentence that states the model, quieter than the controls it explains and
+   above them. */
+.filter-actions__hint {
+  margin: 0;
+  color: var(--ink-700);
+  font-size: 0.8rem;
 }
 
 .chip-list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
@@ -2114,6 +2350,37 @@ textarea:focus { border-color: var(--brand-500); }
   margin: 0;
   font-size: 0.95rem;
   color: var(--ink-900);
+}
+
+/*
+ * TWO WEIGHTS IN THE FACT GRID (review item: Time and Location carried no more
+ * weight than Organised by and Capacity).
+ *
+ * The grid answers "when and where is this, and what is it" with seven tiles, and
+ * the four a visitor needs in order to TURN UP - date, time, venue, town - were
+ * drawn exactly like the three that describe the event around them. `--primary` is
+ * the first group and `--secondary` the second; the tiles, their labels, their
+ * values and their icons are all still there, so nothing was dropped to make room.
+ *
+ * THE DIFFERENCE IS CARRIED BY THREE THINGS, ONLY ONE OF WHICH IS HUE:
+ *   * the label: `--ink-700` on a primary tile against `--ink-500` on a secondary
+ *     one (measured 9.03:1 against 4.69:1 on the tile's `--surface-50`);
+ *   * the value: full `--ink-900` on a primary tile, `--ink-700` on a secondary
+ *     one (15.25:1 against 9.03:1);
+ *   * the icon's FILL: `--brand-100` for a primary tile, the neutral
+ *     `--surface-100` for a secondary one - a difference in shape and value that a
+ *     reader who cannot separate the two hues still sees.
+ *
+ * The measured figures above are the rendered pairs, one tile of each kind, read
+ * out of the built page; the tile itself, its border and its 72px row height are
+ * untouched, so the two rows still line up as one grid (review item B1).
+ */
+.fact--primary .fact__label { color: var(--ink-700); }
+
+.fact--secondary .fact__value { color: var(--ink-700); }
+.fact--secondary .fact__icon {
+  background: var(--surface-100);
+  color: var(--ink-500);
 }
 
 /*
@@ -2906,12 +3173,51 @@ textarea:focus { border-color: var(--brand-500); }
 
 .registration-form-card h3:first-of-type { margin-top: var(--space-2); }
 
+/*
+ * THE RUNNING TOTAL IS A SETTLEMENT LINE, NOT A GREY BLOCK (review item: the total
+ * is quiet - "1 x $185.00 = $185" sits on a weak grey background).
+ *
+ * WHAT IT WAS: `--surface-100` with `--ink-900` text, measured on the built page at
+ * 1920x1080 with the stepper driven to 3 tickets: `rgb(16, 36, 43)` on
+ * `rgb(238, 245, 243)`, 14.50:1 - a correct pair, and the same pair the form's own
+ * disabled controls use, so the one line that states what the visitor is about to
+ * pay looked like a closed field. It is now a bar the eye lands on: the brand's own
+ * tint as the ground (`--brand-100`, a pale teal in the light theme and a dark teal
+ * in the dark one), a 4px `--brand-700` accent on the leading edge as the shape cue
+ * that does not depend on hue, `--brand-900` for the text, and a step up from the
+ * inherited 17px to 1.15rem (18.4px).
+ *
+ * MEASURED AFTER, same page and same stepper, both themes:
+ *   light  rgb(8, 69, 60) on rgb(227, 243, 240)   9.52:1
+ *   dark   rgb(127, 216, 200) on rgb(18, 59, 54)  7.37:1
+ * Both clear the 4.5:1 this 18.4px bold text is held to. The ratio is lower than
+ * the grey block's 14.50:1 on purpose and that is the trade this line makes: a
+ * tinted bar with an accent rule and a larger, darker-teal figure is what makes the
+ * settlement line the thing the eye lands on, and 9.52:1 is 5:1 of margin over the
+ * minimum.
+ *
+ * WHY THE ACCENT IS A SHAPE AND NOT ONLY A COLOUR: a visitor who cannot separate
+ * the tint from the page still sees a bar that begins with a 4px rule and ends at
+ * the card's edge. `role`-less and still a `<p>`: it is a statement of fact, and it
+ * already carries `aria-live="polite"` in the template, so the stepper announces
+ * the new settlement as the count changes.
+ *
+ * THE AMOUNT ITSELF IS UNCHANGED. `totalLine()` still builds "Total: 1 x $185.00
+ * = $185" from the selected tier and the stepper's value, so one bar cannot
+ * disagree with the other, and a free tier still says "Free" rather than "$0.00"
+ * (see `totalLine` in register.ts). Nothing about the figure moved - only where
+ * the eye lands on it. Measured with the stepper: "Total: 3 x $185.00 = $555" at 3
+ * tickets, recomputed from the signal on the click.
+ */
 .registration-total {
-  margin: var(--space-4) 0;
+  margin: var(--space-5) 0;
   padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--brand-500);
+  border-left: 4px solid var(--brand-700);
   border-radius: var(--radius-sm);
-  background: var(--surface-100);
-  color: var(--ink-900);
+  background: var(--brand-100);
+  color: var(--brand-900);
+  font-size: 1.15rem;
   font-weight: bold;
   font-variant-numeric: tabular-nums;
 }

@@ -179,9 +179,26 @@
 
               `dt` is the label and `dd` the value, so the pairing survives a
               screen reader even though the two are laid out as a block.
+
+              TWO WEIGHTS, ONE LIST (review item: Time and Location carried no more
+              weight than Organised by and Capacity). The seven facts are still seven
+              and every word of every one is unchanged - what changed is that the
+              four a visitor needs in order to TURN UP (date, time, venue, town) are
+              `fact--primary`, and the three that describe the event around them
+              (who runs it, how many places, how much interest) are
+              `fact--secondary`. The difference is stated in three places a person
+              reads without colour: the primary labels take `--ink-700` against the
+              secondary `--ink-500`, the primary values keep the full `--ink-900`
+              while the secondary step back to `--ink-700`, and the secondary icons
+              drop the brand tint for the neutral surface. Measured on the rendered
+              tiles at 1920x1080 in the light theme: primary label 9.03:1, secondary
+              label 4.69:1, primary value 15.25:1, secondary value 9.03:1 - all above
+              the 4.5:1 these sizes are held to, and the two groups are also
+              separated by the icon's fill, which is a shape difference rather than a
+              hue one.
             -->
             <dl class="fact-grid">
-              <div class="fact">
+              <div class="fact fact--primary">
                 <span class="fact__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <rect x="3" y="5" width="18" height="16" rx="2"></rect>
@@ -192,7 +209,7 @@
                 <dd class="fact__value">{{ fullDate() }}</dd>
               </div>
 
-              <div class="fact">
+              <div class="fact fact--primary">
                 <span class="fact__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <circle cx="12" cy="12" r="9"></circle>
@@ -203,7 +220,7 @@
                 <dd class="fact__value">{{ timeRange() }}</dd>
               </div>
 
-              <div class="fact">
+              <div class="fact fact--primary">
                 <span class="fact__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"></path>
@@ -214,7 +231,7 @@
                 <dd class="fact__value">{{ venueLine() }}</dd>
               </div>
 
-              <div class="fact">
+              <div class="fact fact--primary">
                 <span class="fact__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H19v16H6.5A2.5 2.5 0 0 1 4 17.5z"></path>
@@ -225,7 +242,7 @@
                 <dd class="fact__value">{{ locationLine() }}</dd>
               </div>
 
-              <div class="fact">
+              <div class="fact fact--secondary">
                 <span class="fact__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 3l7 3v6c0 4.6-2.9 7.9-7 9-4.1-1.1-7-4.4-7-9V6z"></path>
@@ -236,7 +253,7 @@
                 <dd class="fact__value">{{ current.organizationName }}</dd>
               </div>
 
-              <div class="fact">
+              <div class="fact fact--secondary">
                 <span class="fact__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 9h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path>
@@ -258,7 +275,7 @@
                 named, because the API distinguishes them and the page used to
                 print one under the other's label.
               -->
-              <div class="fact">
+              <div class="fact fact--secondary">
                 <span class="fact__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3.5 8.5A2.5 2.5 0 0 1 6 6h12a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 18 18H6a2.5 2.5 0 0 1-2.5-2.5z"></path>

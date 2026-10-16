@@ -624,6 +624,16 @@ html body.admin-body .admin-page-header p {
  * The `:focus-visible` half is not decoration: the colour has to change for the
  * keyboard too, because a keyboard user never triggers `:hover`, and the design
  * system's outline ring (base.css `:focus-visible`) is drawn in addition to it.
+ *
+ * THIS RULE HAD NO EFFECT ON THE EVENT LIST, WHICH IS THE DEFECT THE HIERARCHY
+ * ROUND FOUND. The registrations page applied the class; the event list's Delete
+ * button carried `button--danger row-action` WITHOUT it (event-list.html), so the
+ * rule above never matched there and the pointer got `.button--danger:hover`
+ * instead - a SOLID --danger fill on every row's bin icon, which is the wall of
+ * red this comment says the row action avoids. Measured on the running list:
+ * hovering that button repainted it rgb(179, 38, 30) in the light theme, while the
+ * same control on the registrations page repainted to rgb(253, 236, 234). The
+ * class is now on both, so the two lists answer the pointer the same way.
  */
 .row-action--delete:hover,
 .row-action--delete:focus-visible {
@@ -640,6 +650,14 @@ html body.admin-body .admin-page-header p {
  * wall of red: the emphasis landed on the most dangerous action instead of on
  * the data. The outline keeps the affordance and the colour cue while letting
  * the event names stay the focus.
+ *
+ * WHO USES IT NOW, AFTER THE HIERARCHY ROUND: the confirmation dialog (which
+ * re-declares it as a FILL below, because there the destructive choice should be
+ * the obvious one) and the event list's disabled "Deletion blocked" control,
+ * which is a state rather than an invitation and is muted by its own opacity. The
+ * row-level controls that a staff member actually presses moved to
+ * `.button--danger-quiet` just below, because a red outline at rest is still the
+ * loudest thing in a row of grey ones.
  */
 .button--danger {
   background: var(--surface-0);
@@ -655,6 +673,37 @@ html body.admin-body .admin-page-header p {
   color: var(--on-brand);
 }
 .button--danger[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/*
+ * THE ROW-LEVEL DESTRUCTIVE CONTROL, NEUTRAL AT REST.
+ *
+ * WHY THIS EXISTS AT ALL. `.row-action--delete` above defers the destructive
+ * colour to the interaction, but it is written for an ICON-ONLY control inside
+ * `.row-actions` and carries that class's box. The two labelled destructive
+ * controls the admin site still has - "Cancel registration" on the dashboard and
+ * "Delete" on the edit page's registrations table - were `button--danger`, i.e. a
+ * red border and red text at rest beside a grey Edit link, so on those two tables
+ * the destructive action WAS the most prominent thing on the row. The review's
+ * point is the same one the row actions already answer: reserve the warning colour
+ * for the moment the pointer or the keyboard is on the control, and let the record
+ * be the loudest thing at rest.
+ *
+ * So this modifier is `button--outline`'s neutral box (the class is used beside
+ * it, and the dark theme repaints both from the same rule) plus the warning state
+ * on hover and on keyboard focus. `:focus-visible` is not decoration: a keyboard
+ * user never triggers `:hover`, and the design system's ring is drawn in addition
+ * to this.
+ *
+ * The measured pairs are the ones `.row-action--delete` already records, because
+ * it is the same pair: --danger on --danger-bg is 5.72:1 in the light theme and
+ * 6.32:1 in the dark one, above the 4.5:1 this 0.85rem bold label is held to.
+ */
+.button--danger-quiet:hover:not([disabled]),
+.button--danger-quiet:focus-visible:not([disabled]) {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
 
 /* Only the confirmation dialog needs a filled destructive button, because
    there the destructive choice should be the obvious one. */
