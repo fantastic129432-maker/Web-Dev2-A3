@@ -157,14 +157,24 @@ export interface EventQuery {
   /** A range, YYYY-MM-DD. */
   from?: string;
   to?: string;
-  /** One of 'upcoming', 'past' or 'all'. */
+  /**
+   * One of 'upcoming', 'ongoing', 'past' or 'all'. The API's own default is
+   * 'upcoming'.
+   */
   state?: string;
   keyword?: string;
   isFree?: boolean;
   organizationId?: number | string;
-  /** Admin only: one of 'active', 'past', 'suspended', 'cancelled' or 'all'. */
+  /** Admin only: one of 'active', 'suspended', 'cancelled' or 'all'. */
   publishStatus?: string;
-  /** For example 'date' | 'name' | 'raised'. */
+  /**
+   * One of 'date' | 'name' | 'goal' | 'progress' | 'category' | 'city'.
+   *
+   * Those are the values the API accepts (ALLOWED_SORTS in
+   * api/src/services/eventService.ts) and the ones the search page's dropdown
+   * offers; it rejects anything else with a 400 naming the field, so a stale
+   * name here ("raised", for example) would be a request that cannot succeed.
+   */
   sort?: string;
   direction?: 'asc' | 'desc';
   limit?: number;

@@ -112,18 +112,29 @@ function buildHttpParams(query: Record<string, QueryValue> = {}): HttpParams {
 /**
  * Fill in the paging fields the UI relies on.
  *
- * A list endpoint always sends them, but a defensive default means a control can
- * render even if one is missing.
+ * Most list endpoints send all six fields, but NOT all of them: GET
+ * /api/registrations pages with `limit` and `offset` alone and sends no `page`
+ * and no `totalPages` (its RegistrationQuery takes `page` only for symmetry and
+ * ignores it). Those two are therefore DERIVED here rather than defaulted to 1 -
+ * a default of 1 told that list it was looking at "page 1 of 1" when 20 rows at
+ * `limit: 1` is twenty pages - and only then does a defensive default remain, so
+ * a control still renders if a field is missing altogether.
  */
 function toPagedMeta(meta: ApiMeta, fallbackCount: number): PagedMeta {
+  const total = meta.total ?? fallbackCount;
+  const limit = meta.limit ?? fallbackCount;
+  const offset = meta.offset ?? 0;
+
   return {
     ...meta,
-    total: meta.total ?? fallbackCount,
+    total,
     count: meta.count ?? fallbackCount,
-    page: meta.page ?? 1,
-    totalPages: meta.totalPages ?? 1,
-    limit: meta.limit ?? fallbackCount,
-    offset: meta.offset ?? 0,
+    // Derivable from the two fields the registrations endpoint does send:
+    // offset = (page - 1) * limit.
+    page: meta.page ?? (limit > 0 ? Math.floor(offset / limit) + 1 : 1),
+    totalPages: meta.totalPages ?? (limit > 0 ? Math.max(1, Math.ceil(total / limit)) : 1),
+    limit,
+    offset,
   };
 }
 
@@ -140,6 +151,17 @@ function toPagedMeta(meta: ApiMeta, fallbackCount: number): PagedMeta {
  * GET /api/events/:id already carries the complete registration list, newest
  * purchase first, which is what the public detail page renders, so the API's own
  * GET /api/events/:id/registrations route would be a call nothing makes.
+ *
+ * The two routes that address ONE registration directly are the same story, and
+ * that is worth recording rather than leaving as a gap: the API serves
+ * GET /api/registrations/:id (read a registration) and PUT /api/registrations/:id
+ * (change one, sending only the fields that changed), and no screen in either
+ * application opens or edits a single registration on its own - the admin list
+ * shows the rows, and each row is created by the public registration form and
+ * deleted from the list. They were therefore removed rather than kept as methods
+ * with no caller. DELETE /api/registrations/:id is a different case and stays:
+ * the admin registrations list, the dashboard and the event editor all delete a
+ * registration row.
  *
  * @throws ApiError Every method's Observable errors with an ApiError, never a bare
  *   HttpErrorResponse or a TimeoutError, so a caller has one error type to render in the
@@ -373,36 +395,6 @@ export class ApiService {
    */
   getRegistrations(query: RegistrationQuery = {}): Observable<Paged<Registration>> {
     return this.getPaged<Registration>('/registrations', query as Record<string, QueryValue>);
-  }
-
-  /**
-   * Read one registration.
-   *
-   * GET /api/registrations/:id.
-   *
-   * @param registrationId - Primary key of the registration.
-   * @returns The registration as the API stored it.
-   */
-  getRegistration(registrationId: number | string): Observable<Registration> {
-    return this.get<Registration>(`/registrations/${encodeURIComponent(registrationId)}`);
-  }
-
-  /**
-   * Change a registration, sending only the fields that changed.
-   *
-   * PUT /api/registrations/:id.
-   *
-   * @param registrationId - Primary key of the registration to change.
-   * @param changes - The fields to change, as a partial registration.
-   * @returns The updated registration as the API stored it.
-   */
-  updateRegistration(
-    registrationId: number | string,
-    changes: Partial<RegistrationInput>
-  ): Observable<Registration> {
-    return this.send<Registration>('PUT', `/registrations/${encodeURIComponent(registrationId)}`, {
-      body: changes,
-    }).pipe(map((r) => r.data));
   }
 
   /**

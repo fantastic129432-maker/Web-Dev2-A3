@@ -1,13 +1,14 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Subject, catchError, forkJoin, of, switchMap } from 'rxjs';
+import { Observable, Subject, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 
 import { ApiError } from '@charity/shared/api/api-error';
 import { ApiService } from '@charity/shared/api/api.service';
 import { TranslationService } from '@charity/shared/i18n/translation.service';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import type { Event, EventQuery } from '@charity/shared/models/event.model';
+import type { Paged } from '@charity/shared/models/api.model';
 import type { Category, Venue } from '@charity/shared/models/reference.model';
 
 import { EventCardComponent } from '../../shared/event-card';
@@ -99,6 +100,19 @@ interface FilterChip {
   label: string;
   clear: () => void;
 }
+
+/**
+ * What one search settled as, seen by the search pipeline's single subscription.
+ *
+ * A tagged value rather than a raw success or a raw error, because a failed
+ * request has to arrive as a VALUE: an error on the stream is terminal, and the
+ * pipeline that writes `results` has to survive it (see the comment on the
+ * subscription in the constructor). `Paged<Event>` carries `meta`, the error arm
+ * carries a `message`, and the `status` tag is what tells them apart.
+ */
+type SearchOutcome =
+  | { status: 'done'; page: Paged<Event> }
+  | { status: 'error'; message: string };
 
 /**
  * An empty form, used both as the initial value and by "Clear filters".
@@ -423,35 +437,67 @@ export class SearchPage {
      * in flight, so only the newest search can write to `results`. Subscribing once
      * here rather than once per search is also what makes the cancellation
      * possible - see `searchTrigger`.
+     *
+     * A FAILED SEARCH MUST NOT KILL THE PIPELINE, so `catchError` sits INSIDE the
+     * `switchMap`, where it converts one failed request into one failed result:
+     *
+     *     switchMap((query) => getEvents(query).pipe(catchError(...)))
+     *
+     * It used to sit outside, as an `error` callback on the subscription, and that
+     * ended the subscription itself: an error is terminal for the observable it
+     * arrives on, so after the first failure the `Subject` had no subscriber left.
+     * `runSearch()` still cleared `results` to 'loading' and pushed the new query,
+     * but nothing was listening - so pressing "Search events", ticking a category
+     * or clearing the filters did nothing at all and left the results panel empty
+     * until the visitor reloaded the page. Measured against this build with the
+     * first search answered by a 500: the panel reported the failure, the second
+     * search (a category checkbox) issued NO request at all, and the grid held no
+     * cards, no spinner and no message afterwards. Caught inside the `switchMap`,
+     * the outer subscription survives every failure, so the next search runs
+     * normally.
      */
     this.searchTrigger
       .pipe(
-        switchMap((query) => this.api.getEvents(query)),
+        switchMap(
+          (query): Observable<SearchOutcome> =>
+            this.api.getEvents(query).pipe(
+              map((page): SearchOutcome => ({ status: 'done', page })),
+              catchError((error: unknown): Observable<SearchOutcome> =>
+                of<SearchOutcome>({ status: 'error', message: this.describeFailure(error) })
+              )
+            )
+        ),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
-        next: (page) => {
+        // Exactly one callback: `catchError` guarantees that every search settles
+        // here, whether it answered with rows or with a message, so there is no
+        // second error path that could end the subscription.
+        next: (outcome) => {
+          if (outcome.status === 'error') {
+            this.results.set({
+              status: 'error',
+              events: [],
+              total: 0,
+              message: outcome.message,
+            });
+            return;
+          }
+
           this.results.set({
             status: 'done',
-            events: page.items,
-            total: page.meta.total,
+            events: outcome.page.items,
+            total: outcome.page.meta.total,
             // A completed search with no rows is not an error: the message below
             // the form explains it in the same tone as a successful search. The
             // count is the number of rows that arrived, not `meta.total`, so this
             // sentence agrees with the cards on screen when a search was cut short
             // by its own row limit - which the results heading also reports.
             message: this.i18n.t(
-              page.items.length === 1 ? 'search.eventCountOne' : 'search.eventCountMany',
-              { count: page.items.length }
+              outcome.page.items.length === 1 ? 'search.eventCountOne' : 'search.eventCountMany',
+              { count: outcome.page.items.length }
             ),
           });
-        },
-        error: (error: unknown) => {
-          const message =
-            error instanceof ApiError
-              ? error.friendlyMessage((key) => this.i18n.t(key))
-              : this.i18n.t('error.searchFailed');
-          this.results.set({ status: 'error', events: [], total: 0, message });
         },
       });
 
@@ -616,6 +662,27 @@ export class SearchPage {
     // result, so this method issues the request and nothing else.
     this.results.set({ status: 'loading', events: [], total: 0, message: null });
     this.searchTrigger.next(query);
+  }
+
+  /**
+   * The sentence a failed search shows, in the active language.
+   *
+   * Called from the `catchError` inside the search pipeline, which is why it is a
+   * method here rather than an `error` callback on the subscription: the failure
+   * has to become a value (`SearchOutcome`) so the subscription itself survives it.
+   *
+   * `ApiError` already carries a status-appropriate sentence (timeout, offline,
+   * 5xx), so it is preferred; anything else falls back to the generic search key.
+   * Reading `i18n.t` here is also what makes the message fluent in the language
+   * active when the request failed.
+   *
+   * @param error - Whatever the request failed with.
+   * @returns The translated sentence to show in the results panel.
+   */
+  private describeFailure(error: unknown): string {
+    return error instanceof ApiError
+      ? error.friendlyMessage((key) => this.i18n.t(key))
+      : this.i18n.t('error.searchFailed');
   }
 
   /**

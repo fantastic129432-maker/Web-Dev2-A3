@@ -572,7 +572,10 @@ something to confirm, and listens to the two outputs. That keeps the
 destructive action and the thing it destroys in one place, which is easier to
 follow than a promise-returning helper.
 Access: role="dialog" + aria-modal, Escape cancels, focus starts on Cancel so a
-stray Enter cannot delete anything, and clicking the backdrop cancels.
+stray Enter cannot delete anything, Tab is kept inside the panel (aria-modal is a
+claim that the page behind is covered, and onKeydown is what makes it true), and
+clicking the backdrop cancels. The element that opened the dialog gets the focus
+back when it closes, so a cancelled delete leaves the keyboard where it was.
 
 ### `adminside/src/app/shared/event-form/event-form.ts`
 
@@ -1216,8 +1219,20 @@ MySQL's default escape character for a LIKE pattern is the backslash, but the
 default is session state (NO_BACKSLASH_ESCAPES changes it), and a statement
 that relies on it while escapeLike() inserts backslashes would silently stop
 escaping - which is exactly the bug being fixed here. Naming it makes the
-pattern and the escaping agree whatever the session says. The SQL text is
-`ESCAPE '\\'`, which MySQL reads as the single character backslash.
+pattern and the escaping agree whatever the session says.
+THE DOUBLE BACKSLASH IS CORRECT - DO NOT "TIDY" IT TO ONE.
+A LIKE ESCAPE clause names exactly ONE character (MySQL answers
+ER_WRONG_ARGUMENTS "Incorrect arguments to ESCAPE" otherwise), and that
+character has to be the backslash escapeLike() uses. Inside a MySQL string
+literal a backslash starts an escape sequence, so TWO backslashes in the
+statement are what MySQL's literal parser turns into the ONE character the
+clause requires. The four characters `\\\\` in this source string are the
+two characters `\\` in the generated SQL, which is what the server needs.
+Writing the clause with two source characters instead - `ESCAPE '\'`, i.e.
+one backslash in the statement - is a syntax error, not a fix: MySQL parses
+the `\'` as an escaped quote and aborts the statement with ER_PARSE_ERROR.
+Verified against MySQL 8.4.11: the pair below returns the escaped-pattern
+match, the single one fails to parse.
 
 #### function `escapeLike`
 
@@ -1455,6 +1470,14 @@ Only the cases a member of staff can actually cause are translated; anything
 else is re-thrown and becomes a 500 with a stack trace in development. The
 `context` object carries the names the message needs (an event name, a
 registration count) because the driver error alone does not know them.
+`sqlMessage` IS DELIBERATELY NOT FORWARDED. It used to ride along in
+`details`, which published the schema to the client: a duplicate tier name
+answered with the constraint, the table and the raw key - "Duplicate entry
+'14-seat' for key 'ticket_types.uq_ticket_event_name'". A UI cannot use that,
+it contradicts the offline twin (which sends the offending tier name and a
+hint instead), and it hands an attacker the exact index names to aim at. The
+driver's own text is left on the error, which the error middleware logs for a
+5xx; a failure the client can act on is described in words instead.
 - `@param error - The value the driver rejected with, in any shape it uses.`
 - `@param context - Extra facts for the message, such as the event name or the registration count. May be omitted.`
 - `@returns The matching HttpError, or `null` when the code is not one this layer explains.`
@@ -2393,7 +2416,9 @@ button before anything appears. Nine rows fill two grid columns without
 turning the first paint into a long download; pressing Search events then
 runs the same query with the full `limit: 60` documented above. The API's
 reported total drives the count either way, so the number shown is the
-number that matched and not the number of rows requested.
+number that matched and not the number of rows requested - and when the
+arrival request came back with fewer rows than matched, the heading drops the
+number rather than name a total the grid contradicts. See `resultsHeading`.
 5. A native date input paints its own placeholder, and no attribute can change
 it.
 The two date fields are `<input type="date">`, whose internal
@@ -2608,6 +2633,16 @@ endpoint is missing: neither website ever asks for those rows separately.
 GET /api/events/:id already carries the complete registration list, newest
 purchase first, which is what the public detail page renders, so the API's own
 GET /api/events/:id/registrations route would be a call nothing makes.
+The two routes that address ONE registration directly are the same story, and
+that is worth recording rather than leaving as a gap: the API serves
+GET /api/registrations/:id (read a registration) and PUT /api/registrations/:id
+(change one, sending only the fields that changed), and no screen in either
+application opens or edits a single registration on its own - the admin list
+shows the rows, and each row is created by the public registration form and
+deleted from the list. They were therefore removed rather than kept as methods
+with no caller. DELETE /api/registrations/:id is a different case and stays:
+the admin registrations list, the dashboard and the event editor all delete a
+registration row.
 - `@throws ApiError Every method's Observable errors with an ApiError, never a bare`
 HttpErrorResponse or a TimeoutError, so a caller has one error type to render in the
 active language.
@@ -2733,13 +2768,17 @@ Two DIFFERENT shapes travel in `details`, which is why almost every field here
 is optional:
 a 400 (validation)  an ARRAY of { field, message } - one entry per problem,
 rendered next to the offending form control
-a 409 (conflict)    an OBJECT of facts about the clash, with NO message:
+a 409 (conflict)    an OBJECT of facts about the clash, with no `message`
+field of its own:
 { eventId, eventName, registrationCount, suggestion }
 The 409 is the delete rule: the event cannot be removed because registrations
-exist, so the API sends the numbers the UI needs to explain itself rather than
-a sentence. `message` is therefore optional, and an accessor that insists on it
-will silently return nothing for every conflict - which is exactly the bug
-ApiError.conflictDetails used to have.
+exist, so the API puts the numbers the UI needs to explain itself in that
+object. The ENVELOPE still carries a sentence about the clash (the live body
+reads `"X cannot be deleted because 4 registrations have already been recorded
+for it..."`), but the object does not, and that distinction is what the
+paragraph below turns on. `message` on a detail is therefore optional, and an
+accessor that insists on it will silently return nothing for every conflict -
+which is exactly the bug ApiError.conflictDetails used to have.
 
 #### interface `ApiErrorBody`
 
@@ -2887,7 +2926,8 @@ Format a stored date in full, in the assessed Australian locale.
 - `@param isoDate - A `YYYY-MM-DD` date as the database stores it.`
 - `@returns The date written out, for example '2026-10-11' becomes 'Sunday 11 October`
 2026'; an empty string when `isoDate` is missing, and the input unchanged when it
-cannot be parsed so a bad value is visible rather than silently replaced.
+cannot be parsed - including a day that does not exist, such as '2026-02-30' -
+so a bad value is visible rather than silently replaced.
 
 #### function `formatShortDate`
 
@@ -2895,16 +2935,24 @@ Format a stored date in the short form a card or a list row has room for.
 - `@param isoDate - A `YYYY-MM-DD` date as the database stores it.`
 - `@returns The abbreviated date, for example '2026-10-11' becomes '11 Oct 2026'; an`
 empty string when `isoDate` is missing, and the input unchanged when it cannot be
-parsed.
+parsed, including a day that does not exist such as '2026-02-30'.
 
 #### function `formatTime`
 
 Format a stored clock time as a visitor reads it.
 The time is placed on today's date purely to borrow `toLocaleTimeString`; only
 the time part is ever returned.
-- `@param time - A `HH:MM:SS` time as the database stores it.`
+The parts are CHECKED, not handed straight to `Date.setHours`. That call does
+not reject nonsense: it rolls it over, so '99:99' used to render as "4:39 am",
+'24:00:00' as "12:00 am" and '-1:30' as "11:30 pm" - a plausible-looking time
+invented from a bad value - and a non-numeric value ('abc') produced the
+literal string "invalid date", which is English in all four languages. Anything
+that is not a real clock time is therefore returned unchanged, the same way
+formatDate and formatDateTime already report a value they cannot read.
+- `@param time - A `HH:MM:SS` time as the database stores it. `HH:MM` is accepted too.`
 - `@returns The time in lower case 12-hour form, for example '07:30:00' becomes`
-'7:30 am', or an empty string when `time` is missing.
+'7:30 am'; an empty string when `time` is missing, and the input unchanged when it
+is not a clock time.
 
 #### function `maskAttendeeName`
 
@@ -2939,6 +2987,10 @@ language rather than to this function.
 
 Format an event's dates, including multi-day events.
 A single-day event shows one date; the three-week art exhibition shows a range.
+The fallbacks are `||`, not `??`, and that is deliberate: this is a port of the
+vanilla formatDateRange(), and an EMPTY `dateStart` is "no start recorded"
+rather than a value. With `??`, `{ dateStart: '', eventDate: '2026-10-11' }`
+returned '' - an event with a perfectly good eventDate rendered no date at all.
 - `@param event - The event whose dates are wanted.`
 - `@returns The short date, or the short start and end dates joined by a hyphen, or an`
 empty string when the event carries no usable date at all.

@@ -91,12 +91,56 @@ function toColumns(values: DataRecord): { columns: string[]; params: any[] } {
 }
 
 /**
+ * The field the events table's foreign keys correspond to.
+ *
+ * The driver reports the CONSTRAINT that failed (`fk_events_category`), and the
+ * client needs the BODY FIELD that caused it, which is what the offline half
+ * reports through assertReferences(). Naming the three mappings is what keeps
+ * the 400 identical whichever data source refused the request.
+ */
+const EVENTS_FK_FIELDS: Record<string, string> = {
+  fk_events_organization: 'organizationId',
+  fk_events_category: 'categoryId',
+  fk_events_location: 'locationId',
+};
+
+/**
+ * Build the per-field `details` for a refused events foreign key.
+ *
+ * @param sqlMessage - The driver's own message, which names the constraint.
+ * @returns The same `[{ field, message }]` list the offline reference check produces, or the plain code when the constraint is not one of the three known references.
+ */
+function fkViolationDetail(sqlMessage: unknown): DataRecord {
+  const match = String(sqlMessage || '').match(/CONSTRAINT `([^`]+)`/);
+  const field = match ? EVENTS_FK_FIELDS[match[1]] : undefined;
+  if (!field) return { code: 'ER_NO_REFERENCED_ROW_2' };
+
+  const noun =
+    field === 'organizationId' ? 'organisation' : field === 'categoryId' ? 'category' : 'venue';
+  return [
+    {
+      field,
+      message: `No ${noun} has that id.`,
+    },
+  ];
+}
+
+/**
  * Turn a mysql2 driver error into the HTTP error the client should see.
  *
  * Only the cases a member of staff can actually cause are translated; anything
  * else is re-thrown and becomes a 500 with a stack trace in development. The
  * `context` object carries the names the message needs (an event name, a
  * registration count) because the driver error alone does not know them.
+ *
+ * `sqlMessage` IS DELIBERATELY NOT FORWARDED. It used to ride along in
+ * `details`, which published the schema to the client: a duplicate tier name
+ * answered with the constraint, the table and the raw key - "Duplicate entry
+ * '14-seat' for key 'ticket_types.uq_ticket_event_name'". A UI cannot use that,
+ * it contradicts the offline twin (which sends the offending tier name and a
+ * hint instead), and it hands an attacker the exact index names to aim at. The
+ * driver's own text is left on the error, which the error middleware logs for a
+ * 5xx; a failure the client can act on is described in words instead.
  *
  * @param error - The value the driver rejected with, in any shape it uses.
  * @param context - Extra facts for the message, such as the event name or the registration count. May be omitted.
@@ -114,15 +158,28 @@ function translateMysqlError(error: any, context: DataRecord = {}) {
       );
 
     case 'ER_DUP_ENTRY':
-      return HttpError.conflict(
-        'A record with these details already exists.',
-        { code, sqlMessage: error.sqlMessage }
-      );
+      // A duplicate tier name is the one duplicate a request can explain field by
+      // field: the offline twin answers it with `field: 'ticketTypes'`, the name
+      // that clashed and a hint, and the two data sources must not answer the
+      // same submission differently. Any other duplicate keeps the generic
+      // message, because the driver does not say which column was involved
+      // without publishing the index name.
+      if (String(error.sqlMessage || '').includes('uq_ticket_event_name')) {
+        return HttpError.conflict('A record with these details already exists.', {
+          field: 'ticketTypes',
+          hint: 'Two ticket types of one event cannot share a name; rename one of them.',
+        });
+      }
+      return HttpError.conflict('A record with these details already exists.', { code });
 
     case 'ER_NO_REFERENCED_ROW_2':
+      // Which reference was missing? The driver names the constraint it refused
+      // (`fk_events_category`), so the 400 can carry the same per-field detail
+      // the offline half builds in assertReferences() instead of a sentence a
+      // form cannot attach to a control.
       return HttpError.badRequest(
         'One of the selected values (organisation, category or venue) does not exist.',
-        { code, sqlMessage: error.sqlMessage }
+        fkViolationDetail(error.sqlMessage)
       );
 
     case 'ER_ROW_IS_REFERENCED':
@@ -134,19 +191,18 @@ function translateMysqlError(error: any, context: DataRecord = {}) {
       return HttpError.badRequest(
         'The database rejected the values: check that the end date is not before the start ' +
           'date, that the end time is after the start time, and that the goal is not negative.',
-        { code, sqlMessage: error.sqlMessage }
+        { code }
       );
 
     case 'ER_DATA_TOO_LONG':
       return HttpError.badRequest(
         'One of the text values is longer than the column allows.',
-        { code, sqlMessage: error.sqlMessage }
+        { code }
       );
 
     case 'ER_BAD_NULL_ERROR':
       return HttpError.badRequest('A required field was empty.', {
         code,
-        sqlMessage: error.sqlMessage,
       });
 
     default:

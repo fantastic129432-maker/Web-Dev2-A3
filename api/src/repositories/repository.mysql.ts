@@ -89,8 +89,22 @@ const PRIMARY_PRICE = `
  * default is session state (NO_BACKSLASH_ESCAPES changes it), and a statement
  * that relies on it while escapeLike() inserts backslashes would silently stop
  * escaping - which is exactly the bug being fixed here. Naming it makes the
- * pattern and the escaping agree whatever the session says. The SQL text is
- * `ESCAPE '\\'`, which MySQL reads as the single character backslash.
+ * pattern and the escaping agree whatever the session says.
+ *
+ * THE DOUBLE BACKSLASH IS CORRECT - DO NOT "TIDY" IT TO ONE.
+ *   A LIKE ESCAPE clause names exactly ONE character (MySQL answers
+ *   ER_WRONG_ARGUMENTS "Incorrect arguments to ESCAPE" otherwise), and that
+ *   character has to be the backslash escapeLike() uses. Inside a MySQL string
+ *   literal a backslash starts an escape sequence, so TWO backslashes in the
+ *   statement are what MySQL's literal parser turns into the ONE character the
+ *   clause requires. The four characters `\\\\` in this source string are the
+ *   two characters `\\` in the generated SQL, which is what the server needs.
+ *
+ *   Writing the clause with two source characters instead - `ESCAPE '\'`, i.e.
+ *   one backslash in the statement - is a syntax error, not a fix: MySQL parses
+ *   the `\'` as an escaped quote and aborts the statement with ER_PARSE_ERROR.
+ *   Verified against MySQL 8.4.11: the pair below returns the escaped-pattern
+ *   match, the single one fails to parse.
  */
 const LIKE_ESCAPE = "ESCAPE '\\\\'";
 
@@ -285,6 +299,63 @@ function normaliseEvent(row: DataRecord | null): DataRecord | null {
 }
 
 /**
+ * Attach each event's ticket tiers to a page of list rows.
+ *
+ * The list and the detail endpoints have to answer the same shape, because the
+ * shared Event model declares `ticketTypes` as a member of both and because
+ * repository.local.ts attaches them in decorate() for every row it returns. One
+ * extra statement for the whole page (not one per event) keeps that true without
+ * turning a listing into N+1 round trips; the tiers are grouped in memory by
+ * event id, and the same projection, numeric conversion and price ordering as
+ * decorateEventDetail() are used, so a tier looks identical whichever endpoint
+ * returned it.
+ *
+ * An event with no tiers gets `[]`, which is what the offline `prices.length > 0`
+ * branch of its own decorate() effectively reports through primaryPrice being
+ * null; the array itself is always present so a client can read it without a
+ * guard.
+ *
+ * @param events - The page of already-normalised event rows, modified in place.
+ * @returns Nothing; the rows are decorated in place, which is what keeps this off the caller's critical path.
+ */
+async function attachTicketTypes(events: DataRecord[]): Promise<void> {
+  if (events.length === 0) return;
+
+  const ids = events.map((event) => Number(event.eventId));
+  const placeholders = ids.map(() => '?').join(', ');
+  const tickets = await q.query(
+    `SELECT ticket_type_id      AS ticketTypeId,
+            event_id            AS eventId,
+            ticket_name         AS ticketName,
+            price               AS price,
+            quantity_available  AS quantityAvailable,
+            description         AS description
+       FROM ticket_types
+      WHERE event_id IN (${placeholders})
+      ORDER BY price ASC, ticket_name ASC`,
+    ids
+  );
+
+  const byEvent = new Map<number, DataRecord[]>();
+  for (const ticket of tickets) {
+    const key = Number(ticket.eventId);
+    if (!byEvent.has(key)) byEvent.set(key, []);
+    byEvent.get(key)!.push({
+      ticketTypeId: Number(ticket.ticketTypeId),
+      ticketName: ticket.ticketName,
+      price: Number(ticket.price),
+      quantityAvailable:
+        ticket.quantityAvailable === null ? null : Number(ticket.quantityAvailable),
+      description: ticket.description,
+    });
+  }
+
+  for (const event of events) {
+    event.ticketTypes = byEvent.get(Number(event.eventId)) || [];
+  }
+}
+
+/**
  * Wrap the filtered event query in a derived table.
  *
  * That is what lets the API page the result and count the total using exactly
@@ -333,9 +404,18 @@ const repository: EventReadRepository = {
    * fragment (and therefore the same bound values) precisely so they cannot
    * disagree.
    *
+   * A3: every row carries its own `ticketTypes`, exactly as the offline
+   * decorate() does and as the shared Event model declares (`ticketTypes` is not
+   * optional there). This used to be missing: the offline mirror attached the
+   * tiers to list rows and this half did not, so GET /api/events,
+   * /api/events/upcoming and the admin list answered two different shapes
+   * depending on DATA_SOURCE. Nothing failed visibly because `primaryPrice` is
+   * what the cards render and because the automated suite runs the offline
+   * source, where the field is present - see attachTicketTypes below.
+   *
    * @param filters - The validated filters from the service layer.
    * @param paging - The limit, offset and ordering to apply.
-   * @returns The rows for this page, normalised, plus the total number of matches.
+   * @returns The rows for this page, normalised and carrying their ticket tiers, plus the total number of matches.
    */
   async findEvents(filters, paging) {
     const orderBy = buildOrderBy(
@@ -361,9 +441,12 @@ const repository: EventReadRepository = {
       params
     );
 
+    const events = rows.map(normaliseEvent) as DataRecord[];
+    await attachTicketTypes(events);
+
     return {
       total: countRows[0] ? Number(countRows[0].total) : 0,
-      events: rows.map(normaliseEvent),
+      events,
     };
   },
 

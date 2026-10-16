@@ -1,4 +1,14 @@
-import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  DOCUMENT,
+  ElementRef,
+  afterNextRender,
+  inject,
+  input,
+  output,
+  viewChild,
+} from '@angular/core';
 
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import type { TranslationValues } from '@charity/shared/i18n/translation.service';
@@ -20,7 +30,10 @@ import type { TranslationValues } from '@charity/shared/i18n/translation.service
  * follow than a promise-returning helper.
  *
  * Access: role="dialog" + aria-modal, Escape cancels, focus starts on Cancel so a
- * stray Enter cannot delete anything, and clicking the backdrop cancels.
+ * stray Enter cannot delete anything, Tab is kept inside the panel (aria-modal is a
+ * claim that the page behind is covered, and onKeydown is what makes it true), and
+ * clicking the backdrop cancels. The element that opened the dialog gets the focus
+ * back when it closes, so a cancelled delete leaves the keyboard where it was.
  */
 @Component({
   selector: 'admin-confirm-dialog',
@@ -32,6 +45,11 @@ import type { TranslationValues } from '@charity/shared/i18n/translation.service
     // rather than a document listener added by hand so Angular removes it with
     // the component.
     '(document:keydown.escape)': 'cancelled.emit()',
+    // Tab is trapped at the DOCUMENT, not on the backdrop. A keydown only bubbles
+    // through its own ancestors, so a backdrop listener could not see a Tab pressed
+    // once the focus had already escaped to the body - which is exactly the state
+    // that has to be recovered from. onKeydown ignores every key but Tab.
+    '(document:keydown)': 'onKeydown($event)',
   },
 })
 export class ConfirmDialog {
@@ -77,14 +95,91 @@ export class ConfirmDialog {
 
   private readonly cancelButton = viewChild<ElementRef<HTMLButtonElement>>('cancelButton');
 
+  /**
+   * The dialog panel itself, so the Tab trap below can list the controls that are
+   * really inside it and can tell whether the focus has already escaped.
+   */
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+
+  /** The page, for the element that opened the dialog and for the focus it holds. */
+  private readonly document = inject(DOCUMENT);
+
+  /**
+   * The element that opened the dialog, so the focus can go back to it when the
+   * dialog closes.
+   *
+   * Measured before the fix: opening the dialog from a row's Delete button and
+   * pressing Escape left the focus on whatever the tab order reached next - the
+   * header's "view the public website" link - so a keyboard user who cancelled a
+   * delete was dropped near the top of the page and had to tab back through the
+   * whole table to return to the row they were working on.
+   */
+  private returnFocusTo: HTMLElement | null = null;
+
   constructor() {
+    // Captured BEFORE the dialog exists, so it is the trigger and not one of the
+    // dialog's own buttons.
+    this.returnFocusTo =
+      this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
+
     // afterNextRender, not ngOnInit: the button only exists once the view is in
     // the DOM, and focusing a detached element does nothing.
     afterNextRender(() => this.cancelButton()?.nativeElement.focus());
+
+    // The dialog is destroyed by its parent the moment it closes, so returning the
+    // focus is a destroy-time job. A destroyed element cannot hold focus, so this
+    // runs before the browser is left with focus on the body.
+    inject(DestroyRef).onDestroy(() => {
+      const target = this.returnFocusTo;
+      if (target && target.isConnected) target.focus();
+    });
   }
 
   /** A click on the backdrop (but not inside the panel) cancels. */
   protected onBackdrop(event: MouseEvent): void {
     if (event.target === event.currentTarget) this.cancelled.emit();
+  }
+
+  /**
+   * Keep Tab inside the panel.
+   *
+   * `aria-modal="true"` is a claim that the rest of the page is inert, and without
+   * this the claim was false: TAB from the destructive button moved the focus to
+   * the page behind the dialog (measured - the next stop was the brand link in the
+   * header), so a keyboard user could reach controls the modal is supposed to be
+   * covering. The panel has two buttons and no other focusable content, but the
+   * cycle is built from the focusable elements actually present rather than from
+   * "first and last", so adding a link or a third button later cannot open a hole
+   * in the trap.
+   *
+   * @param event - The keydown, inspected only for Tab.
+   */
+  protected onKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Tab') return;
+
+    const panel = this.panel()?.nativeElement;
+    if (!panel) return;
+
+    const focusable = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.offsetParent !== null || element === this.document.activeElement);
+
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = this.document.activeElement;
+
+    if (event.shiftKey && (active === first || !panel.contains(active))) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+    if (!event.shiftKey && (active === last || !panel.contains(active))) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 }

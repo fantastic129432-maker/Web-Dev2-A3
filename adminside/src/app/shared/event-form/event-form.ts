@@ -307,13 +307,34 @@ export class EventForm implements OnInit {
    * target is a decision the administrator makes again, and leaving a stale figure
    * in a box that was just re-enabled is the kind of guess this form avoids.
    *
+   * ZEROING A CONTROL IS A WRITE, SO THE STATE THE EVENT ARRIVED IN IS EITHER
+   * RESTORED OR REMEMBERED FIRST
+   *   resetEventForm() rebuilds every control from the event, and a zero written
+   *   over one of those values is a real edit as far as toEventInput() and
+   *   changedFields() are concerned: the form holds a number the event does not,
+   *   so the next save carries it. That is what `preserveCurrentValues` is for.
+   *   It is set by resetTo() - the path that just loaded the API's own values,
+   *   which include a goal and tier prices a free event really does store - and it
+   *   means "the value already in the control came from the database, so keep it
+   *   and remember it" rather than "zero whatever is there".
+   *
    * @param free - `true` when the event is free, `false` to unlock the money fields.
+   * @param preserveCurrentValues - `true` while applying the state of an event just
+   *   loaded, whose goal and tier prices must be neither zeroed nor lost.
    */
-  private applyFreeState(free: boolean): void {
+  private applyFreeState(free: boolean, preserveCurrentValues = false): void {
     const goal = this.form.controls.goalAmount;
 
     if (free) {
-      goal.setValue(0, { emitEvent: true });
+      if (preserveCurrentValues) {
+        // The stored target is put back as the value the form holds, so what the
+        // disabled box shows is what a save will send.
+        const storedGoal = goal.value;
+        const target = storedGoal === null ? 0 : Number(storedGoal);
+        if (goal.value !== target) goal.setValue(target, { emitEvent: false });
+      } else {
+        goal.setValue(0, { emitEvent: true });
+      }
       goal.disable({ emitEvent: false });
     } else {
       goal.enable({ emitEvent: false });
@@ -329,10 +350,19 @@ export class EventForm implements OnInit {
         // is dropped from the payload anyway.
         if (!isRowInUse(tier.getRawValue())) continue;
 
-        // Only stash a value that is worth restoring, and never overwrite a stash
-        // that is already waiting: a second pass through here must not replace the
-        // remembered price with the zero this method itself wrote.
-        if (price.value !== null && price.value !== 0 && tier.controls.priceBeforeFree.value === null) {
+        if (preserveCurrentValues) {
+          // The just-loaded path: the value in the control came from the event, so
+          // it IS the price to put back when the box is cleared. Storing it even
+          // when it is 0 keeps the remembered price and the stored one the same
+          // number, so clearing the box can never leave the row on a guess.
+          tier.controls.priceBeforeFree.setValue(
+            price.value === null ? 0 : Number(price.value),
+            { emitEvent: false }
+          );
+        } else if (price.value !== null && price.value !== 0 && tier.controls.priceBeforeFree.value === null) {
+          // Never overwrite a stash that is already waiting: a second pass through
+          // here must not replace the remembered price with the zero this method
+          // itself wrote.
           tier.controls.priceBeforeFree.setValue(price.value, { emitEvent: false });
         }
         price.setValue(0, { emitEvent: false });
@@ -510,6 +540,12 @@ export class EventForm implements OnInit {
    * instead of the event that was loaded. The handler is re-attached afterwards,
    * so the box keeps working from the next click.
    *
+   * The re-application of the free state is given `preserveCurrentValues`, because
+   * resetEventForm() has just written the API's own values into the controls and
+   * locking the prices must not zero them: see applyFreeState(). Without it, every
+   * reset silently replaced a stored goal and every stored tier price with 0 - the
+   * form held a figure the event does not, and the next save sent it.
+   *
    * @param initial - The event to reset to, or null to reset to a blank form.
    */
   private resetTo(initial: EventDetail | null): void {
@@ -517,9 +553,13 @@ export class EventForm implements OnInit {
 
     resetEventForm(this.form, initial);
 
-    // A stored free event opens with its prices already locked and zeroed - the
-    // state the database holds - without writing over the values just loaded.
-    this.applyFreeState(this.form.controls.isFree.value === true);
+    // A stored free event opens with its prices locked: the price boxes read 0
+    // (that is what the form's free-event rule means) while the goal box keeps the
+    // stored target, and neither write destroys a figure the event holds.
+    // "The state the database holds" is why the loaded values are preserved: a free
+    // event can have been stored with a goal and a non-zero tier price, and a form
+    // that shows 0 for them is a form that will save 0 over them.
+    this.applyFreeState(this.form.controls.isFree.value === true, true);
 
     this.freeChanges = this.watchFreeToggle();
   }

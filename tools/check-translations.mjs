@@ -148,6 +148,113 @@ function collectRequestedKeys(directories) {
   return requested;
 }
 
+/**
+ * The {placeholder} names in a translated value, sorted so order is irrelevant.
+ *
+ * `{count}` and `{ name }` - the substitution regex in TranslationService is
+ * /\{(\w+)\}/g, so a name with a space in it is NOT substituted and would be
+ * printed to the visitor verbatim.
+ */
+function placeholders(text) {
+  return [...text.matchAll(/\{([A-Za-z_]\w*)\}/g)].map((match) => match[1]).sort();
+}
+
+/** Braces in a value that the substitution regex cannot use. */
+function unusableBraces(text) {
+  return [...text.matchAll(/\{[^}]*\}/g)]
+    .filter((match) => !/^\{[A-Za-z_]\w*\}$/.test(match[0]))
+    .map((match) => match[0]);
+}
+
+/**
+ * Extract one key -> value map per language from a
+ * `Record<LanguageCode, Dictionary>` literal.
+ *
+ * Same block-slicing as parseDictionaries(), but it keeps each VALUE, because a
+ * key being present in all four languages says nothing about the placeholders
+ * inside it: `"{count} tickets"` in English and `"tickets"` in Japanese both
+ * "define the key", and the number silently disappears from the Japanese page.
+ */
+function parseDictionaryValues(source) {
+  const dictionaries = {};
+
+  for (const code of CODES) {
+    const startPattern = new RegExp(`(^|\\n)[ \\t]*${code}[ \\t]*:[ \\t]*\\{`, 'm');
+    const startMatch = startPattern.exec(source);
+    if (!startMatch) continue;
+
+    const start = startMatch.index + startMatch[0].length;
+    let end = source.length;
+
+    for (const other of CODES) {
+      if (other === code) continue;
+      const otherPattern = new RegExp(`(^|\\n)[ \\t]*${other}[ \\t]*:[ \\t]*\\{`, 'm');
+      const otherMatch = otherPattern.exec(source.slice(start));
+      if (otherMatch) end = Math.min(end, start + otherMatch.index);
+    }
+
+    if (end === source.length) {
+      const closing = source.slice(start).lastIndexOf('};');
+      if (closing !== -1) end = start + closing;
+    }
+
+    const block = source.slice(start, end);
+    const values = new Map();
+    for (const match of block.matchAll(/^\s*"([^"\n]+)":\s*"((?:[^"\\]|\\.)*)"/gm)) {
+      if (!values.has(match[1])) values.set(match[1], match[2]);
+    }
+    dictionaries[code] = values;
+  }
+
+  return dictionaries;
+}
+
+/**
+ * Compare the {placeholders} of every key across the four languages.
+ *
+ * WHY THIS IS NOT COVERED BY THE KEY COMPARISON ABOVE
+ *   That check proves a key exists everywhere; this one proves the value still
+ *   USES it. A translation that drops `{count}` renders a sentence with the
+ *   number missing, and one that invents `{qty}` prints "{qty}" on the page -
+ *   both are invisible to a key-set comparison and to a translator reading one
+ *   language at a time. The reference language is CODES[0], the same reference
+ *   the key comparison uses.
+ */
+function checkPlaceholders(name, dictionaries) {
+  const reference = dictionaries[CODES[0]] ?? new Map();
+  const problems = [];
+
+  for (const [key, text] of reference) {
+    const want = placeholders(text);
+    const badReference = unusableBraces(text);
+    if (badReference.length) {
+      problems.push(`${CODES[0]} ${key}: ${badReference.join(', ')} is not a usable placeholder`);
+    }
+    if (want.length === 0) continue;
+
+    for (const code of CODES) {
+      if (code === CODES[0]) continue;
+      const value = dictionaries[code]?.get(key);
+      if (value === undefined) continue; // the key comparison above already reports this
+
+      const got = placeholders(value);
+      if (got.join(',') !== want.join(',')) {
+        problems.push(
+          `${code} ${key}: ${CODES[0]} has ${want.map((p) => `{${p}}`).join(' ')} but ${code} has ${got.map((p) => `{${p}}`).join(' ') || 'none'}`
+        );
+      }
+      const bad = unusableBraces(value);
+      if (bad.length) problems.push(`${code} ${key}: ${bad.join(', ')} is not a usable placeholder`);
+    }
+  }
+
+  check(
+    `${name} dictionary: every language fills the same {placeholders}`,
+    problems.length === 0,
+    problems.slice(0, 6).join('; ')
+  );
+}
+
 /** Compare the four languages of one dictionary and report the gaps. */
 function checkDictionary(name, file, requested, requestedLabel) {
   console.log('');
@@ -187,6 +294,8 @@ function checkDictionary(name, file, requested, requestedLabel) {
     missing.length === 0,
     missing.map(([key, where]) => `${key} (in ${where})`).join('; ')
   );
+
+  checkPlaceholders(name, parseDictionaryValues(source));
 }
 
 /* ===================================================================== */

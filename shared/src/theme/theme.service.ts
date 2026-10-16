@@ -24,7 +24,7 @@
  *   that script, kept next to the code it mirrors so the two cannot drift apart.
  */
 import { DOCUMENT } from '@angular/common';
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 
 import { APP_CONFIG } from '../config/app-config';
 
@@ -99,11 +99,23 @@ export class ThemeService {
    * The listener keeps 'system' live; the effect repaints whenever the RESOLVED
    * theme changes, which is what subscribes it to both the stored preference and
    * the OS.
+   *
+   * The listener is added by NAME and removed again when the injector is
+   * destroyed. The service is providedIn: 'root', so in a running application the
+   * injector outlives every page and the removal never fires - but "the listener
+   * is never removed" is a leak the moment the injector is NOT the application's:
+   * a unit test that creates a TestBed per case, or a hot reload that throws the
+   * old injector away while the window it listened on stays alive. An anonymous
+   * listener could not be removed at all, which is why it is not anonymous.
    */
   constructor() {
     // Keep following the OS while 'system' is selected.
-    this.darkQuery?.addEventListener?.('change', (event) => {
+    const onSystemPreferenceChange = (event: MediaQueryListEvent) => {
       this.systemPrefersDark.set(event.matches);
+    };
+    this.darkQuery?.addEventListener?.('change', onSystemPreferenceChange);
+    inject(DestroyRef).onDestroy(() => {
+      this.darkQuery?.removeEventListener?.('change', onSystemPreferenceChange);
     });
 
     // Reading `resolved()` here is what subscribes this effect to both sources.

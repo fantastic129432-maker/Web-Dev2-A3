@@ -256,18 +256,60 @@ const cdnScripts = [CLIENT, ADMIN]
   .filter((file) => /<script[^>]+src\s*=\s*['"]https?:/i.test(fs.readFileSync(file, 'utf8')));
 check('no page loads a script from a CDN', cdnScripts.length === 0, cdnScripts.map(relative).join(', '));
 
-/* 10. The early-theme script must be in both documents, or dark mode flashes. */
-const earlyTheme = [CLIENT, ADMIN]
-  .map((app) => path.join(app, 'src/index.html'))
-  .filter((file) => fs.existsSync(file))
-  .filter((file) => {
-    const text = fs.readFileSync(file, 'utf8');
-    return text.includes('charity-events:theme') && text.includes('data-theme');
-  });
+/* 10. The early-theme script must be in both documents, or dark mode flashes.
+ *
+ * WHY THIS COMPARES THE SCRIPT AND NOT TWO SUBSTRINGS
+ *   The earlier version of this check asked whether each index.html merely
+ *   CONTAINED the text 'charity-events:theme' and the text 'data-theme'. Both
+ *   strings appear in the explanatory comment beside the script, so a page whose
+ *   script had been deleted, or had its logic broken (a changed attribute, a
+ *   changed default, `p === 'system'` inverted), still passed - and
+ *   shared/src/theme/theme.service.ts states that this tool verifies "that both
+ *   pages still carry it, so a change to the storage key or the attribute name
+ *   cannot be made in only one place". A check that only sees the two names does
+ *   not verify that.
+ *
+ *   The snippet the pages must carry is read back out of EARLY_THEME_SNIPPET in
+ *   theme.service.ts, and each page's inline <script> is compared with it
+ *   ignoring comments and whitespace (the pages add a comment inside the catch
+ *   block and wrap the statement over several lines). Any change to the logic,
+ *   the key or an attribute now fails here until both pages are updated too.
+ */
+const earlyThemeSource = fs.readFileSync(path.join(SHARED, 'src/theme/theme.service.ts'), 'utf8');
+const snippetMatch = /EARLY_THEME_SNIPPET\s*=\s*([\s\S]*?);\s*$/m.exec(earlyThemeSource);
+const earlyThemeSnippet = snippetMatch
+  ? [...snippetMatch[1].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)]
+      .map((match) => match[1] ?? match[2])
+      .join('')
+  : '';
+const normaliseScript = (text) =>
+  text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\s+/g, '');
+
+const earlyThemePages = [CLIENT, ADMIN].map((app) => path.join(app, 'src/index.html'));
+const earlyThemeProblems = [];
+if (earlyThemeSnippet === '') {
+  earlyThemeProblems.push('EARLY_THEME_SNIPPET could not be read from shared/src/theme/theme.service.ts');
+}
+for (const file of earlyThemePages) {
+  if (!fs.existsSync(file)) {
+    earlyThemeProblems.push(`${relative(file)} does not exist`);
+    continue;
+  }
+  const scripts = [...fs.readFileSync(file, 'utf8').matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((match) => normaliseScript(match[1]));
+  if (earlyThemeSnippet !== '' && !scripts.includes(normaliseScript(earlyThemeSnippet))) {
+    earlyThemeProblems.push(`${relative(file)}: no inline script matches EARLY_THEME_SNIPPET`);
+  }
+}
 check(
   'both documents apply the stored theme before the first paint',
-  earlyTheme.length === 2,
-  `${earlyTheme.length} of 2 pages carry the inline script`
+  earlyThemeProblems.length === 0,
+  earlyThemeProblems.length
+    ? earlyThemeProblems.join('; ')
+    : `${earlyThemePages.length} of 2 pages carry the shared EARLY_THEME_SNIPPET verbatim`
 );
 
 /* --------------------------------------------------------------------- backend */

@@ -34,7 +34,7 @@
  * appears in the process command line or in this script's output.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, openSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, openSync, closeSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -190,11 +190,22 @@ console.log('Loading the database (this drops and recreates charityevents_db)...
 
 // The SQL file goes in on stdin, which is what "< file" did before but without
 // needing a shell to do the redirection.
+//
+// The descriptor is closed in a finally: it belongs to THIS process, and a
+// helper that opens a handle and never returns it is a leak even when the
+// process happens to exit soon afterwards (the error paths below leave through
+// process.exit, and the descriptor would still be open while the message is
+// written).
 const sqlFd = openSync(SQL_FILE, 'r');
-const load = spawnSync(join(bin, 'mysql.exe'), [...defaultsArgs, ...credentialArgs], {
-  env: mysqlEnv(),
-  stdio: [sqlFd, 'inherit', 'inherit'],
-});
+let load;
+try {
+  load = spawnSync(join(bin, 'mysql.exe'), [...defaultsArgs, ...credentialArgs], {
+    env: mysqlEnv(),
+    stdio: [sqlFd, 'inherit', 'inherit'],
+  });
+} finally {
+  closeSync(sqlFd);
+}
 
 if (load.status !== 0) {
   console.error(`Loading the SQL file failed (exit code ${load.status}).`);

@@ -58,17 +58,37 @@ export function formatPrice(amount: number | string | null | undefined): string 
 }
 
 /**
+ * Parse a `YYYY-MM-DD` date, or return null when the value is not one.
+ *
+ * `new Date('2026-02-30T00:00:00')` does NOT fail: JavaScript rolls the day over
+ * and yields 2 March, so a stored date that never existed used to be displayed as
+ * a DIFFERENT day - the opposite of what formatDate's own contract promises
+ * ("the input unchanged when it cannot be parsed so a bad value is visible rather
+ * than silently replaced"). The date is therefore read back and compared with the
+ * input, which is the only way to tell 30 February from a real date.
+ */
+function parseStoredDate(isoDate: string): Date | null {
+  const date = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const roundTrip = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return roundTrip === isoDate ? date : null;
+}
+
+/**
  * Format a stored date in full, in the assessed Australian locale.
  *
  * @param isoDate - A `YYYY-MM-DD` date as the database stores it.
  * @returns The date written out, for example '2026-10-11' becomes 'Sunday 11 October
  *   2026'; an empty string when `isoDate` is missing, and the input unchanged when it
- *   cannot be parsed so a bad value is visible rather than silently replaced.
+ *   cannot be parsed - including a day that does not exist, such as '2026-02-30' -
+ *   so a bad value is visible rather than silently replaced.
  */
 export function formatDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '';
-  const date = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return isoDate;
+  const date = parseStoredDate(isoDate);
+  if (!date) return isoDate;
   return date.toLocaleDateString('en-AU', {
     weekday: 'long',
     day: 'numeric',
@@ -83,12 +103,12 @@ export function formatDate(isoDate: string | null | undefined): string {
  * @param isoDate - A `YYYY-MM-DD` date as the database stores it.
  * @returns The abbreviated date, for example '2026-10-11' becomes '11 Oct 2026'; an
  *   empty string when `isoDate` is missing, and the input unchanged when it cannot be
- *   parsed.
+ *   parsed, including a day that does not exist such as '2026-02-30'.
  */
 export function formatShortDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '';
-  const date = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return isoDate;
+  const date = parseStoredDate(isoDate);
+  if (!date) return isoDate;
   return date.toLocaleDateString('en-AU', {
     day: 'numeric',
     month: 'short',
@@ -102,15 +122,31 @@ export function formatShortDate(isoDate: string | null | undefined): string {
  * The time is placed on today's date purely to borrow `toLocaleTimeString`; only
  * the time part is ever returned.
  *
- * @param time - A `HH:MM:SS` time as the database stores it.
+ * The parts are CHECKED, not handed straight to `Date.setHours`. That call does
+ * not reject nonsense: it rolls it over, so '99:99' used to render as "4:39 am",
+ * '24:00:00' as "12:00 am" and '-1:30' as "11:30 pm" - a plausible-looking time
+ * invented from a bad value - and a non-numeric value ('abc') produced the
+ * literal string "invalid date", which is English in all four languages. Anything
+ * that is not a real clock time is therefore returned unchanged, the same way
+ * formatDate and formatDateTime already report a value they cannot read.
+ *
+ * @param time - A `HH:MM:SS` time as the database stores it. `HH:MM` is accepted too.
  * @returns The time in lower case 12-hour form, for example '07:30:00' becomes
- *   '7:30 am', or an empty string when `time` is missing.
+ *   '7:30 am'; an empty string when `time` is missing, and the input unchanged when it
+ *   is not a clock time.
  */
 export function formatTime(time: string | null | undefined): string {
   if (!time) return '';
-  const [hours, minutes] = time.split(':');
+
+  const match = /^(\d{1,2}):(\d{1,2})(?::\d{2}(?:\.\d+)?)?$/.exec(String(time).trim());
+  if (!match) return time;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return time;
+
   const date = new Date();
-  date.setHours(Number(hours), Number(minutes), 0, 0);
+  date.setHours(hours, minutes, 0, 0);
   return date.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 }
 
@@ -167,13 +203,18 @@ export function backerName(registration: {
  *
  * A single-day event shows one date; the three-week art exhibition shows a range.
  *
+ * The fallbacks are `||`, not `??`, and that is deliberate: this is a port of the
+ * vanilla formatDateRange(), and an EMPTY `dateStart` is "no start recorded"
+ * rather than a value. With `??`, `{ dateStart: '', eventDate: '2026-10-11' }`
+ * returned '' - an event with a perfectly good eventDate rendered no date at all.
+ *
  * @param event - The event whose dates are wanted.
  * @returns The short date, or the short start and end dates joined by a hyphen, or an
  *   empty string when the event carries no usable date at all.
  */
 export function formatDateRange(event: Event): string {
-  const start = event.dateStart ?? event.eventDate ?? '';
-  const end = event.dateEnd ?? start;
+  const start = event.dateStart || event.eventDate || '';
+  const end = event.dateEnd || start;
   if (!end || end === start) return formatShortDate(start);
   return `${formatShortDate(start)} - ${formatShortDate(end)}`;
 }

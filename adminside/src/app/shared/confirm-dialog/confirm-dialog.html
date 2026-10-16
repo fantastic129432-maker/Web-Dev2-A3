@@ -4,8 +4,11 @@
      something is pending, and Cancel holds the focus.
      ================================================================== -->
 
+<!-- The Tab trap is a document-level host listener on the component, because a
+     keydown only bubbles through its own ancestors and the trap has to recover the
+     focus after it has escaped to the body; see onKeydown() in confirm-dialog.ts. -->
 <div class="confirm-backdrop" (click)="onBackdrop($event)">
-  <div class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div #panel class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <h2 class="confirm-panel__title" id="confirm-title">{{ titleKey() | t }}</h2>
     <p class="confirm-panel__body">{{ bodyKey() | t: bodyValues() }}</p>
     <!-- The optional consequence line. It is rendered only when the parent supplies

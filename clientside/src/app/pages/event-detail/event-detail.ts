@@ -327,12 +327,48 @@ export class EventDetailPage {
       .filter((paragraph) => paragraph !== '');
   });
 
-  /** The availability line for one ticket tier: "12 available" or "Sold out". */
+  /**
+   * The availability line for one ticket tier: "12 available" or "Sold out".
+   *
+   * THE FIGURE IS WHAT IS LEFT, NOT WHAT WAS ALLOCATED. `quantityAvailable` is the
+   * tier's published allocation, so on its own it says how many seats the tier
+   * STARTED with - subtracting the tickets already recorded against that tier is
+   * what makes the line mean "you can still book this". As written before, a tier
+   * that had sold its whole allocation was still advertised with its original
+   * number, directly beside a register control and a status sentence that had
+   * already recognised it as sold out: measured on /events/2, the "Table of Ten"
+   * tier (quantity 10, ten tickets sold, so nothing left) read "10 available" while
+   * `soldOut()` - and therefore the event's registration rule - counted it as full.
+   * The register page showed the same tier as "Sold out", so the two pages
+   * contradicted each other about the same row of the database, and the visitor was
+   * invited to fill in a form that could only end in "Choose 0 or fewer".
+   *
+   * `soldForTier()` is the one place the sold count is worked out, so this line and
+   * `soldOut()` below - and the registration form's own ceiling - cannot drift
+   * apart again.
+   */
   protected tierAvailability(tier: TicketType): string {
     if (tier.quantityAvailable === null || tier.quantityAvailable === undefined) return '';
-    return tier.quantityAvailable > 0
-      ? this.i18n.t('event.availableCount', { count: tier.quantityAvailable })
+    const remaining = Math.max(Number(tier.quantityAvailable) - this.soldForTier(tier), 0);
+    return remaining > 0
+      ? this.i18n.t('event.availableCount', { count: remaining })
       : this.i18n.t('event.soldOut');
+  }
+
+  /**
+   * How many tickets have been recorded against one tier.
+   *
+   * Summed from the registrations this page's own response carries, comparing ids
+   * numerically because the two data sources return one as a number and the other
+   * as a string. This mirrors `soldForTier()` in
+   * api/src/repositories/ticket-allocation.ts, which is the same figure the API
+   * checks a new booking against, so the page cannot state a different number from
+   * the one that decides whether a booking is accepted.
+   */
+  private soldForTier(tier: TicketType): number {
+    return (this.event()?.registrations ?? [])
+      .filter((row) => Number(row.ticketTypeId) === Number(tier.ticketTypeId))
+      .reduce((sum, row) => sum + Number(row.ticketsPurchased ?? 0), 0);
   }
 
   /** "Free" or "$185.00" for one ticket tier. */
@@ -434,7 +470,9 @@ export class EventDetailPage {
    * the only place that shows the tiers against the tickets already sold), and
    * false when a tier publishes no allocation - an unlimited tier is never sold
    * out. This mirrors the `remainingForTier()` rule the registration form applies
-   * before it lets a visitor submit, so the two agree about when booking is over.
+   * before it lets a visitor submit, so the two agree about when booking is over -
+   * and it shares `soldForTier()` with the per-tier availability line above, so the
+   * sentence, the button and the tier list are all reading one figure.
    */
   protected readonly soldOut = computed(() => {
     const event = this.event();
@@ -446,12 +484,7 @@ export class EventDetailPage {
     );
     if (limited.length === 0) return false;
 
-    return limited.every((tier) => {
-      const sold = (event.registrations ?? [])
-        .filter((row) => Number(row.ticketTypeId) === Number(tier.ticketTypeId))
-        .reduce((sum, row) => sum + Number(row.ticketsPurchased ?? 0), 0);
-      return sold >= Number(tier.quantityAvailable);
-    });
+    return limited.every((tier) => this.soldForTier(tier) >= Number(tier.quantityAvailable));
   });
 
   /**

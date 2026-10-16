@@ -344,15 +344,50 @@ export class RegisterPage {
   /**
    * "12 of 300 places left", or an empty string when the event publishes no
    * capacity. Places left is only meaningful against a published capacity.
+   *
+   * THE FIGURE IS CAPACITY MINUS TICKETS, NOT CAPACITY MINUS ORDERS.
+   *   `registrationCount` counts ROWS in `event_registrations` - one per booking -
+   *   while `capacity` is a number of people, which is the same unit as
+   *   `ticketsPurchased` (that is why `ticketTypes.quantityAvailable` is compared
+   *   against summed tickets in `remainingForTier()` above, and why the API's own
+   *   allocation rule in api/src/repositories/ticket-allocation.ts does the same).
+   *   Subtracting orders therefore overstated the places left by every extra seat
+   *   in every multi-ticket booking, and put this line in direct contradiction with
+   *   the tier list beside it: measured on /register/6, where the two tiers said
+   *   "39 available" and "32 available" (71 between them) while this line read
+   *   "142 of 144 places left" - the API reports 2 registrations and 5 tickets for
+   *   that event, so 139 is the figure that agrees with both. `ticketsSold` is the
+   *   same total the guest list sums, so one event cannot be described two ways on
+   *   two pages.
    */
   protected readonly seatsRemaining = computed(() => {
     const event = this.event();
     if (!event || !event.capacity) return '';
-    const registered = Number(event.registrationCount ?? 0);
+    const taken = this.ticketsSold();
     return this.i18n.t('event.seatsRemaining', {
-      count: Math.max(Number(event.capacity) - registered, 0),
+      count: Math.max(Number(event.capacity) - taken, 0),
       capacity: Number(event.capacity),
     });
+  });
+
+  /**
+   * How many tickets have been recorded against this event.
+   *
+   * Read from the registrations the event response already carries - the same rows
+   * the event detail page's table and totals row are built from - so "places left"
+   * and that table can never be computed from two different figures. `ticketsSold`
+   * is preferred where the API sent it and the rows are summed otherwise, which
+   * keeps the figure right on both of the API's data sources.
+   */
+  private readonly ticketsSold = computed(() => {
+    const event = this.event();
+    if (!event) return 0;
+    const fromApi = Number(event.ticketsSold ?? event.totalTicketsSold ?? 0);
+    if (Number.isFinite(fromApi) && fromApi > 0) return fromApi;
+    return (event.registrations ?? []).reduce(
+      (sum, row) => sum + Number(row.ticketsPurchased ?? 0),
+      0
+    );
   });
 
   /** "12 available" / "Sold out", shown next to the chosen tier in the dropdown. */

@@ -49,14 +49,18 @@ export interface ApiEnvelope<T> {
  *
  *   a 400 (validation)  an ARRAY of { field, message } - one entry per problem,
  *                       rendered next to the offending form control
- *   a 409 (conflict)    an OBJECT of facts about the clash, with NO message:
+ *   a 409 (conflict)    an OBJECT of facts about the clash, with no `message`
+ *                       field of its own:
  *                       { eventId, eventName, registrationCount, suggestion }
  *
  * The 409 is the delete rule: the event cannot be removed because registrations
- * exist, so the API sends the numbers the UI needs to explain itself rather than
- * a sentence. `message` is therefore optional, and an accessor that insists on it
- * will silently return nothing for every conflict - which is exactly the bug
- * ApiError.conflictDetails used to have.
+ * exist, so the API puts the numbers the UI needs to explain itself in that
+ * object. The ENVELOPE still carries a sentence about the clash (the live body
+ * reads `"X cannot be deleted because 4 registrations have already been recorded
+ * for it..."`), but the object does not, and that distinction is what the
+ * paragraph below turns on. `message` on a detail is therefore optional, and an
+ * accessor that insists on it will silently return nothing for every conflict -
+ * which is exactly the bug ApiError.conflictDetails used to have.
  */
 export interface ApiErrorDetail {
   /** The form field the problem belongs to (400 only). */
@@ -77,7 +81,23 @@ export interface ApiErrorDetail {
 export interface ApiErrorBody {
   success: false;
   error: {
+    /**
+     * The same status the response arrived with, repeated in the body.
+     *
+     * This API sends it (see any 4xx/5xx answer: `{"success":false,"error":
+     * {"status":404,"message":"..."}}`), which is why it is declared here. No
+     * caller reads it - `ApiError.status` is taken from the HTTP response, which
+     * cannot disagree with the body - but a model that omits a field the API
+     * always sends is a model of something else.
+     */
+    status?: number;
     message: string;
+    /**
+     * An optional machine-readable failure name.
+     *
+     * Accepted for an API that names its failures, but THIS one sends none: a
+     * failure is identified by `status`, so `code` is never present in a response.
+     */
     code?: string;
     details?: ApiErrorDetail[] | Record<string, unknown> | null;
   };

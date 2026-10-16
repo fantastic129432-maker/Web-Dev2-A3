@@ -132,11 +132,13 @@ export class ApiError extends Error {
    * because 3 registrations exist" into a bare error.
    *
    * The check is deliberately about the FACTS, not about a `message`. This API's
-   * 409 sends `{ eventId, eventName, registrationCount, suggestion }` with no
-   * message at all - an earlier version of this accessor required one and so
-   * returned null for every conflict it was written to explain. It now accepts
-   * any object carrying at least one recognisable conflict fact, and still
-   * returns null for an object payload that means something else.
+   * 409 sends `{ eventId, eventName, registrationCount, suggestion }` as the
+   * details object, and that object carries no `message` field of its own (the
+   * sentence explaining the clash is on the envelope, not in these facts) - an
+   * earlier version of this accessor required one and so returned null for every
+   * conflict it was written to explain. It now accepts any object carrying at
+   * least one recognisable conflict fact, and still returns null for an object
+   * payload that means something else.
    */
   get conflictDetails(): ApiErrorDetail | null {
     if (Array.isArray(this.details) || this.details === null) return null;
@@ -165,11 +167,17 @@ export class ApiError extends Error {
    * Two of those statuses carry a decision worth keeping in writing. A 429 means
    * the API's rate limiter refused the request, so the visitor is told to slow
    * down in their own language rather than shown the limiter's own wording. A
-   * status of 0 with `timedOut` false is the last branch's case: the request
-   * never reached a server at all (offline, DNS failure, CORS rejection). A
-   * timeout also leaves no HTTP status behind, but it arrives with `timedOut`
-   * set and is named first instead, because "check your connection" is the wrong
-   * advice for a slow API.
+   * status of 0 with `timedOut` false is the "never reached a server" case
+   * (offline, DNS failure, CORS rejection), and it is named EXPLICITLY rather
+   * than left to the last branch. A timeout also leaves no HTTP status behind,
+   * but it arrives with `timedOut` set and is named first instead, because "check
+   * your connection" is the wrong advice for a slow API.
+   *
+   * The explicit status-0 test matters for a status that is none of the above: a
+   * 200 carrying `success: false` (the contract violation ApiService raises) is a
+   * server that answered, so the last branch would have told the visitor to check
+   * a connection that plainly worked. Anything unmapped now gets the server
+   * sentence, which is true of a server that answered with something unusable.
    *
    * @param t - The `TranslationService.t` function for the active language.
    * @returns The message to display: the API's wording where it is useful, and a
@@ -182,7 +190,8 @@ export class ApiError extends Error {
     if (this.status === HTTP_STATUS.conflict) return this.message || t('error.conflict');
     if (this.status === HTTP_STATUS.tooManyRequests) return t('error.rateLimited');
     if (this.isServerError) return t('error.server');
-    return t('error.offline');
+    if (this.status === 0) return t('error.offline');
+    return t('error.server');
   }
 
   /**

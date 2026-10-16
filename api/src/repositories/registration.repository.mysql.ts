@@ -243,15 +243,18 @@ const registrationRepository: RegistrationWriteRepository = {
         );
       }
       if (code === 'ER_NO_REFERENCED_ROW_2') {
+        // The driver's own `sqlMessage` is deliberately not forwarded: it names
+        // the schema (constraint, table, key) and the client can do nothing with
+        // it. See the same rule in write.repository.mysql.ts.
         throw HttpError.badRequest(
           'The event or ticket type does not exist.',
-          { code, sqlMessage: error.sqlMessage }
+          { code }
         );
       }
       if (code === 'ER_CHECK_CONSTRAINT_VIOLATED') {
         throw HttpError.badRequest(
           'The registration was rejected: check the email address and that at least one ticket is requested.',
-          { code, sqlMessage: error.sqlMessage }
+          { code }
         );
       }
       // An HttpError raised by the allocation check above is already the answer
@@ -329,9 +332,11 @@ const registrationRepository: RegistrationWriteRepository = {
           );
         }
         if (code === 'ER_CHECK_CONSTRAINT_VIOLATED') {
+          // As above: the driver's `sqlMessage` describes the schema, so it stays
+          // on the error (and in the 5xx log) rather than in the response.
           throw HttpError.badRequest(
             'The update was rejected: check the email address and that at least one ticket is requested.',
-            { code, sqlMessage: error.sqlMessage }
+            { code }
           );
         }
         throw error;
