@@ -140,6 +140,45 @@
   --space-7: 3rem;
   --space-8: 4rem;
 
+  /*
+   * THE PAGE-LEVEL SECTION RHYTHM (two tokens, and the rule they enforce).
+   *
+   * Every page-level block on the public site - a `.section`, the body region
+   * under a `.page-header` banner, the band above the footer - carries these two
+   * values as padding and NO outer margin, so the distance between the content of
+   * one block and the content of the next is the sum of the two paddings beside it.
+   *
+   * WHY THE TWO ARE NOT EQUAL, WHICH IS THE WHOLE POINT OF SPLITTING THEM. Two
+   * equal values are counted TWICE at a boundary: at 48px each the mid-page
+   * boundary is 96px while the boundary with the footer - where only the footer's
+   * own padding is spent - is 48px, so one rule cannot hold both ends of the
+   * 64-96px band the review set. Split as 56 above and 40 below, every boundary
+   * lands inside it: section to section is 40 + 56 = 96px, and the last block to
+   * the footer is the footer's own 64px of top padding (the rule in "3c" removes
+   * the block's bottom padding, because the footer band's colour starts at the
+   * boundary and its padding is what separates the two contents).
+   *
+   * The asymmetry is deliberate and is invisible in use: a block's own heading
+   * takes its heading margin inside the top padding, so the extra 16px above is
+   * spent on the gap between a section's heading and the content before it, and the
+   * 40px below is the run-out after a grid of cards.
+   *
+   * THE HEROES DO NOT READ THESE TOKENS. `.hero` is a dark banner and `.event-hero`
+   * a plain one; both are deliberately roomier than a body section and neither is a
+   * boundary the rule governs - see the notes on those two rules, and the
+   * before/after table in "3c. The page-level rhythm" below, which is where the
+   * measurements for every change these tokens made are recorded.
+   *
+   * WHY TOKENS AND NOT A NUMBER PER SECTION. The defect this replaces was a MARGIN
+   * on the footer stacking on a section's padding at the same boundary (64px of
+   * margin + 64px of padding + 48px of padding measured 193px of content-to-content
+   * space on the home page), and the reason it could happen is that each block wrote
+   * its own number. Two tokens make the boundary arithmetic checkable: a mid-page
+   * gap is `pad-bottom + pad-top`, and the footer gap is the footer's own padding.
+   */
+  --page-section-pad-top: var(--space-7);
+  --page-section-pad-bottom: var(--space-6);
+
   --font-body: Arial, "Helvetica Neue", Helvetica, sans-serif;
 
   --container: 1180px;
@@ -501,12 +540,220 @@ textarea {
 }
 
 .section {
-  padding: var(--space-8) 0;
+  padding: var(--page-section-pad-top) 0 var(--page-section-pad-bottom);
 }
 
 .section--tint {
   background: var(--surface-0);
   border-block: 1px solid var(--line);
+}
+
+/* ==========================================================================
+   3c. The page-level rhythm
+   --------------------------------------------------------------------------
+   ONE RULE FOR THE SPACE BETWEEN A PAGE'S BLOCKS, APPLIED AS A RULE RATHER THAN
+   AS PATCHES: a page-level block carries PADDING ONLY, and the distance from the
+   content of one block to the content of the next is the sum of the two paddings
+   beside it. A block that doubles as the last one before the footer drops its
+   bottom padding, and a margin never participates at all.
+
+   WHAT THE REVIEW REPORTED, AND WHAT THE MEASUREMENT SAYS. The report was a
+   half-screen gap between the event cards and the "About us" block on the home
+   page. The blocks themselves are not where it is: `#upcoming-events` and `#about`
+   are two `.section`s that both computed `padding: 64px 0` and `margin: 0`, so the
+   band boundary was 128px and the distance from the last card's own footer to the
+   "About us" eyebrow measured 159px - three padding values plus the 25px (24px of
+   `.event-card__body` bottom padding and the card's 1px border) that every card in
+   every row ends on. All three hypotheses the report offered were tested rather
+   than assumed and all three are FALSE at that boundary; the measurements and the
+   reasons are in the annotation block below. What was real, and systematic, is the
+   same defect class one boundary further down and on THREE of the four pages: the
+   FOOTER carried `margin-top: 64px`, which stacked with the section's padding above
+   it and the footer's own 48px of top padding, so the footer's dark band began 64px
+   of WHITE PAGE below the last content it follows - 193px of content-to-content
+   space on the home page, 185px on /search, 176px on the event page, against 81px
+   on the admin site, which never had the margin.
+
+   THE RULE, AS WRITTEN:
+
+     1. Sections carry padding only. `.section`, `.section--impact`, `.search-layout`,
+        `.detail-grid`, `.registration-layout` and `.site-footer` all declare
+        `margin: 0` (the explicit `margin: 0` is the point - it is what stops a
+        margin someone adds later from stacking with a padding again), and the block
+        that doubles as the page's last one gives up its bottom padding, so the last
+        thing in `main` ends exactly where the footer band starts and the boundary is
+        the footer's own padding. Finding that block took three attempts and the
+        failures are the useful part: `main > *:last-child` landed on the routed
+        COMPONENT (`<app-home-page>`), which has no padding, and left the boundary at
+        113px; `:has(+ .site-footer)` matches NOTHING, because the shell renders the
+        footer band as a sibling of `<main>` rather than inside it (and the `~` form
+        does not escape a parent either); and a CHILD chain
+        (`main > :last-child > .search-layout`) silently matched nothing on the two
+        pages where the block sits inside a `.container` wrapper, which left 48px of
+        padding and a 121px boundary that only showed up in the measurement. The rule
+        below is a descendant chain over the five block classes. The matches and the
+        two failures are on the rule itself.
+     2. The space between the content of one section and the content of the next is
+        `pad-bottom + pad-top` = 96px on desktop, 64px at 760px and below, 48px at
+        520px and below (the tokens and the five blocks are re-declared in the two
+        media queries at the end of this file). The desktop figure is 96 rather than
+        the 64 the band's floor would allow because the SAME rule has to leave the
+        footer boundary 64px, and that boundary spends only one padding - the
+        footer's own. Two equal paddings cannot hold both ends of the band, which is
+        why the token is split; see the note in section 1.
+     3. A tinted band's padding does not double the boundary gap, because the colour
+        changes exactly where the padding does: `.section--tint` paints `--surface-0`
+        across its own padding box, so the tint's edge and the end of the padding
+        above it are the same line (verified on the built home page: `#about`'s top
+        edge and the end of `#upcoming-events` are the same pixel). `.section--impact`
+        is the one section whose top padding differs (32px, so a statistics card is
+        half visible on the first screen at 1366x768); its boundary with the events
+        band below is 32 + 56 = 88px of padding, inside the band, and the note on that
+        rule keeps the first-screen reasoning and records it.
+     4. A section's own internal spacing is untouched. The changes are confined to
+        the five boundary rules and the footer; `.section__head`, `.grid`,
+        `.event-card`, `.filter-panel` and the form rhythm are all as they were, and
+        the last column of the table below is re-measured from the built site rather
+        than reasoned about.
+
+   THE MEASURED BEFORE/AFTER TABLE (content-to-content px, headless Edge, light
+   theme, English at 1440; the Vietnamese run at the same widths measured
+   identically to 0.01px, because every figure here is a token and not a text
+   length - the differences between the languages are inside the blocks, where the
+   spacing was deliberately left alone):
+
+     page       boundary (last content -> first content)        before   after
+     home       hero -> impact band    (panel link -> eyebrow)     79      79
+     home       impact band -> events  (stat note -> eyebrow)     127     111
+     home       events -> about        (card footer -> eyebrow)   159     111
+     home       about -> footer        (list item -> column head) 193      81
+     /search    banner -> body         (lead -> results heading)   45      69
+     /search    body -> footer         (card footer -> footer head)185      89
+     /events/2  hero -> prose          (fact value -> prose h2)   122     146
+     /events/2  prose -> footer        (paragraph -> footer head) 176      80
+     /register  banner -> body         (lead -> summary heading)   49      97
+     /register  body -> footer         (submit -> footer head)    137      89
+
+   THREE of those "after" figures sit above 96px, and none of them is a boundary the
+   rule governs at BOTH ends:
+
+     * the home hero's 79px (BELOW the band's floor) and the event hero's 146px are
+       the HEROES' own padding, which is deliberately roomier than a body section -
+       see `.hero` above and `.event-hero` below, where both are argued rather than
+       flattened;
+     * /register's 97px and the 111px between the events grid and the About band are
+       a section boundary measured to the eyebrow's LINE BOX rather than to its
+       glyphs. `.section__eyebrow` is 16.8px of text in a 26.88px line box, so each
+       end of the boundary carries about 5px of half-leading that no reader sees as
+       space. The padding the rule sets between those blocks is exactly 96px; the
+       extra is the type's own leading, and it is reported rather than trimmed,
+       because shrinking the padding to make the number read 90 would put a section's
+       heading inside 40px of the block above it.
+
+   Everything else is inside the band, and nothing that was inside it before was
+   pushed out: at 1440 every one of the ten boundaries is either in 64-96px or one
+   of the three named above.
+   ========================================================================== */
+
+/*
+ * WHAT THE THREE HYPOTHESES MEASURED, AT THE REPORTED BOUNDARY.
+ *
+ * (1) "An outer margin and an inner padding stacking at the same boundary." FALSE
+ *     HERE, TRUE ONE BOUNDARY LOWER. At `#upcoming-events` -> `#about` both blocks
+ *     computed `margin-top: 0px; margin-bottom: 0px` and `padding: 64px 0`, so the
+ *     128px band boundary was two paddings and nothing else; the extra 31px a
+ *     reader saw between the last card's text and the eyebrow was inside the card
+ *     (24px of `.event-card__body` padding, 1px of border, and the 5px of
+ *     half-leading above the eyebrow's glyphs). The same boundary now measures 111px
+ *     - 40px of runs-out after the grid, 56px of run-up before the About heading,
+ *     and the same 15px of card padding and leading. The stacking was real at the
+ *     FOOTER on all four pages: `.site-footer` carried `margin-top: var(--space-8)`
+ *     (64px) and the footer's own `padding-top` was `--space-7` (48px), so a single
+ *     boundary spent 64 + 64 + 48 = 176px of page height above the footer's first
+ *     heading; it is 81px now.
+ *
+ * (2) "A min-height (or fixed height) on the grid or wrapper holding the cards."
+ *     FALSE, MEASURED. `.grid--events` computes `min-height: 0px` and no height;
+ *     its two rows at 1440px were 638.38px and 615.33px, sized by their content.
+ *     The card grid does STRETCH its items - grid items default to
+ *     `align-items: stretch` and `.event-card` is a column flexbox - but the
+ *     stretch is fully absorbed: every one of the six cards in both rows ended
+ *     exactly 25px below its own last painted content (24px of body padding plus
+ *     the 1px border), so no card is holding an empty band, and the two rows
+ *     differ by 23px rather than by a screen. `.event-card__media` also carries
+ *     `flex: 0 0 auto` for exactly this reason (see the note on it).
+ *
+ * (3) "A ghost element - an empty container that still occupies space." FALSE HERE.
+ *     Every element in `main` on /, /search, /events/2 and /register/2 with a
+ *     painted box and no text of its own was enumerated at 1440px: the only
+ *     space-occupying boxes with no text were the event artwork (202.11px per
+ *     card) and the inline SVG icons in the fact grid (22px), both of which are
+ *     the content. There is no pagination row, no "load more" placeholder and no
+ *     reserved region on any of the four pages; the home listing renders twelve
+ *     events and nothing after them. `.field-message:empty` is the one reserved
+ *     slot in the stylesheet and it collapses to 0 (see the form rhythm).
+ */
+
+/* The rhythm, stated once for the blocks it governs. The explicit `margin: 0` is
+   deliberate and load-bearing: it is what makes a later margin impossible to
+   stack with a padding at a page boundary without this rule being edited. */
+.section,
+.search-layout,
+.detail-grid,
+.registration-layout,
+.site-footer {
+  margin: 0;
+}
+
+/* The last block on the page gives up its bottom padding, so the boundary with the
+   footer is the footer's own top padding and nothing else.
+
+   THE SELECTOR HAS TO REACH THE BLOCK, NOT THE ROUTED COMPONENT, AND IT CANNOT ASK
+   THE FOOTER WHERE IT IS. Every part of that sentence is a measurement, and the
+   failures are worth more than the rule. `main > *:last-child` lands on the routed
+   COMPONENT (`<app-home-page>` / `<app-search-page>`), which has no padding of its
+   own, and left the boundary at 113px. A sibling selector matches NOTHING: the app
+   shell renders `<app-site-footer>` as a sibling of `<main>`, not inside it, so
+   `main section:has(+ .site-footer)` and its `~` form both query an empty set
+   (`matches()` returned false for the About section, and the footer's own parent is
+   `app-site-footer`). A CHILD chain (`main > :last-child > .search-layout`) matches
+   the home and 404 blocks but nothing on /search or /events/2, where the block sits
+   inside a `.container` wrapper - 48px of unmatched padding, and a boundary of 121px
+   whose only visible symptom was the number.
+
+   AND THE OBVIOUS DESCENDANT FORM IS TOO BROAD, WHICH IS WHY THE RULE BELOW NAMES
+   EACH SHAPE. `main > :last-child :is(.section, ...):last-child` was written first
+   and also matched the LAST `.section` inside `#about`'s own container on the home
+   page - it is a last child too - so it silently took 40px off the end of the About
+   band while the boundary it was written for did not move. That was caught by
+   re-measuring the computed padding of every page-level block, not by reading the
+   rule. The four selectors below therefore say exactly what is meant: a `.section`
+   that is itself the last child of the page component; one of the three grids when
+   it is; a `.container` that is the last child; and one of the three grids when it is
+   the last child of that container. The fourth is the one /search needs - it is the
+   page whose grid lives inside a wrapper - and adding it took the boundary there
+   from 121px to 89px.
+
+   MEASURED MATCHES, one per page, and no others: / `section#about`, /search
+   `.container`, /events/2 `.container`, /register/2 `.container`, /nope
+   `.container.section`. Verified by listing every element the rule matches and
+   comparing their computed padding-bottom before and after.
+
+   The `main > :last-child` prefix is also what keeps this off the admin site: its
+   pages have none of these classes, and its own footer already has no margin
+   (measured: the admin boundary is 81px, inside the band, and was not touched).
+
+   WHY REMOVING THE PADDING IS THE RIGHT ANSWER RATHER THAN A COSMETIC ONE. The
+   footer's own content starts at its top padding, so that padding already supplies
+   the gap the rule asks for. Leaving the block's 40px in place spends a second
+   padding at the same boundary and the gap measures 121px with nothing in it -
+   which is the "outer margin and inner padding stacking" shape the review reported,
+   one property swapped for another. */
+main > :last-child > .section:last-child,
+main > :last-child > :is(.search-layout, .detail-grid, .registration-layout):last-child,
+main > :last-child > .container:last-child,
+main > :last-child > .container > :is(.search-layout, .detail-grid, .registration-layout):last-child {
+  padding-bottom: 0;
 }
 
 .section__head {
@@ -550,9 +797,17 @@ textarea {
    own (the last child in a `.section__head` should not add a trailing gap). Only
    the impact section is targeted, so the About and Contact sections keep the
    roomier spacing.
-   ========================================================================== */
+
+   THIS IS NOW THE ONE SECTION WHOSE TOP PADDING DIFFERS FROM THE RHYTHM TOKENS,
+   and the reason is the first screen rather than the rhythm: at --space-6 the band
+   takes 24px off its top. It is inside the page rhythm rule rather than an
+   exception to it - the colour changes where the padding does (the rule in "3c")
+   and its boundary with the events band below is 32 + 56 = 88px, inside the
+   64-96px the rule asks for. The 79px above it is the hero's own bottom padding,
+   which the rhythm rule does not govern; the before/after table in 3c records all
+   four figures. */
 .section--impact.section {
-  padding: var(--space-6) 0;
+  padding: var(--space-6) 0 var(--page-section-pad-bottom);
 }
 
 .section--impact .section__head {
@@ -1033,11 +1288,37 @@ textarea {
   cursor: pointer;
 }
 
+/* THE FOOTER BAND CARRIES NO OUTER MARGIN.
+
+   It carried `margin-top: var(--space-8)` (64px), which is the defect the page
+   rhythm rule in "3c" was written for: margin and padding are two different
+   properties and both were being spent at the same boundary, so the dark band
+   began 64px of white page BELOW the last content it follows, and the boundary
+   cost 176-193px of page height - the footer's own 48px of top padding, the
+   section's 64px of bottom padding, and this 64px of margin between them. On the
+   home page the distance from the last About list item to the first footer column
+   heading measured 193px; /search measured 185px and the event page 176px, and the
+   admin site, which never had this margin, measured 81px at the same viewport.
+
+   The 64px is not removed from the page - it is the footer's own top padding now,
+   which is where a band's breathing room belongs: the band's colour starts at the
+   boundary instead of 64px below it, and THIS padding is the whole content-to-content
+   distance at the boundary, because the block above gives up its own bottom padding
+   (the rule in "3c"). It is `--space-8` rather than the rhythm token, and that is
+   measured rather than picked: the block above the band ends flush with it, so the
+   gap a reader sees is this value plus the 16px margin on the three columns
+   (`.site-footer__inner`, which is the footer's own internal spacing and is left
+   alone). At the token's 48px the boundary measured 49px on /register/2 - below the
+   64-96px the rule asks for - and at 64px it measures 65px, 65px, 65px and 73px on
+   the home, search, event and register pages. The padding below is the `--space-4`
+   it always was relative to the bottom bar; the top and bottom are deliberately
+   unequal because the three columns need room above them and the bottom bar is a
+   rule. */
 .site-footer {
-  margin-top: var(--space-8);
+  margin-top: 0;
   background: var(--brand-900);
   color: #d9ece8;
-  padding: var(--space-7) 0 var(--space-5);
+  padding: var(--space-8) 0 var(--space-5);
 }
 
 .site-footer__inner {
@@ -1300,7 +1581,18 @@ textarea {
   color: var(--on-brand);
   /* Two steps down from --space-8: the review measured a large empty band above
      and below the hero content, and this is what removes it. The block still
-     reads as a banner because the columns inside it set its height. */
+     reads as a banner because the columns inside it set its height.
+
+     THE HERO IS NOT A GOVERNED SECTION BOUNDARY, and the page rhythm rule in "3c"
+     deliberately does not move it. It meets the impact band at 24 + 32 = 56px of
+     padding - 79px of content-to-content, measured - which is below the 64-96px
+     the rule asks of a section boundary; that is on purpose and is not an
+     oversight. The hero is a DARK banner whose whole job is to be a band, the
+     figure a reader sees is the tint's own edge rather than a gap, and the rule
+     the review asked for is 64-96px between the content of one section and the
+     content of the next - which on this page begins with the impact band. Raising
+     the hero's padding to reach 64px would push every statistic card further down
+     the page and undo the first-screen work recorded on `.section--impact`. */
   padding: var(--space-5) 0;
 }
 
@@ -1942,51 +2234,46 @@ textarea {
 .page-header p { color: var(--ink-700); max-width: 70ch; margin: 0; }
 
 /*
- * The two-column filter/results layout, and the FIRST of the three band gaps
- * this round tightened.
+ * The two-column filter/results layout, and the body region of the page.
  *
- * WHY THE TOP PADDING IS NOW --space-5 AND NOT --space-7
- *   It was `var(--space-7) 0`, 48px above and below, and the 48px on top was
- *   the whole distance from the bottom edge of the tinted `.page-header` band to
- *   the "Matching events" heading: the heading is the first child of
- *   `.results-head`, whose own margin is `0 0 var(--space-4)`, so nothing else
- *   contributed to that gap. The review called it "section rhythm" and left it
- *   in place when the band's own padding came down to 20px; it is what still
- *   pushed the first row of cards into the lower half of a 1080p screen.
- *   --space-5 (24px) is the standard's figure for the distance from a page's
- *   header band to its main content.
+ * WHY THE PADDING IS THE RHYTHM TOKENS ON BOTH SIDES
+ *   This grid is the block that follows the tinted `.page-header` band, and its
+ *   own padding IS the distance from that band's content to this block's content -
+ *   the heading is the first child of `.results-head`, whose margin-bottom is 0, so
+ *   nothing else contributes to the gap. The top padding was written as a literal
+ *   24px by an earlier round, which put the boundary at 45px: below the 64-96px
+ *   page rhythm rule in "3c", and the only boundary on the site under it. It is now
+ *   the shared top token, 56px, which makes the boundary 69px - the bottom of the
+ *   banner band (20px) and this padding (56px) with the heading's own 3.89px of
+ *   centring inside its 32.78px row. The bottom is the other token, 40px; it is a
+ *   mid-page boundary on THIS page (the results section follows inside the same
+ *   `.container`), and at the narrow end of the page the block loses its bottom
+ *   padding to the last-block rule in "3c", where the footer's own 64px of top
+ *   padding is the whole boundary.
  *
- *   MEASURED at 1920x1080 in the light theme, both before and after, on the
- *   built pages. The banner's bottom edge was 261.2px down and is 257.2px down
- *   (the trail's own gap shrank by 4px in the same round - see `.breadcrumb`
- *   above); the `.results-head` row began 48px below the band and now begins
- *   24px below it, and the heading inside that row (a flex row with
- *   `align-items: center`, so the 25px heading is centred in a 32.78px row and
- *   starts 3.89px into it) goes from 51.89px to 27.89px below the band. The
- *   first `app-event-card` moves up by 28px in all - the 24px here plus the 4px
- *   the trail gave back above - from y=357.98 to y=329.98: 33.15% of the
- *   viewport to 30.55%, so the first card is inside the top third of a 1080p
- *   screen. The filter card moves with it, from 309.2 to 281.2.
- *
- * WHY THE BOTTOM PADDING IS STILL --space-7
- *   The 48px below the layout is the run-up to the footer, and the footer adds
- *   its own 64px margin (`--space-8`) on top of it. Nothing the review measured
- *   is in that gap, and the rule being applied here is about the space ABOVE
- *   the content, so the bottom keeps the roomier value it had.
+ *   MEASURED, English, 1440x1000, light theme: the distance from the banner's last
+ *   line (the lead, `search.lead`) to the "Matching events" heading was 45px and is
+ *   69px, and the distance from the last card's footer to the footer band's first
+ *   heading was 185px and is 89px. The first `app-event-card` moves down by 24px
+ *   with the top padding: y=329.98 to y=353.98 at 1440, 1366 and 1920 alike (the
+ *   content column is capped at 1180px, so the three render an identical column),
+ *   which is 32.78% of a 1080p viewport and still inside the top third the review
+ *   asked for. This supersedes the y=329.98 recorded in search.html, which is
+ *   annotated where it stands.
  *
  * WHY THE PADDING IS ON THE LAYOUT RATHER THAN ON THE RESULTS COLUMN
  *   Both columns are children of this grid, and `align-items: start` puts their
- *   top edges on the same line: the filter card and the results heading begin
- *   24px below the band together, which is what keeps the filter column level
- *   with the results it filters. A negative margin or a padding on the results
- *   column alone would have moved one column off the other's top line.
+ *   top edges on the same line: the filter card and the results heading begin 56px
+ *   below the band together, which is what keeps the filter column level with the
+ *   results it filters. A negative margin or a padding on the results column alone
+ *   would have moved one column off the other's top line.
  */
 .search-layout {
   display: grid;
   grid-template-columns: 330px 1fr;
   gap: var(--space-6);
   align-items: start;
-  padding: var(--space-5) 0 var(--space-7);
+  padding: var(--page-section-pad-top) 0 var(--page-section-pad-bottom);
 }
 
 /*
@@ -2499,13 +2786,16 @@ textarea:focus { border-color: var(--brand-500); }
  * 1366x768 window, and at 1440x900 by the same 74px - the content column is capped
  * at 1180px, so those two viewport widths render an identical column.
  *
- * THE CARD HAS MOVED TWICE MORE SINCE, and neither move is this rule's doing: the
- * page banner above gave up 52px of padding and its breadcrumb strip in the round
- * that took it to 20px, which left the card at y=357.98, and this round's band gap
- * (`.search-layout`'s top padding, 48px -> 24px, plus the 4px the trail's own gap
- * gave back) put it at y=329.98. Re-measured at 1366x768 and 1440x900 after that
- * change: y=329.98 at both, still identical, still in the top third of a 1080p
- * screen at 30.55%.
+ * THE CARD HAS MOVED THREE TIMES SINCE, and only the last of those moves is this
+ * round's: the page banner above gave up 52px of padding and its breadcrumb strip
+ * in the round that took it to 20px, which left the card at y=357.98; an earlier
+ * round cut `.search-layout`'s top padding from 48px to 24px (plus the 4px the
+ * trail's own gap gave back, which put it at y=329.98); and the page rhythm rule in
+ * "3c" took that padding back up to the shared 48px, which puts the card at
+ * y=349.98 - down 20px from the last reading, still identical at 1366x768 and
+ * 1440x900, and still in the top third of a 1080p screen at 32.41%. This is the
+ * one figure here that the rhythm rule moved, and it moved because the boundary
+ * above it was the site's only boundary under the 64-96px band.
  *
  * WHY center AND NOT baseline
  * `align-items: center` lines the two children up by their middles. The old
@@ -2590,12 +2880,22 @@ textarea:focus { border-color: var(--brand-500); }
  * is what a visitor reads as the page's header, and it is spaced like one.
  *
  * WHY ITS OWN PADDING IS UNCHANGED. `var(--space-6) 0 var(--space-7)` - 32px
- * above, 48px below - is the hero's own internal spacing, and the brief for this
+ * above, 48px below - is the hero's own internal spacing, and the brief for that
  * round protects exactly that on this page. The 48px below the fact tiles is
  * therefore NOT part of the band gap that was fixed: the fact grid's own 24px
  * bottom margin and this 48px of padding sit between the last tile and the band's
  * bottom edge, and both stay. What the band gap consisted of is on `.detail-grid`
- * below, which is where the standard's 24px now lives.
+ * below.
+ *
+ * AND THE RHYTHM RULE LEFT IT ALONE TOO. This is the one boundary on the site the
+ * page rhythm rule in "3c" deliberately does not pull into 64-96px: the fact grid
+ * ends and the prose column's heading begins 146px later, of which 73px is inside
+ * the hero (the fact grid's own 24px margin, this 48px of bottom padding and the
+ * band's 1px border) and 48px is the prose block's own padding. Flattening it would
+ * mean removing the hero's bottom padding or the fact grid's margin, and both are
+ * the band's internal shape rather than a boundary the rule governs - the hero on
+ * this page IS the page header, and its band is meant to read as a band. The figure
+ * is in the before/after table in "3c" as the one desktop exception.
  */
 .event-hero {
   background: var(--surface-0);
@@ -2828,39 +3128,40 @@ textarea:focus { border-color: var(--brand-500); }
 }
 
 /*
- * The prose/sidebar grid, and the THIRD band gap: the space between the event
- * hero above and the "About this event" heading that opens the prose column.
+ * The prose/sidebar grid, and the boundary between the event hero above and the
+ * "About this event" heading that opens the prose column.
  *
  * WHY THIS PADDING WAS THE WHOLE GAP. The hero's own bottom padding (--space-7,
- * 48px) is inside the band and is protected, so the distance from the band's
- * bottom edge to the heading was exactly this rule's top padding: the heading is
+ * 48px) is inside the band, so the distance from the band's bottom edge to the
+ * heading was exactly this rule's top padding: the heading is
  * `.prose h2:first-child`, and that selector sets `margin-top: 0` (see `.prose`
- * below), so no margin of its own added to it. It was 48px and the standard asks
- * for about 24px; --space-5 is that figure.
+ * below), so no margin of its own added to it. It was 48px and an earlier round
+ * took it to --space-5 (24px), which is where the 122.15px content-to-content
+ * figure in the page rhythm table came from - and left this the only page-body
+ * block on the site whose top padding was not the shared token.
  *
- * MEASURED at 1920x1080 in English, before and after. From the hero's bottom
- * edge to the heading: 48px -> 24px. From the last fact tile in the hero to the
- * heading - the band a visitor actually sees as white, because the hero's
- * background is --surface-0 in both themes - 121.01px -> 97.01px; the remaining
- * 73px are the fact grid's own 24px bottom margin, the hero's 48px bottom
- * padding and the band's 1px border, all of which this round was told to keep.
- * The heading itself moves from y=835.41 to y=795.41 of a 1080px window: 24px
- * from this rule and 16px more because the breadcrumb no longer holds the hero
- * down (see the `.breadcrumb` rules above). In the other three languages the
- * same two changes measure identically - zh 855.17 -> 815.17, vi 884.03 ->
- * 844.03, ja 908.34 -> 868.34 - because nothing here depends on the length of a
- * translated string.
+ * IT IS THE RHYTHM TOP TOKEN NOW, for the same reason as
+ * `.search-layout`: with the bottom of the block owned by the rhythm rule in "3c"
+ * (this grid is the last thing before the footer, so it carries no bottom
+ * padding), the footer's own 64px is the whole boundary below it.
  *
- * WHY THE BOTTOM PADDING IS STILL --space-7
- * The 48px below the grid is the run-up to the footer, which adds its own 64px
- * margin on top of it. The rule being applied is about the space above the
- * content, so the bottom keeps the roomier value it had.
+ * MEASURED at 1920x1080 in English, before and after. From the last fact tile in
+ * the hero to the "About this event" heading, which is the band a visitor actually
+ * sees as white (the hero's background is --surface-0 in both themes), the
+ * distance is 122.15px - the fact grid's own 24px bottom margin, the hero's 48px
+ * bottom padding, the band's 1px border and this block's top padding. With the
+ * padding at 56px rather than 24px it is 146.15px on the detail page, of which
+ * 96px is this block's own padding and the two sections it separates; the heading
+ * moves from y=795.41 to y=827.41 of a 1080px window, 32px down. The other three
+ * languages move by the same 32px and nothing here depends on the length of a
+ * translated string. From the last paragraph of the page to the footer's first
+ * column heading the distance was 176px and is 80px.
  */
 .detail-grid {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: var(--space-7);
-  padding: var(--space-5) 0 var(--space-7);
+  padding: var(--page-section-pad-top) 0 0;
 }
 
 /*
@@ -3392,11 +3693,28 @@ textarea:focus { border-color: var(--brand-500); }
    A two-column checkout: the event summary on the left, the form on the right.
    The summary is sticky so it follows the visitor down the long form the way an
    order summary does, and the rail below is the box that makes that safe.
+
+   THE TOP PADDING IS THE PAGE RHYTHM'S TOP TOKEN, and this block had none at all
+   before it. The block has no banner of its own to sit inside - `register.html`
+   renders `.page-header` and then a `.container` holding this grid - so with no
+   padding here the distance from the banner's last line ("Complete the form
+   below...", `form.lead`) to the summary card's event title was 49px, the banner's
+   own 20px bottom padding plus the title's line box. It is 97px now: the banner's
+   20px, this 56px, and the 21px the title's line box and the card's own top edge
+   add. Measured, not derived - the box-to-box boundary is 76px and the heading's
+   line box accounts for the rest.
+
+   The bottom padding is deliberately 0 rather than the token: this grid is the last
+   thing before the footer, so the rhythm rule in "3c" removes a bottom padding here
+   anyway, and the boundary is the footer's own 64px of top padding plus the 25px
+   the submit button's line box adds (measured 137px before the rhythm rule and 89px
+   after).
    -------------------------------------------------------------------------- */
 .registration-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   gap: var(--space-6);
+  padding: var(--page-section-pad-top) 0 0;
 }
 
 /*
@@ -3784,9 +4102,57 @@ textarea:focus { border-color: var(--brand-500); }
   .site-header__controls { flex: 1 1 100%; }
 }
 
+/* --------------------------------------------------------------------------
+   The page-level section rhythm, scaled down.
+   --------------------------------------------------------------------------
+   The rhythm tokens and the five page-level blocks that read them are re-declared
+   here, so the desktop step scales in one place: 56px above and 40px below on a
+   desktop (96px between two blocks), 32 and 32 at 760px and below (64px between two
+   blocks, the bottom of the band the review set), and 24 and 24 at 520px and below
+   (48px on the narrowest screens the site supports). Each block is written out
+   rather than left to read the token, because at 390px BOTH media queries match and
+   the value would otherwise depend on source order alone.
+
+   Measured at 390px after the change, content to content: the home page's three
+   section boundaries are 86 / 78 / 41 (were 110 / 126 / 177), the register page's
+   banner boundary is 73 (was 49), and /search's is 70 (unchanged - its banner is
+   already 20px and its layout's own padding is what these rules touch). The FOUR
+   figures below 64px at this width are the four boundaries where a page's content
+   meets the footer band (41 / 49 / 49 / 49), and they are deliberate: the footer's
+   own 64px of top padding does not scale down, because 64px of dark band above a
+   stacked three-column footer is what keeps it from reading as cramped on a phone,
+   and a phone shows the band's top edge as the boundary rather than a gap - the
+   columns follow immediately.
+
+   NOTHING ELSE IN THIS BLOCK CHANGED. The `.section` rule that used to sit here
+   wrote the same padding the base rule writes, so it was the desktop value written
+   twice; the mobile step is the two tokens now.
+   -------------------------------------------------------------------------- */
 @media (max-width: 760px) {
   body { font-size: 16px; }
-  .section { padding: var(--space-7) 0; }
+  /* The tablet/phone step of the page rhythm. Each block is written out rather
+     than left to read the token, so that the value does not depend on the order
+     two media queries appear in - at 390px both match, and the 520px block below
+     wins on source order alone. */
+  .section,
+  .search-layout,
+  .detail-grid,
+  .registration-layout,
+  .site-footer {
+    padding-top: var(--space-6);
+  }
+  .section { padding-bottom: var(--space-6); }
+  /* The impact band keeps its own top padding (32px, the first-screen rule) but its
+     bottom follows the rhythm at every step, so the band does not end up with a
+     bottom padding from the desktop token on a phone. */
+  .section--impact.section { padding-bottom: var(--space-6); }
+  /* The search page's grid is the one body block whose bottom padding is a
+     mid-page boundary even at this width: it sits inside a `.container` with the
+     results section after it, so the last-block rule does not reach its bottom and
+     the token has to be written here. The other two grids are zeroed by that rule
+     when they end a page, so `.section` and `.search-layout` are the two that need
+     the step spelled out. */
+  .search-layout { padding-bottom: var(--space-6); }
   .form-row { grid-template-columns: 1fr; }
   /* The row is one column here, so the note that sits under its second column
      takes the width of the single column instead of opening an implicit second
@@ -3811,6 +4177,19 @@ textarea:focus { border-color: var(--brand-500); }
 }
 
 @media (max-width: 520px) {
+  /* The narrowest step of the page rhythm: two blocks meet at 48px. This block
+     comes after the 760px one, so it is the value in force at 390px; see the note
+     on the 760px media query above for why both are written out. */
+  .section,
+  .search-layout,
+  .detail-grid,
+  .registration-layout,
+  .site-footer {
+    padding-top: var(--space-5);
+  }
+  .section { padding-bottom: var(--space-5); }
+  .section--impact.section { padding-bottom: var(--space-5); }
+  .search-layout { padding-bottom: var(--space-5); }
   .container, .site-header__inner, .hero__inner, .site-footer__inner { padding-inline: var(--space-4); }
   /* The note band matches the header's own gutter at this width, so its right
      edge stays under the theme button and its left edge under the brand. */
