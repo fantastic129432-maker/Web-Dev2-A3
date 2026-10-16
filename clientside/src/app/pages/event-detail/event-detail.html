@@ -5,15 +5,30 @@
      also returns every registration for the event, newest purchase first.
      ================================================================== -->
 
-<div class="container">
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <ol>
-      <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
-      <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
-      <li aria-current="page">{{ event()?.eventName || ('event.breadcrumb' | t) }}</li>
-    </ol>
-  </nav>
-</div>
+<!--
+  THE BREADCRUMB IS NO LONGER THE FIRST THING ON THIS PAGE - IT IS THE FIRST
+  LINE OF THE TITLE BLOCK, INSIDE THE HERO.
+
+  WHAT THIS REPLACES. The trail used to be a `.container` of its own here, above
+  everything else: a standalone strip whose 24px top margin held the hero (the
+  page's header band) 46.52px below the sticky header at 1920x1080, and whose
+  own line then sat 82.12px above the event's <h1> - the hero's 32px of top
+  padding plus the badge/price row between them. The review's header standard
+  asks for the trail directly above the page's main title with about 8px, and
+  this page has no tinted banner to fold it into, so the hero is treated as the
+  band it already is and the trail moved inside it.
+
+  WHERE IT LIVES NOW. Inside `.event-hero`, in the title column, immediately
+  before the <h1> - see the markup below the badge/price row. `.breadcrumb` in
+  clientside/src/styles.css carries the shared spacing (nothing above, 8px
+  below) and the measured contrast of the trail on the hero's own surface, which
+  is not the tinted banner the other two pages measure it on.
+
+  WHAT THE OTHER BRANCHES SHOW. The trail renders in the event branch only, the
+  same choice register.html documents for its own banner: the loading and error
+  screens below have no title for a trail to sit above, and the error panel
+  already carries its two ways out (Back home / Search for another event).
+-->
 
 <div aria-live="polite">
   @if (state().loading) {
@@ -113,6 +128,33 @@
                 </button>
               }
             </div>
+
+            <!--
+              THE BREADCRUMB, DIRECTLY ABOVE THE TITLE.
+
+              It is the last thing before the <h1>, and `.breadcrumb` gives it
+              8px below and nothing above, so the badge/price row's own 12px
+              bottom margin is the whole gap between that row and the trail.
+              The badge/price row stays where it was and above the trail: it is
+              the hero's status and action bar - the state badge, the category,
+              the price and the "Get tickets" link that the comment on that row
+              explains is deliberately on the first screen - and moving it below
+              the title would change what the hero shows first, which this round
+              was told not to do.
+
+              The structure is the one the other two pages use: a `nav` with an
+              accessible name, an ordered list, a link to each ancestor and
+              `aria-current="page"` on the event's own name. The name comes from
+              `current`, the alias the branch above binds, so the trail names
+              exactly the event the <h1> does.
+            -->
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+              <ol>
+                <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
+                <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
+                <li aria-current="page">{{ current.eventName }}</li>
+              </ol>
+            </nav>
 
             <h1>{{ current.eventName }}</h1>
             <p class="event-hero__lead">{{ current.shortDescription }}</p>

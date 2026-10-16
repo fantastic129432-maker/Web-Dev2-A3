@@ -270,13 +270,24 @@
         then the sort control with the "chosen sort order" line - which spent about
         74px of vertical space between the heading and the first card for nothing
         (measured: the header block was 106.8px tall and the first card started at
-        y=484; it is now one 32.8px row and the first card starts at y=410).
+        y=484; it is now one 32.8px row and the first card started at y=410).
         `.results-head` is `justify-content: space-between; align-items: center`
         (section 8 of styles.css), so the heading and the control share one line and
         the cards start higher; on a narrow screen the same two elements wrap back
         onto separate lines rather than being squeezed. The measured wrap width per
         language, and the height and first-card position before and after, are
         recorded with the `.results-head` rule.
+
+        THE CARD'S POSITION HAS MOVED TWICE SINCE THAT MEASUREMENT, and the second
+        of those moves is the one this file now owns: the top padding of the
+        `.search-layout` grid below is 48px down to 24px, this round's band gap. The
+        page banner's own round took the other 52px off. The first card is at
+        y=329.98 at 1920x1080, 1366x768 and 1440x900 alike - the content column is
+        capped at 1180px, so the three render an identical column - which is 30.55%
+        of a 1080p viewport, inside the top third the review asked for. The gap from
+        the banner's bottom edge to this heading is 27.89px, and 24px to the
+        `.results-head` row the heading sits in; see `.search-layout` in
+        clientside/src/styles.css for why those are two different numbers.
 
         THE COUNT IS A LABELLED QUANTITY INSIDE THE HEADING, NOT A FLOATING NUMBER.
         It used to be a second element in this row rendering `{{ results().total }}`

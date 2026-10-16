@@ -843,20 +843,56 @@ textarea {
 /*
  * The breadcrumb.
  *
- * IT HAS TWO PLACEMENTS AND THEY DO NOT WANT THE SAME SPACING.
- *   * Inside the page banner - `.page-header` on /search and /register/:id - it
- *     is the banner's FIRST line, so it must contribute no margin above itself:
- *     the banner's own padding is the whole gap between the sticky header and
- *     this line. The 24px top margin the rule below carries is what made the
- *     tinted band read as a box with a white strip over it, and the rule after
- *     it replaces that margin with a small gap BELOW the line, before the
- *     eyebrow or the title.
- *   * On the event detail page it still stands alone, directly under the sticky
- *     header and above the event hero, and it keeps the top margin that holds it
- *     off the header. That page has no `.page-header` banner to fold the
- *     breadcrumb into - its band is `.event-hero`, the illustrated hero that
- *     carries the event's own name, illustration and fact tiles rather than a
- *     title block - so this is the rule it uses and it is deliberately kept.
+ * ONE PLACEMENT AND ONE SPACING, ON ALL THREE PUBLIC PAGES THAT SHOW A TRAIL.
+ *   /search, /register/:id and /events/:id each put the trail INSIDE the page's
+ *   header band - the tinted `.page-header` on the first two, the white
+ *   `.event-hero` on the third - and all three want the same two numbers:
+ *   nothing above it, because the band's own padding is the whole gap between
+ *   the sticky header and this line, and the review's standard 8px below it,
+ *   before whatever the band puts next. That is --space-2, and it is what the
+ *   three pages now measure.
+ *
+ * WHAT IT REPLACES, AND WHY.
+ *   The rule used to carry `margin: var(--space-5) 0 0` - a 24px top margin -
+ *   because the trail once stood alone in a `.container` of its own, above the
+ *   page's band. On the two banner pages that margin is what made the tinted
+ *   band read as a box with a white strip over it, and an override gave them
+ *   `margin: 0 0 var(--space-3)`: no margin above, 12px below.
+ *   /events/:id kept the standalone placement and the 24px margin, on the
+ *   argument that its band is `.event-hero`, the illustrated hero that carries
+ *   the event's own name, illustration and fact tiles rather than a title block.
+ *   The header standard settled it the other way. A tinted banner is optional,
+ *   so none was invented there; the hero IS that page's page header, and the
+ *   trail belongs directly above the title it names. It now sits inside the
+ *   hero, immediately above the event's <h1>, with the same 0 above and 8px
+ *   below. Measured on /events/2 at 1920x1080 in English, the distance from the
+ *   trail's bottom edge to the <h1> was 82.12px - the hero's 32px of top
+ *   padding plus the badge/price row's own 38.12px and its 12px bottom margin -
+ *   and it is 8px now. The trail also stops pushing the band down: it used to
+ *   hold the hero's top edge 46.52px below the sticky header (24px of margin
+ *   plus its own 22.52px line), and inside the hero it costs the band's content
+ *   30.52px instead, so the hero starts at the header's bottom edge and the
+ *   whole page gains 16px before the 24px the band gap gives back below.
+ *
+ *   THE GAP BELOW THE LINE IS 8px AND NOT THE OLD 12px, because 8px is the
+ *   figure the standard names and the three pages are meant to match. The trail
+ *   is not always the element directly above the title: on /register/:id the
+ *   banner's own eyebrow sits between them, so there the 8px runs from the
+ *   trail to the eyebrow and the title follows the eyebrow's own --space-2
+ *   margin. That is the banner's documented order - breadcrumb, eyebrow, title,
+ *   subtitle - and it is the one rule on the register page the standard cannot
+ *   put a single 8px number on.
+ *
+ * THE COLOUR PAIR, MEASURED, ON BOTH BACKGROUNDS IT NOW SITS ON. This 14.08px
+ * text is held to 4.5:1. On the tinted banner's --brand-100 (measured on
+ * /register/2 at 1920x1080) the trail reads 8.30:1 in the light theme and
+ * 7.99:1 in the dark one and its links 4.51:1 and 5.05:1 - the pair /search has
+ * always shown. On the event hero's --surface-0 the same two are 9.50:1 and
+ * 10.71:1 for the trail and 5.16:1 and 6.77:1 for the links. All eight are
+ * above the minimum.
+ *
+ * --ink-700 rather than --ink-500 in the colour below, because the lighter grey
+ * measured 4.3:1 on the tinted banner.
  */
 .breadcrumb {
   font-size: 0.88rem;
@@ -864,21 +900,10 @@ textarea {
      breadcrumb it sits on the tinted page banner, where the lighter grey
      measured 4.3:1. */
   color: var(--ink-700);
-  margin: var(--space-5) 0 0;
+  margin: 0 0 var(--space-2);
 }
 .breadcrumb ol { display: flex; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
 .breadcrumb li + li::before { content: "/"; margin-right: var(--space-2); color: var(--ink-300); }
-
-/*
- * The breadcrumb inside the banner: first line, no margin above it, a --space-3
- * (12px) gap below it. Measured on /register/2 at 1920x1080 with the banner's
- * --brand-100 behind it, the trail measures 8.30:1 and its links 4.51:1 in the
- * light theme, 7.99:1 and 5.05:1 in the dark one - the same pair /search has
- * always shown, both above the 4.5:1 this 14.08px text is held to.
- */
-.page-header .breadcrumb {
-  margin: 0 0 var(--space-3);
-}
 
 /* ==========================================================================
    6. Home page
@@ -1228,18 +1253,25 @@ textarea {
  * and a token here would have been an alias for a number nobody else uses.
  *
  * MEASURED, at 1920x1080 against the build this rule ships in, both themes and
- * all four languages. /search's band went from 247.89px to 195.89px tall: the
- * 24px of breadcrumb margin above its first line is gone and the block ends 4px
- * higher above and 12px higher below, so the filter card under it starts 52px
- * further up the page (361.2px -> 309.2px). /register/2's band went from
- * 227.94px to 222.45px - it gives up the same 40px of padding but takes the
- * breadcrumb on as its first line (22.52px plus the 12px gap the rule above
- * sets), so the band itself is only 5.49px shorter while the registration card
- * below it moves up 116px (403.77px -> 287.77px). That 116px is the 110.52px
- * separator strip plus the 40px of padding, less the 34.52px the breadcrumb and
- * its gap now cost inside the band. See the banner block in register.html for
- * the whole chain, and the `.breadcrumb` rules above for the colours that were
- * re-measured on this background.
+ * all four languages. /search's band went from 247.89px to 191.89px tall: the
+ * 24px of breadcrumb margin above its first line is gone, 28px came off the top
+ * padding, 12px off the bottom one, and a further 4px came off the gap below
+ * the trail when the standard's 8px replaced the 12px this rule's own override
+ * used to set (see `.breadcrumb` above). /register/2's band went from 227.94px
+ * to 218.46px - it gives up the same 40px of padding but takes the breadcrumb on
+ * as its first line (22.52px plus the 8px gap the rule above sets), so the band
+ * itself is only 9.48px shorter while the registration card below it moves up
+ * 120px (403.77px -> 283.77px). That 120px is the 110.52px separator strip plus
+ * the 40px of padding, less the 30.52px the breadcrumb and its gap now cost
+ * inside the band. See the banner block in register.html for the whole chain,
+ * and the `.breadcrumb` rules above for the colours that were re-measured on
+ * this background.
+ *
+ * THE BAND GAP UNDER THIS BAND is a separate rule and a separate measurement:
+ * the 48px of `.search-layout` padding below it was this round's second named
+ * defect and is 24px now, so the filter card and the results heading start
+ * 281.2px down the page rather than the 309.2px the padding above left them at
+ * (was 361.2px before either change). See `.search-layout` below.
  */
 .page-header {
   background: var(--brand-100);
@@ -1249,12 +1281,52 @@ textarea {
 .page-header h1 { margin-bottom: var(--space-2); }
 .page-header p { color: var(--ink-700); max-width: 70ch; margin: 0; }
 
+/*
+ * The two-column filter/results layout, and the FIRST of the three band gaps
+ * this round tightened.
+ *
+ * WHY THE TOP PADDING IS NOW --space-5 AND NOT --space-7
+ *   It was `var(--space-7) 0`, 48px above and below, and the 48px on top was
+ *   the whole distance from the bottom edge of the tinted `.page-header` band to
+ *   the "Matching events" heading: the heading is the first child of
+ *   `.results-head`, whose own margin is `0 0 var(--space-4)`, so nothing else
+ *   contributed to that gap. The review called it "section rhythm" and left it
+ *   in place when the band's own padding came down to 20px; it is what still
+ *   pushed the first row of cards into the lower half of a 1080p screen.
+ *   --space-5 (24px) is the standard's figure for the distance from a page's
+ *   header band to its main content.
+ *
+ *   MEASURED at 1920x1080 in the light theme, both before and after, on the
+ *   built pages. The banner's bottom edge was 261.2px down and is 257.2px down
+ *   (the trail's own gap shrank by 4px in the same round - see `.breadcrumb`
+ *   above); the `.results-head` row began 48px below the band and now begins
+ *   24px below it, and the heading inside that row (a flex row with
+ *   `align-items: center`, so the 25px heading is centred in a 32.78px row and
+ *   starts 3.89px into it) goes from 51.89px to 27.89px below the band. The
+ *   first `app-event-card` moves up by 28px in all - the 24px here plus the 4px
+ *   the trail gave back above - from y=357.98 to y=329.98: 33.15% of the
+ *   viewport to 30.55%, so the first card is inside the top third of a 1080p
+ *   screen. The filter card moves with it, from 309.2 to 281.2.
+ *
+ * WHY THE BOTTOM PADDING IS STILL --space-7
+ *   The 48px below the layout is the run-up to the footer, and the footer adds
+ *   its own 64px margin (`--space-8`) on top of it. Nothing the review measured
+ *   is in that gap, and the rule being applied here is about the space ABOVE
+ *   the content, so the bottom keeps the roomier value it had.
+ *
+ * WHY THE PADDING IS ON THE LAYOUT RATHER THAN ON THE RESULTS COLUMN
+ *   Both columns are children of this grid, and `align-items: start` puts their
+ *   top edges on the same line: the filter card and the results heading begin
+ *   24px below the band together, which is what keeps the filter column level
+ *   with the results it filters. A negative margin or a padding on the results
+ *   column alone would have moved one column off the other's top line.
+ */
 .search-layout {
   display: grid;
   grid-template-columns: 330px 1fr;
   gap: var(--space-6);
   align-items: start;
-  padding: var(--space-7) 0;
+  padding: var(--space-5) 0 var(--space-7);
 }
 
 /*
@@ -1439,10 +1511,17 @@ textarea:focus { border-color: var(--brand-500); }
  * 107px between the top of the heading and the top of the first card on the search
  * page. Measured before/after in headless Edge against the running build, both
  * themes, all four languages: the header block went from 106.8px (row boxes 42 +
- * 48.8) to 32.8px, the first `app-event-card` started at y=484 on a 1366x768
- * window and starts at y=410, and at 1440x900 it moved from 484 to 410 by the same
- * 74px - the content column is capped at 1180px, so those two viewport widths
- * render an identical column.
+ * 48.8) to 32.8px and the first `app-event-card` moved from y=484 to y=410 on a
+ * 1366x768 window, and at 1440x900 by the same 74px - the content column is capped
+ * at 1180px, so those two viewport widths render an identical column.
+ *
+ * THE CARD HAS MOVED TWICE MORE SINCE, and neither move is this rule's doing: the
+ * page banner above gave up 52px of padding and its breadcrumb strip in the round
+ * that took it to 20px, which left the card at y=357.98, and this round's band gap
+ * (`.search-layout`'s top padding, 48px -> 24px, plus the 4px the trail's own gap
+ * gave back) put it at y=329.98. Re-measured at 1366x768 and 1440x900 after that
+ * change: y=329.98 at both, still identical, still in the top third of a 1080p
+ * screen at 30.55%.
  *
  * WHY center AND NOT baseline
  * `align-items: center` lines the two children up by their middles. The old
@@ -1515,6 +1594,25 @@ textarea:focus { border-color: var(--brand-500); }
 /* ==========================================================================
    9. Event detail page
    ========================================================================== */
+/*
+ * THE EVENT HERO IS THIS PAGE'S PAGE HEADER, and the second of the three band
+ * gaps this round left alone - deliberately.
+ *
+ * WHY IT IS A HEADER AND NOT A TINTED BANNER. /events/:id carries no
+ * `.page-header`: its band is this one, an illustrated hero holding the event's
+ * own name, lead, seven fact tiles and illustration, with the breadcrumb line
+ * inside it directly above the <h1> (see the `.breadcrumb` rules above). The
+ * standard makes a tinted banner optional, so none was invented here; the band
+ * is what a visitor reads as the page's header, and it is spaced like one.
+ *
+ * WHY ITS OWN PADDING IS UNCHANGED. `var(--space-6) 0 var(--space-7)` - 32px
+ * above, 48px below - is the hero's own internal spacing, and the brief for this
+ * round protects exactly that on this page. The 48px below the fact tiles is
+ * therefore NOT part of the band gap that was fixed: the fact grid's own 24px
+ * bottom margin and this 48px of padding sit between the last tile and the band's
+ * bottom edge, and both stay. What the band gap consisted of is on `.detail-grid`
+ * below, which is where the standard's 24px now lives.
+ */
 .event-hero {
   background: var(--surface-0);
   border-bottom: 1px solid var(--line);
@@ -1663,11 +1761,40 @@ textarea:focus { border-color: var(--brand-500); }
   scroll-margin-top: 110px;
 }
 
+/*
+ * The prose/sidebar grid, and the THIRD band gap: the space between the event
+ * hero above and the "About this event" heading that opens the prose column.
+ *
+ * WHY THIS PADDING WAS THE WHOLE GAP. The hero's own bottom padding (--space-7,
+ * 48px) is inside the band and is protected, so the distance from the band's
+ * bottom edge to the heading was exactly this rule's top padding: the heading is
+ * `.prose h2:first-child`, and that selector sets `margin-top: 0` (see `.prose`
+ * below), so no margin of its own added to it. It was 48px and the standard asks
+ * for about 24px; --space-5 is that figure.
+ *
+ * MEASURED at 1920x1080 in English, before and after. From the hero's bottom
+ * edge to the heading: 48px -> 24px. From the last fact tile in the hero to the
+ * heading - the band a visitor actually sees as white, because the hero's
+ * background is --surface-0 in both themes - 121.01px -> 97.01px; the remaining
+ * 73px are the fact grid's own 24px bottom margin, the hero's 48px bottom
+ * padding and the band's 1px border, all of which this round was told to keep.
+ * The heading itself moves from y=835.41 to y=795.41 of a 1080px window: 24px
+ * from this rule and 16px more because the breadcrumb no longer holds the hero
+ * down (see the `.breadcrumb` rules above). In the other three languages the
+ * same two changes measure identically - zh 855.17 -> 815.17, vi 884.03 ->
+ * 844.03, ja 908.34 -> 868.34 - because nothing here depends on the length of a
+ * translated string.
+ *
+ * WHY THE BOTTOM PADDING IS STILL --space-7
+ * The 48px below the grid is the run-up to the footer, which adds its own 64px
+ * margin on top of it. The rule being applied is about the space above the
+ * content, so the bottom keeps the roomier value it had.
+ */
 .detail-grid {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: var(--space-7);
-  padding: var(--space-7) 0;
+  padding: var(--space-5) 0 var(--space-7);
 }
 
 /*
