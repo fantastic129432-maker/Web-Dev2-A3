@@ -454,9 +454,11 @@ function describeFilters(filters: EventFilters): DataRecord {
 /**
  * The service's public surface.
  *
- * The query builders and listings are used by the event and admin controllers;
- * the four ALLOWED_* lists are exported so the tests and the API directory can
- * state the same rule the validator enforces, rather than repeating the values.
+ * The query builders and listings are used by the event and admin controllers.
+ * The four ALLOWED_* lists above stay module-private: they are the values the
+ * validator enforces and the wording of each 400 message is built from them, so
+ * there is exactly one definition of each accepted word. The tests state the
+ * same rules through the HTTP responses rather than by importing the lists.
  */
 export = {
   buildQuery,

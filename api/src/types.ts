@@ -305,9 +305,6 @@ export interface Repository
   /** The merged object always publishes the registration reads. */
   registrationQueries: RegistrationQueries;
 
-  /** The write half, also exported on its own for the unit tests. */
-  writes: EventWriteRepository;
-
   /**
    * Restore the seeded offline data.
    *

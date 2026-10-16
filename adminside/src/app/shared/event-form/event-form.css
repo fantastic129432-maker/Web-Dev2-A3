@@ -275,8 +275,7 @@
      input instead of 57.59px, in all four languages, both themes and at 1440,
      1366 and 1100px, with the switch ticked and unticked. */
   .admin-form input[type='date'],
-  .admin-form input[type='time'],
-  .admin-form input[type='number'] {
+  .admin-form input[type='time'] {
     max-width: 13rem;
   }
 
@@ -440,14 +439,8 @@
 }
 
 /* A little more air between the checkbox block and the fields it governs. */
-.free-toggle + .form-row,
-.free-toggle + .ticket-rows,
-.free-toggle + .banner {
+.free-toggle + .form-row {
   margin-top: var(--space-2);
-}
-
-.ticket-rows__caption + .ticket-row {
-  margin-top: 0;
 }
 
 /* ==========================================================================

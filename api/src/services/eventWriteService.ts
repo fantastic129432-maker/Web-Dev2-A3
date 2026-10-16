@@ -382,10 +382,11 @@ function parseEventId(rawId: string | number): number {
 /**
  * The service's public surface.
  *
- * The three write operations are used by the admin controller; the two
- * validators and `parseEventId` are exported so the tests can exercise a rule
- * without going through Express, and the two constant lists are exported so the
- * tests and the admin form refer to the same values the validator enforces.
+ * The three write operations are used by the admin controller. The validators
+ * (`validateEventBody`, `validateTicketType`), `parseEventId` and the two
+ * constant lists above stay module-private: they are the values the validator
+ * enforces and the two websites read their own copies of those values from
+ * @charity/shared/config/app-config instead.
  */
 export = {
   createEvent,

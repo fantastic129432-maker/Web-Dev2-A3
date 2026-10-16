@@ -28,7 +28,6 @@
   --brand-100: #e3f3f0;
   --accent-600: #d97a1a;
   --accent-500: #f0a04b;
-  --accent-100: #fdf1e3;
 
   /* Foreground for text placed on a bright accent fill (the filled buttons,
      the category chip, the upcoming badge). Defined per theme on purpose: a
@@ -195,7 +194,6 @@
   --brand-100: #123b36;
   --accent-600: #e08a2e;
   --accent-500: #f0a04b;
-  --accent-100: #3a2a16;
 
   /* On a bright teal or amber fill, deep ink reads; white does not. */
   --on-brand: #06201d;
@@ -950,7 +948,6 @@ textarea {
   line-height: 1.2;
   margin: 0 0 var(--space-2);
 }
-.site-footer h3 + h3 { margin-top: var(--space-5); }
 .site-footer p { color: #b9d8d2; font-size: 0.92rem; line-height: 1.6; margin: 0 0 var(--space-3); }
 .site-footer ul { list-style: none; padding: 0; margin: 0; }
 .site-footer li { margin-bottom: var(--space-2); line-height: 1.6; }
@@ -2443,7 +2440,7 @@ textarea:focus { border-color: var(--brand-500); }
  */
 .fact-list { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: grid; gap: var(--space-3); }
 .fact-list li { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); font-size: 0.95rem; }
-.fact-list dt, .fact-list__label { color: var(--ink-500); font-weight: bold; }
+.fact-list__label { color: var(--ink-500); font-weight: bold; }
 .fact-list__value { color: var(--ink-900); }
 
 /*
@@ -2691,7 +2688,6 @@ textarea:focus { border-color: var(--brand-500); }
   transition: width 0.8s ease;
 }
 .progress__amounts { margin: var(--space-3) 0 0; font-size: 0.9rem; color: var(--ink-700); }
-.progress__amounts strong { color: var(--brand-900); font-size: 1.05rem; }
 .progress__meta { margin: var(--space-1) 0 0; font-size: 0.8rem; color: var(--ink-700); }
 .progress--compact .progress__header { font-size: 0.78rem; }
 .progress--compact .progress__track { height: 8px; }
@@ -2719,9 +2715,6 @@ textarea:focus { border-color: var(--brand-500); }
 }
 .ticket__availability { display: block; font-size: 0.78rem; color: var(--ink-500); font-weight: normal; }
 
-
-.registration-form { margin-top: var(--space-5); border-top: 1px dashed var(--line); padding-top: var(--space-5); }
-.registration-form h3 { margin-bottom: var(--space-2); }
 /*
  * Two side-by-side fields (the From/To date pair on the search page and the
  * name/email pair on the registration form).
@@ -3125,8 +3118,6 @@ textarea:focus { border-color: var(--brand-500); }
   gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
-
-.registration-summary h3 { margin-bottom: var(--space-2); }
 
 .registration-summary .fact-list { margin: var(--space-3) 0; }
 

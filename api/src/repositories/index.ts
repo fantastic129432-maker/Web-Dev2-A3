@@ -135,9 +135,6 @@ repository.resetLocalData = function resetLocalData(): boolean {
   return true;
 };
 
-/** The write half, exported on its own for the unit tests. */
-repository.writes = writes;
-
 /**
  * The merged repository, and the only thing this module exports.
  *

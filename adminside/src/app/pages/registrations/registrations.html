@@ -220,7 +220,7 @@
   -->
   <nav class="admin-pager" [attr.aria-label]="'registrations.pagination' | t">
     <button
-      class="button button--small button--outline admin-pager__step"
+      class="button button--small button--outline"
       type="button"
       [disabled]="currentPage() === 1"
       (click)="goToPage(currentPage() - 1)"
@@ -246,7 +246,7 @@
     </ul>
 
     <button
-      class="button button--small button--outline admin-pager__step"
+      class="button button--small button--outline"
       type="button"
       [disabled]="currentPage() === pageCount()"
       (click)="goToPage(currentPage() + 1)"
