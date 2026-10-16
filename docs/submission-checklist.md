@@ -222,12 +222,15 @@ The public site is the `clientside` Angular application. Its routes are `/`,
 - [ ] The hero also shows "Tickets sold so far"
 - [ ] An event with no registrations (for example event 9) shows a sensible empty
       state rather than an empty table
-- [ ] **Optional weather panel**: it appears for an upcoming event with
-      coordinates (for example event 1) and shows the date, the summary, the
-      temperature range and the rain chance
-- [ ] The weather panel is **absent**, with no console error, for: the online
-      venue (event 8, no coordinates), an event more than 16 days away, a past
-      event, and with the machine offline
+- [ ] **Optional weather panel**: it is present on **every** event page. For an
+      upcoming event with coordinates inside the 16-day window it shows the date,
+      the summary, the temperature range and the rain chance
+- [ ] Where a forecast is impossible the same panel explains why, in the visitor's
+      language and with no console error: the online venue (no coordinates), an
+      event more than 16 days away, a past event - and, with the machine offline,
+      "no forecast is available" instead of silence. None of those states uses the
+      error styling, and the panel is genuinely absent only on the error branch
+      (an id that does not resolve, such as the suspended event)
 
 ## D. Admin-side website (Part 4)
 
@@ -320,9 +323,9 @@ and the catch-all 404.
 - [ ] The deployed public site opens, loads events and can register someone
 - [ ] The deployed admin site lists the suspended event and can create, update
       and delete
-- [ ] The event page's optional weather panel either works or is hidden silently
-      on the deployed site (an external API may be blocked on a shared host; that
-      must not break the page)
+- [ ] The event page's optional weather panel either works or explains itself
+      quietly on the deployed site (an external API may be blocked on a shared
+      host; that must not break the page, and the panel must not read as an error)
 - [ ] Both deployed sites were opened in a **private browser window**, so nothing
       depends on a local session
 - [ ] The URLs to submit are written down, ready to paste into the submission
@@ -347,9 +350,12 @@ Run everything from the project root.
       `.html` template and a doc comment per component, no cross-application
       imports, both applications importing `shared/`, the early-theme script in
       both `index.html` files, and a TypeScript-only API that compiles to `dist/`
-- [ ] `npm run check:translations` prints `9 checks passed`, with **290** keys in
-      each of the four client languages and **249** in each of the four admin
-      languages, and every key the templates ask for present
+- [ ] `npm run check:translations` prints `10 checks passed`, with **298** keys in
+      each of the four client languages and **250** in each of the four admin
+      languages, and every key the templates ask for present. The tenth check is
+      `tools/check-template-literals.mjs`: it fails when a user-facing word is
+      written into a template instead of resolved from a dictionary, which the
+      key-based checks cannot see
 - [ ] `npm run check:shared` type-checks `shared/` on its own with no errors
 - [ ] `npm run check:refs`, `npm run check:secrets` and `npm run check:encoding`
       are clean

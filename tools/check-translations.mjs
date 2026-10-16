@@ -1,7 +1,7 @@
 /**
  * tools/check-translations.mjs
  * ---------------------------------------------------------------------------
- * Two checks that a language switcher can only be as good as:
+ * Three checks that a language switcher can only be as good as:
  *
  *   1. COMPLETENESS - the four dictionaries of a website define exactly the same
  *      keys. A missing key silently falls back to English, so without this check
@@ -10,6 +10,14 @@
  *   2. USAGE - every key a template or component asks for actually exists. A typo
  *      in `t('nav.hom')` renders "nav.hom" on the page. That is easy to introduce
  *      during a migration and impossible to spot by reading 300 keys.
+ *
+ *   3. LITERALS - no user-facing word is written into a template at all. Checks 1
+ *      and 2 are both statements about KEYS, and a template that asks for no key
+ *      satisfies both while staying English in every language: `<h2>About this
+ *      event</h2>` and `aria-label="Breadcrumb"` are invisible to them. The scan
+ *      itself lives in tools/check-template-literals.mjs, next to the exemption
+ *      list it needs; this file runs it so the three are counted and reported as
+ *      one suite.
  *
  * The dictionaries moved to TypeScript
  * (shared/src/i18n/client-translations.ts and admin-translations.ts) when the
@@ -24,6 +32,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runTemplateLiteralCheck } from './check-template-literals.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -332,6 +342,11 @@ check(
   translationService.includes('storageKeys.language') && translationService.includes('APP_CONFIG'),
   'both applications use APP_CONFIG.storageKeys.language'
 );
+
+// The third check: the words themselves. It belongs here rather than in the two
+// dictionary sections above because it is about BOTH applications' templates at
+// once, and because a literal in either one is the same defect.
+runTemplateLiteralCheck(check);
 
 /* ===================================================================== */
 

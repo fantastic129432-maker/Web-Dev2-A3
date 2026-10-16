@@ -19,9 +19,15 @@
  *   The forecast is a bonus. A venue with no coordinates ("Online"), an event
  *   too far ahead for a reliable daily forecast, a machine with no internet, or
  *   Open-Meteo being slow must NOT break the event page. Every failure path
- *   resolves to `null` and the UI simply shows nothing - see
- *   canShowForecast() for the two conditions that must hold before a request is
- *   even attempted.
+ *   resolves to `null`, so the visitor never meets an error.
+ *
+ *   "Resolves to null" is NOT "says nothing", though. The event page keeps the
+ *   weather module on EVERY event, so a visitor who sees no forecast is told
+ *   why: forecastUnavailableReason() is the one place that decides which of
+ *   those cases applies (past event, venue without coordinates, unreadable date,
+ *   date beyond the forecast window), and canShowForecast() is now just
+ *   "that answered null". Keeping the two together is what stops the page and
+ *   the service from disagreeing about whether a request should even be made.
  */
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
@@ -44,6 +50,22 @@ interface OpenMeteoResponse {
 }
 
 /**
+ * Why an event cannot have a forecast, for a panel that has to say so.
+ *
+ * The four cases are the honest answers to "why is there no forecast here?", and
+ * the event page renders one translated sentence per case. They are a union
+ * rather than free text so the reason cannot drift into an English sentence
+ * inside the shared library, where no dictionary could translate it.
+ *
+ *   noCoordinates   the venue publishes no latitude/longitude ("Online")
+ *   noDate          the event carries no readable YYYY-MM-DD date, or no target
+ *                   was handed over at all
+ *   past            the day has gone; what the weather WAS helps nobody
+ *   beyondHorizon   the day is further ahead than the daily forecast reaches
+ */
+export type ForecastUnavailableReason = 'noCoordinates' | 'noDate' | 'past' | 'beyondHorizon';
+
+/**
  * Fetch the daily forecast for an event, from the browser.
  *
  * The forecast is a bonus, so this service is deliberately quiet: every failure
@@ -57,14 +79,48 @@ export class WeatherService {
   private readonly http = inject(HttpClient);
 
   /**
+   * Why a forecast cannot be shown for this event, or null when one can.
+   *
+   * The conditions are tested in the order `noCoordinates`, `noDate`, `past`,
+   * `beyondHorizon`, and the order is deliberate where two of them are true at
+   * once - an event that is both past AND held at a venue without coordinates
+   * reports `noCoordinates`, because that is the fact about the EVENT, while "it
+   * is over" is a fact about the calendar. The seeded "Move for Climate Virtual
+   * Challenge" is exactly that pair the other way round (no coordinates and far
+   * ahead), and it reports `noCoordinates` for the same reason: the Online
+   * pseudo-venue can never have a local forecast, however close the date gets.
+   *
+   * `noDate` is the fallback for a target that cannot be asked about at all - a
+   * missing object, or a date that is not `YYYY-MM-DD`. It is rare against the
+   * database (the column is NOT NULL) but reachable from the admin form's draft
+   * and from a malformed row, and it must not be reported as one of the other
+   * three: "the event is beyond the forecast window" would be a lie.
+   *
+   * @param target - The event, or the draft an administrator is still filling in. May be
+   *   null or undefined.
+   * @returns The reason, or null when a request is worth making.
+   */
+  forecastUnavailableReason(
+    target: WeatherTarget | null | undefined
+  ): ForecastUnavailableReason | null {
+    if (!target) return 'noDate';
+    if (!Number.isFinite(target.latitude) || !Number.isFinite(target.longitude)) {
+      return 'noCoordinates';
+    }
+
+    const offset = daysUntil(target.eventDate ?? target.dateStart);
+    if (offset === null) return 'noDate';
+    if (offset < 0) return 'past';
+    if (offset > APP_CONFIG.weatherForecastDays) return 'beyondHorizon';
+    return null;
+  }
+
+  /**
    * Decide whether a forecast can be shown for this event at all.
    *
-   * Two conditions must hold:
-   *   * the venue must have coordinates (the "Online" pseudo-venue has none),
-   *   * the event date must be inside Open-Meteo's daily forecast window.
-   *
-   * A past event gets no forecast: there is nothing useful in telling a visitor
-   * what the weather was.
+   * Kept as the yes/no form of forecastUnavailableReason() for the callers that
+   * only need to branch (and for the admin preview, which has its own
+   * "nothing chosen yet" state), so the rule itself lives in exactly one place.
    *
    * @param target - The event, or the draft an administrator is still filling in. May be
    *   null or undefined, in which case no forecast is possible.
@@ -72,11 +128,7 @@ export class WeatherService {
    *   coordinates, no usable date, a past date or a date beyond the forecast window.
    */
   canShowForecast(target: WeatherTarget | null | undefined): boolean {
-    if (!target) return false;
-    if (typeof target.latitude !== 'number' || typeof target.longitude !== 'number') return false;
-    const offset = daysUntil(target.eventDate ?? target.dateStart);
-    if (offset === null) return false;
-    return offset >= 0 && offset <= APP_CONFIG.weatherForecastDays;
+    return this.forecastUnavailableReason(target) === null;
   }
 
   /**

@@ -529,7 +529,7 @@ migration tool rather than part of the build.
 ### How the dictionaries are kept honest
 
 `tools/check-translations.mjs` (`npm run check:translations`) parses the
-TypeScript dictionaries and enforces three things:
+TypeScript dictionaries and enforces four things:
 
 1. all four languages are present;
 2. every language defines the same keys (a missing key silently falls back to
@@ -538,7 +538,18 @@ TypeScript dictionaries and enforces three things:
    calls and `'…' | t` pipes from `.ts` and `.html` files. A typo such as
    `t('nav.hom')` would otherwise render the literal string `nav.hom` on the
    page, which is easy to introduce during a migration and impossible to spot by
-   reading 300 keys.
+   reading 300 keys;
+4. **no user-facing word is written into a template at all.** Checks 1 to 3 are
+   statements about KEYS, and a template that asks for no key satisfies every one
+   of them while staying English in all four languages. The scan lives in
+   `tools/check-template-literals.mjs`, which is run by this command; it reads
+   the visible text and the user-facing attributes (`aria-label`, `title`, `alt`,
+   `placeholder`, and a button's `value`) of every `.html` file in both
+   applications, and fails on anything not on its short, hand-written list of
+   intentional literals (an email address, an organisation's name, `km/h`, and
+   the two app shells' pre-boot text). Its own limits - a key that looks like
+   English, a proper noun, a literal built inside an interpolation - are written
+   down in that file rather than left implied.
 
 It also checks the cross-cutting property directly: that
 `translation.service.ts` still reads `APP_CONFIG.storageKeys.language`, so the
@@ -631,12 +642,25 @@ coordinates**: maximum and minimum temperature, the chance of rain, the maximum
 wind, a glyph and a description. When the code means rain, a "bring a coat" hint
 appears next to it.
 
+The panel itself is on **every** event page, including the events that cannot
+have a forecast. It used to be wrapped in `@if (weatherPossible())`, which with
+the seeded data was true for exactly one event - the earliest one, and the only
+one inside Open-Meteo's window - so the other nine pages showed no weather module
+and no explanation, and a visitor could not tell "too far ahead" from "broken".
+The heading is now unconditional and the four reasons are named in the visitor's
+language (`weather.reasonPast`, `weather.reasonNoCoordinates`,
+`weather.reasonNoDate`, `weather.reasonBeyondHorizon`), with the loading line and
+the "we asked and got nothing" note rounding out the states. None of them is an
+error: no `role="alert"`, no error styling, and `aria-live="polite"` so the
+answer replaces the loading line without interrupting the reader.
+
 ### Where the request is made
 
 | Step | Where |
 | --- | --- |
 | The event's `latitude` / `longitude` | `locations.latitude` / `longitude` in MySQL, returned by the event endpoints, typed in `shared/src/models/event.model.ts` |
-| "Can a forecast be shown at all?" | `WeatherService.canShowForecast(target)` |
+| "Can a forecast be shown at all?" | `WeatherService.canShowForecast(target)`, which is now the yes/no form of the reason below |
+| "Why not, exactly?" | `WeatherService.forecastUnavailableReason(target)` - `noCoordinates`, `noDate`, `past` or `beyondHorizon`, a typed union so the reason can never become an English sentence inside the shared library |
 | The request | `WeatherService.forecastFor(target)` in `shared/src/weather/weather.service.ts` |
 | URL, timezone, window | `APP_CONFIG.weatherApiUrl`, `weatherTimezone` (`Australia/Sydney`), `weatherForecastDays` (16) in `shared/src/config/app-config.ts` |
 | WMO code -> text | `weatherCodeKey()` and the `WMO_KEYS` table in `shared/src/weather/weather.model.ts` |
@@ -666,34 +690,41 @@ forecastFor(target: WeatherTarget | null | undefined): Observable<WeatherForecas
 }
 ```
 
-Every failure path collapses to the same quiet outcome:
+Every failure path collapses to the same quiet outcome - a `null` the page never
+turns into an error:
 
 | Situation | What happens |
 | --- | --- |
-| The venue has no coordinates (the "Online (Australia-wide)" pseudo-venue) | `canShowForecast()` is false, so **no request is made at all** |
-| The event is more than 16 days away | No request; Open-Meteo's daily forecast is not reliable that far out, so there is nothing to show |
-| The event is in the past | No request. Telling a visitor what the weather was is not useful |
-| The machine has no internet | `catchError` -> `null`, no panel, no error message |
-| Open-Meteo is slow (> 10 s) | The `timeout` fires -> `catchError` -> `null` |
-| Open-Meteo answers with an unexpected status or non-JSON | `catchError` -> `null` |
+| The venue has no coordinates (the "Online (Australia-wide)" pseudo-venue) | `canShowForecast()` is false, so **no request is made at all**; the panel says the venue has no map coordinates |
+| The event is more than 16 days away | No request; Open-Meteo's daily forecast is not reliable that far out, so the panel says how far ahead the event is |
+| The event is in the past | No request. Telling a visitor what the weather was is not useful; the panel says the event has finished |
+| The event has no readable date | No request; the panel says the date is not confirmed yet |
+| The machine has no internet | `catchError` -> `null`; the panel says no forecast is available, with no error styling and no console error the visitor must read |
+| Open-Meteo is slow (> 10 s) | The `timeout` fires -> `catchError` -> `null`, same note |
+| Open-Meteo answers with an unexpected status or non-JSON | `catchError` -> `null`, same note |
 | The requested day is missing from a shortened response | `toForecast()` looks the day up by date and returns `null` if it is absent |
 
-The event page therefore renders unconditionally and simply shows no forecast
-panel when there is no forecast. **A bonus feature must never be able to break
-the page it decorates** - the registration list, the ticket tiers and the
-progress bar do not depend on Open-Meteo being reachable, which is what makes
-the assessment demonstrable on a machine with no internet.
+The event page therefore renders unconditionally and says **which** of those
+cases applies. **A bonus feature must never be able to break the page it
+decorates** - the registration list, the ticket tiers and the progress bar do not
+depend on Open-Meteo being reachable, which is what makes the assessment
+demonstrable on a machine with no internet.
 
-The two conditions that must hold are checked **before** the request, so an
-ordinary past event costs nothing:
+The reason is checked **before** the request, so an ordinary past event costs
+nothing:
 
 ```ts
-canShowForecast(target): boolean {
-  if (!target) return false;
-  if (typeof target.latitude !== 'number' || typeof target.longitude !== 'number') return false;
+forecastUnavailableReason(target: WeatherTarget | null | undefined): ForecastUnavailableReason | null {
+  if (!target) return 'noDate';
+  if (!Number.isFinite(target.latitude) || !Number.isFinite(target.longitude)) {
+    return 'noCoordinates';
+  }
+
   const offset = daysUntil(target.eventDate ?? target.dateStart);
-  if (offset === null) return false;
-  return offset >= 0 && offset <= APP_CONFIG.weatherForecastDays;
+  if (offset === null) return 'noDate';
+  if (offset < 0) return 'past';
+  if (offset > APP_CONFIG.weatherForecastDays) return 'beyondHorizon';
+  return null;
 }
 ```
 

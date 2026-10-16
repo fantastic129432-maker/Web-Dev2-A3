@@ -27,7 +27,8 @@ export interface Category {
  * The latitude/longitude pair is what makes the forecast possible: Open-Meteo is
  * asked for the weather at exactly these coordinates. "Online (Australia-wide)"
  * deliberately has none, and the event page then shows no forecast rather than a
- * wrong one.
+ * wrong one - it names the missing coordinates as the reason, through
+ * WeatherService.forecastUnavailableReason().
  */
 export interface Venue {
   locationId: number;

@@ -602,10 +602,12 @@ stops it coming back.
    select's value is written before a loop-created option exists, so the first write
    is discarded and the browser shows the first option; fixed by marking the option
    selected, with an invariant-based end-to-end check.)
-9. What happens to the weather panel when Open-Meteo is unreachable? (The section
-   only appears when a forecast is possible; if the request fails it says so in one
-   line rather than loading forever, because the service resolves `null` instead of
-   throwing.)
+9. What happens to the weather panel when Open-Meteo is unreachable? (The section is
+   always there — the heading is unconditional — and it says in one quiet line that no
+   forecast is available. When there could never be one it names the reason instead:
+   the event is past, the venue has no coordinates, the date is unconfirmed, or the
+   event is beyond the 16-day window. The service resolves `null` instead of throwing,
+   so it never loads forever and never shows an error.)
 10. How does the admin delete turn a 409 into something usable? (The response's
     `details` and `suggestion` fields drive a banner, a link to the registrations,
     and a disabled row button — structured data, not a sentence.)

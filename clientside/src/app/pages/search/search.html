@@ -13,7 +13,10 @@
 
 <section class="page-header">
   <div class="container">
-    <nav class="breadcrumb" aria-label="Breadcrumb">
+    <!-- The nav's accessible name is a dictionary key, not the literal word
+         "Breadcrumb" it used to be: a screen reader hears it in the visitor's
+         language, like every other label on the trail. -->
+    <nav class="breadcrumb" [attr.aria-label]="'a11y.breadcrumb' | t">
       <ol>
         <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
         <li aria-current="page">{{ 'search.breadcrumb' | t }}</li>

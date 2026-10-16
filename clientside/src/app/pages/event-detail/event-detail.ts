@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { ApiError } from '@charity/shared/api/api-error';
 import { ApiService } from '@charity/shared/api/api.service';
+import { APP_CONFIG } from '@charity/shared/config/app-config';
 import { TranslationService } from '@charity/shared/i18n/translation.service';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import type { EventDetail, TicketType } from '@charity/shared/models/event.model';
@@ -83,15 +84,23 @@ interface DetailState {
  *   database's timestamp ordering can). The array is rendered in the order it
  *   arrived.
  *
- * WHY THE WEATHER PANEL IS OPTIONAL AND CANNOT FAIL
+ * WHY THE WEATHER PANEL IS ON EVERY EVENT AND CANNOT FAIL
  *   The forecast comes from a third-party API (Open-Meteo) using the venue's
  *   latitude/longitude, which the event response supplies. A venue with no
  *   coordinates ("Online (Australia-wide)"), an event more than 16 days away, or
  *   a machine with no internet must NOT break a page whose real content is the
  *   event. `WeatherService.forecastFor()` resolves `null` for every one of those
- *   cases instead of erroring, and this component simply renders nothing when it
- *   gets `null`. `canShowForecast()` is consulted first so no request is even
- *   attempted for a past event or a venue without coordinates.
+ *   cases instead of erroring, so the visitor never meets an error.
+ *
+ *   Absent is not the same as silent, though, and the panel is no longer
+ *   conditional. It used to be wrapped in `@if (weatherPossible())`, so with the
+ *   seeded data ONLY the earliest event - the single one inside Open-Meteo's
+ *   window - carried a weather module at all, and the other nine event pages had
+ *   no module and no explanation. The heading is now always rendered, and
+ *   `weatherBlock()` names the case so the panel can say which of the four it is
+ *   (past, no coordinates, no readable date, beyond the forecast window) instead
+ *   of showing nothing. `canShowForecast()` is still consulted before a request
+ *   is attempted - through the same reason, so the two cannot disagree.
  *
  * WHY A PAST EVENT SHOWS A DISABLED BUTTON
  *   There is nothing left to book, so a link to the registration form would only
@@ -137,16 +146,31 @@ export class EventDetailPage {
   protected readonly forecastSettled = signal(false);
 
   /**
-   * True when a forecast could be requested at all.
+   * Why this event has no forecast, or null when it has (or may yet have) one.
    *
    * Checked through the service rather than reimplementing the rule (coordinates
    * present AND the date inside Open-Meteo's 16-day window) so this page and the
-   * service can never disagree about whether the panel should exist.
+   * service can never disagree about whether the panel should exist - and so the
+   * sentence the panel shows names the same case the service refused on.
+   *
+   * Null covers TWO situations that the template tells apart with
+   * `forecastSettled()`: the request is still in flight, and it came back with
+   * nothing (Open-Meteo unreachable, or no value for that day).
    */
-  protected readonly weatherPossible = computed(() => {
+  protected readonly weatherBlock = computed(() => {
     const event = this.state().event;
-    return event !== null && this.weather.canShowForecast(event);
+    return event ? this.weather.forecastUnavailableReason(event) : null;
   });
+
+  /**
+   * The forecast window, in days, for the "beyond the horizon" sentence.
+   *
+   * Read from APP_CONFIG rather than typed into the dictionary value, so the
+   * number the visitor is given is the number the rule actually used; a
+   * hard-coded "16" in four translations would be four places to forget when the
+   * window changes.
+   */
+  protected readonly forecastWindowDays = APP_CONFIG.weatherForecastDays;
 
   /** The event, or null. A named accessor keeps the template readable. */
   protected readonly event = computed(() => this.state().event);

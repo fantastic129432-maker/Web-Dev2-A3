@@ -482,7 +482,7 @@ Every script lives in the root `package.json`. They fall into four groups.
 | --- | --- | --- |
 | `npm run check:angular` | `node tools/check-angular-architecture.mjs` | Any break of the required architecture - see section 10 |
 | `npm run check:shared` | `tsc -p tsconfig.shared.json` | A type error in `shared/` that neither application happens to import yet |
-| `npm run check:translations` | `node tools/check-translations.mjs` | Four dictionaries with different key sets, or a template asking for a key that does not exist |
+| `npm run check:translations` | `node tools/check-translations.mjs` | Four dictionaries with different key sets, a template asking for a key that does not exist, or a user-facing word written into a template instead of resolved from a dictionary |
 | `npm run check:refs` | `node tools/audit-references.mjs` | Documentation that names a file, tool or npm script that does not exist |
 | `npm run check:secrets` | `node tools/check-no-secrets.mjs` | A real credential in a tracked file |
 | `npm run check:encoding` | `node tools/find-encoding-damage.mjs` | Text mangled by an encoding round trip |
@@ -518,7 +518,8 @@ install.
 | `start-all.mjs` | Compile the API, build both applications if needed, serve all three ports |
 | `serve-spa.mjs` | A tiny static server for a **built** Angular application that falls back to `index.html` for deep links |
 | `check-angular-architecture.mjs` | The architecture guard - see section 10 |
-| `check-translations.mjs` | Four dictionaries, same keys, and every key a template asks for exists |
+| `check-translations.mjs` | Four dictionaries, same keys, every key a template asks for exists, and no user-facing word written into a template instead of a key (it runs `check-template-literals.mjs`) |
+| `check-template-literals.mjs` | The literal scan itself: fails on visible text or an `aria-label`/`title`/`alt`/`placeholder`/button `value` that came from the template instead of the dictionary. Runnable on its own; its exemption list and its limits are in the file |
 | `check-contrast.mjs` | WCAG AA contrast on every Angular route, in both themes |
 | `audit-references.mjs` | Fails if documentation points at a file that does not exist |
 | `check-no-secrets.mjs` | Refuses to publish a repository containing a real credential |
@@ -580,6 +581,7 @@ shipped to a marker.
 | Piece | Where |
 | --- | --- |
 | The request | `WeatherService.forecastFor(target)` in `shared/src/weather/weather.service.ts` |
+| "Can it be shown, and if not why not?" | `WeatherService.canShowForecast(target)` and `forecastUnavailableReason(target)` in the same file - the reason is a typed union (`past`, `noCoordinates`, `noDate`, `beyondHorizon`), so the page's sentence and the service's rule cannot disagree |
 | The endpoint and window | `APP_CONFIG.weatherApiUrl`, `weatherTimezone` (`Australia/Sydney`), `weatherForecastDays` (16) in `shared/src/config/app-config.ts` |
 | The coordinates | `locations.latitude` / `locations.longitude`, returned by the event endpoints as `latitude` / `longitude` |
 | The code -> text mapping | `weatherCodeKey()` and the `WMO_KEYS` table in `shared/src/weather/weather.model.ts` |
@@ -590,14 +592,21 @@ Three design decisions are worth knowing:
 * **The call is made from the browser**, not proxied through the Express API.
   There is no credential to protect and the free endpoint allows it, so a proxy
   would add a hop and a cache problem for nothing.
-* **It degrades quietly.** `forecastFor()` returns `Observable<WeatherForecast |
-  null>` and resolves `null` on every failure path - a venue with no coordinates
-  (the "Online (Australia-wide)" pseudo-venue), an event beyond the 16-day
-  window, a past event, no internet, or Open-Meteo being slow. The page simply
-  shows no forecast panel; a missing forecast must never break the event page.
+* **It degrades quietly, but not silently.** `forecastFor()` returns
+  `Observable<WeatherForecast | null>` and resolves `null` on every failure path -
+  a venue with no coordinates (the "Online (Australia-wide)" pseudo-venue), an
+  event beyond the 16-day window, a past event, no internet, or Open-Meteo being
+  slow. The weather module stays on the page either way and says which case it is,
+  in the visitor's language: the event has finished, the venue has no
+  coordinates, the date is not confirmed, the event is beyond the forecast
+  window, or simply that no forecast came back. None of those is styled as an
+  error. A missing forecast must never break the event page, and an absent module
+  must never look like a broken one.
 * **The forecast is only attempted when it can succeed**:
   `canShowForecast()` requires coordinates *and* an event date inside the
-  forecast window, so an ordinary past event costs no request at all.
+  forecast window, so an ordinary past event costs no request at all. It is the
+  yes/no form of `forecastUnavailableReason()`, which is the one place the reason
+  is decided, so the page cannot explain a case the service did not refuse on.
 
 ---
 

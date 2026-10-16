@@ -512,8 +512,8 @@ that event are removed with it, in the same statement.
 
 * **6** charitable organisations
 * **8** event categories
-* **9** locations (including an online venue with NULL coordinates, so the
-  weather panel is correctly skipped for it)
+* **9** locations (including an online venue with NULL coordinates, which is why
+  the weather panel reports "no map coordinates" for it instead of a forecast)
 * **11** events - that is the required minimum of 8 plus extras:
   * 8 active events that are upcoming or running
   * 2 active events in the past (a completed gala and fun run), so the

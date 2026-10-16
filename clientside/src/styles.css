@@ -3162,6 +3162,38 @@ textarea:focus { border-color: var(--brand-500); }
 
 .weather__loading { color: var(--ink-500); font-style: italic; }
 
+/*
+ * The quiet note the weather module shows INSTEAD of a forecast.
+ *
+ * One class for two different sentences: "there is no forecast for this event,
+ * and here is why" (a past event, a venue with no coordinates, a date that cannot
+ * be read, a date beyond Open-Meteo's window) and the rarer "we asked and got
+ * nothing back". Both are neutral information about a bonus feature, so the note
+ * is a plain card in the ordinary surface and ink tokens - no accent colour, no
+ * red, no alert role, nothing that reads as a fault the visitor caused.
+ *
+ * It shares `.weather__card`'s box so the panel keeps one shape across the four
+ * states, and it deliberately carries NO left accent bar: the forecast card's
+ * 4px brand/accent edge is the "here is today's weather" signal, and a forecast
+ * that does not exist must not borrow it.
+ *
+ * Measured with the same formula tools/check-contrast.mjs uses, on the rendered
+ * note at 1400x1000 and against the background the note actually sits on:
+ * --ink-700 on --surface-50 is 9.03:1 in the light theme (rgb(44, 74, 83) on
+ * rgb(246, 250, 249)) and 11.61:1 in the dark one (rgb(197, 211, 210) on
+ * rgb(16, 25, 23)), both well above the 4.5:1 these sizes are held to. The
+ * light/dark pair was measured on the "past event" note on /events/1, and the
+ * same values hold for the other three sentences because they share this rule.
+ */
+.weather__notice {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-50);
+  color: var(--ink-700);
+}
+
 .weather__card {
   display: flex;
   align-items: center;

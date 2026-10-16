@@ -156,7 +156,9 @@
         -->
         <header class="page-header">
           <div class="container">
-            <nav class="breadcrumb" aria-label="Breadcrumb">
+            <!-- As on the other two trails, the nav's accessible name comes from
+                 the dictionary rather than from a literal in the markup. -->
+            <nav class="breadcrumb" [attr.aria-label]="'a11y.breadcrumb' | t">
               <ol>
                 <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
                 <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>

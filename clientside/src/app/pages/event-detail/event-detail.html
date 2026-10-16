@@ -147,8 +147,16 @@
               `aria-current="page"` on the event's own name. The name comes from
               `current`, the alias the branch above binds, so the trail names
               exactly the event the <h1> does.
+
+              THE NAV'S OWN ACCESSIBLE NAME IS TRANSLATED TOO. It used to be the
+              literal `aria-label="Breadcrumb"`, which a screen reader announced
+              in English on a page otherwise entirely in the visitor's language -
+              the one user-facing string in this template that no dictionary
+              lookup reached, and the reason `a11y.breadcrumb` exists. The same
+              literal was in search.html and register.html and is converted there
+              as well.
             -->
-            <nav class="breadcrumb" aria-label="Breadcrumb">
+            <nav class="breadcrumb" [attr.aria-label]="'a11y.breadcrumb' | t">
               <ol>
                 <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
                 <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
@@ -425,77 +433,126 @@
           <!-- ==========================================================
                WEATHER  (optional external API: Open-Meteo)
 
-               Three states and no error state:
-                 * no forecast possible   -> the panel is not rendered at all
-                 * forecast requested     -> a short "loading" line
-                 * forecast arrived       -> the card
-               `weatherPossible()` is false for a past event, for a venue with
-               no coordinates (the "Online" pseudo-venue) and for an event more
-               than 16 days away, so those cases show nothing rather than a
-               broken or empty panel.
+               THE MODULE IS ON EVERY EVENT. It used to be wrapped in
+               `@if (weatherPossible())`, and with the seeded data exactly one
+               event satisfied that - the earliest one, the only one inside
+               Open-Meteo's 16-day window - so the other nine event pages carried
+               no module at all and a visitor could not tell "this event is too
+               far ahead" from "this page is broken".
+
+               FOUR STATES, STILL NO ERROR STATE:
+                 * a forecast           -> the card, with the rain and outdoor
+                                           hints and the Open-Meteo credit
+                 * no forecast possible -> one sentence naming the case, from
+                                           `weatherBlock()`: the event is past,
+                                           the venue has no coordinates, the date
+                                           cannot be read, or the date is beyond
+                                           the forecast window
+                 * request in flight    -> the loading line
+                 * settled with nothing -> `weather.unavailable`
+               The middle two and the last one are quiet notes - not `role="alert"`,
+               not the error panel's styling - because none of them is the
+               visitor's doing and none of them is something they can act on.
+
+               `aria-live="polite"` stays on the section, so the forecast (or the
+               reason in its place) is announced when it replaces the loading
+               line, without interrupting what the visitor is reading.
                ========================================================== -->
-          @if (weatherPossible()) {
-            <section class="weather" aria-live="polite">
-              <h2>{{ 'weather.heading' | t }}</h2>
+          <section class="weather" aria-live="polite">
+            <h2>{{ 'weather.heading' | t }}</h2>
 
-              @if (forecast(); as currentForecast) {
-                <p class="weather__lead">{{ weatherLead() }}</p>
+            @if (forecast(); as currentForecast) {
+              <p class="weather__lead">{{ weatherLead() }}</p>
 
-                <div class="weather__card" [class.weather__card--wet]="weatherWet()">
-                  <span class="weather__glyph" aria-hidden="true">{{ weatherIcon() }}</span>
-                  <div class="weather__summary">
-                    <span class="weather__code">{{ weatherLabel() }}</span>
-                    @if (temperatures()) {
-                      <span class="weather__temps">{{ temperatures() }}</span>
-                    }
-                  </div>
-
-                  @if (rainChance() !== null || windMax() !== null) {
-                    <ul class="weather__details">
-                      @if (rainChance(); as rain) {
-                        <li>{{ rain }}</li>
-                      }
-                      @if (windMax(); as wind) {
-                        <li>{{ wind }}</li>
-                      }
-                    </ul>
+              <div class="weather__card" [class.weather__card--wet]="weatherWet()">
+                <span class="weather__glyph" aria-hidden="true">{{ weatherIcon() }}</span>
+                <div class="weather__summary">
+                  <span class="weather__code">{{ weatherLabel() }}</span>
+                  @if (temperatures()) {
+                    <span class="weather__temps">{{ temperatures() }}</span>
                   }
-
-                  <!--
-                    THE SMALL PRINT LIVES IN THE CARD (review item 6).
-
-                    "Rain is likely...", "Check the forecast..." and the Open-Meteo
-                    credit used to render as three loose paragraphs under the card,
-                    floating in the page rather than belonging to anything. They are
-                    the forecast's own notes, so they are the forecast card's footer:
-                    one bordered strip inside `.weather__card`, separated from the
-                    figures by a hairline rule.
-
-                    The attribution stays A VISIBLE LINE OF TEXT rather than moving
-                    into a tooltip or a `title` attribute. Open-Meteo's terms ask for
-                    the credit on the page, and a credit a visitor has to hover to
-                    find is not a credit; burying it would also break the
-                    accessibility rule that a screen reader must reach it. The
-                    dictionary keys are unchanged, so all four languages still carry
-                    the same sentence - only its position moved.
-                  -->
-                  <footer class="weather__footer">
-                    @if (weatherWet()) {
-                      <p class="weather__hint">{{ 'weather.bringACoat' | t }}</p>
-                    }
-                    <p class="weather__hint">{{ 'weather.outdoorHint' | t }}</p>
-                    <p class="weather__credit">{{ 'weather.attribution' | t }}</p>
-                  </footer>
                 </div>
-              } @else if (forecastSettled()) {
-                <!-- The request finished without a forecast: say so, instead of
-                     showing a loading indicator that never resolves. -->
-                <p>{{ 'weather.unavailable' | t }}</p>
-              } @else {
-                <p class="weather__loading">{{ 'weather.loading' | t }}</p>
+
+                @if (rainChance() !== null || windMax() !== null) {
+                  <ul class="weather__details">
+                    @if (rainChance(); as rain) {
+                      <li>{{ rain }}</li>
+                    }
+                    @if (windMax(); as wind) {
+                      <li>{{ wind }}</li>
+                    }
+                  </ul>
+                }
+
+                <!--
+                  THE SMALL PRINT LIVES IN THE CARD (review item 6).
+
+                  "Rain is likely...", "Check the forecast..." and the Open-Meteo
+                  credit used to render as three loose paragraphs under the card,
+                  floating in the page rather than belonging to anything. They are
+                  the forecast's own notes, so they are the forecast card's footer:
+                  one bordered strip inside `.weather__card`, separated from the
+                  figures by a hairline rule.
+
+                  The attribution stays A VISIBLE LINE OF TEXT rather than moving
+                  into a tooltip or a `title` attribute. Open-Meteo's terms ask for
+                  the credit on the page, and a credit a visitor has to hover to
+                  find is not a credit; burying it would also break the
+                  accessibility rule that a screen reader must reach it. The
+                  dictionary keys are unchanged, so all four languages still carry
+                  the same sentence - only its position moved.
+
+                  IT IS ONLY IN THIS BRANCH. The credit belongs to the figures
+                  beside it; a page that shows no Open-Meteo data must not claim
+                  to be showing any, so the three no-forecast states below carry
+                  the reason instead of the attribution.
+                -->
+                <footer class="weather__footer">
+                  @if (weatherWet()) {
+                    <p class="weather__hint">{{ 'weather.bringACoat' | t }}</p>
+                  }
+                  <p class="weather__hint">{{ 'weather.outdoorHint' | t }}</p>
+                  <p class="weather__credit">{{ 'weather.attribution' | t }}</p>
+                </footer>
+              </div>
+            } @else if (weatherBlock() !== null) {
+              <!--
+                THE REASON THE MODULE IS EMPTY.
+
+                The four keys are written out here rather than returned from the
+                component on purpose: `check:translations` collects the keys a
+                template asks for from `{{ 'key' | t }}`, so a key assembled in
+                TypeScript would be invisible to it and a typo in it would render
+                as "weather.reasonPast" on the page.
+
+                `@default` is the beyond-the-window case rather than an error
+                fallback: `weatherBlock()` is a four-member union, and the three
+                named cases above it are the other three members.
+              -->
+              @switch (weatherBlock()) {
+                @case ('past') {
+                  <p class="weather__notice">{{ 'weather.reasonPast' | t }}</p>
+                }
+                @case ('noCoordinates') {
+                  <p class="weather__notice">{{ 'weather.reasonNoCoordinates' | t }}</p>
+                }
+                @case ('noDate') {
+                  <p class="weather__notice">{{ 'weather.reasonNoDate' | t }}</p>
+                }
+                @default {
+                  <p class="weather__notice">
+                    {{ 'weather.reasonBeyondHorizon' | t: { days: forecastWindowDays } }}
+                  </p>
+                }
               }
-            </section>
-          }
+            } @else if (forecastSettled()) {
+              <!-- The request finished without a forecast: say so, instead of
+                   showing a loading indicator that never resolves. -->
+              <p class="weather__notice">{{ 'weather.unavailable' | t }}</p>
+            } @else {
+              <p class="weather__loading">{{ 'weather.loading' | t }}</p>
+            }
+          </section>
 
           <h2>{{ 'event.accessHeading' | t }}</h2>
           <p>{{ 'event.accessBody' | t }}</p>
