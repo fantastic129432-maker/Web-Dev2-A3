@@ -3,12 +3,13 @@
      Every registration in the system, newest purchase first, with an
      event/keyword filter, a totals row and a delete action per row.
 
-     The table shows ONE page of the filtered set at a time. The set
-     itself is the whole API response the page already loaded, so the
-     totals row and the "Showing X of Y" line keep describing every
-     filtered registration while ten of them are on screen; the pager
-     under the table is what moves between pages. See the page class for
-     why the paging is client-side, and which endpoints back each figure.
+     The table shows ONE API page of the matched set at a time: the
+     request carries `limit` (ten rows) and `offset`, and the size of the
+     set comes from `meta.total`, so the "Showing X of Y" line, the pager
+     and the totals row all describe the same thing - the pager can reach
+     the last match and the footer totals the rows the table is showing.
+     See the page class for why the API does the paging and which
+     endpoints back each figure.
      ================================================================== -->
 
 <div class="page-header admin-page-header">
@@ -53,12 +54,13 @@
   </div>
 </form>
 
-<!-- `count` is the rows on screen and `total` is what the API matched, so the line
-     still states the size of the WHOLE filtered set while the table shows a page of
-     it - reading "Showing 10 of 20 registrations" on page one and "Showing 10 of 20"
-     on page two, which is the honest answer for both. -->
+<!-- `count` is the rows on this API page and `total` is what the API matched across
+     every page, so the line states the size of the WHOLE matched set while the table
+     shows ten of it: "Showing 10 of 250" is true on page one AND on page eleven, which
+     is why the only thing that reports the POSITION is the pager's live status line
+     under the table. Both numbers come from the one response the page is rendering. -->
 <p class="admin-count" role="status">
-  {{ 'registrations.count' | t: { count: visibleRegistrations().length, total: total() } }}
+  {{ 'registrations.count' | t: { count: registrations().length, total: total() } }}
 </p>
 
 @if (loading()) {
@@ -87,7 +89,7 @@
       </thead>
 
       <tbody>
-        @for (registration of visibleRegistrations(); track registration.registrationId) {
+        @for (registration of registrations(); track registration.registrationId) {
           <tr>
             <td class="is-numeric">{{ registration.registrationId }}</td>
 
@@ -165,11 +167,13 @@
         The totals row.
 
         The label spans ID, attendee and event - the three leading columns, where a
-        sum would mean nothing - and names the WHOLE filtered set, not the page: the
-        two figures beside it are totalled over every row the filters matched (see
-        totalTickets() and totalValue()), so the label has to say so or a reader
-        would take them for the ten rows above. Each figure stays under its own
-        column heading - the ticket count under TICKETS, the money under VALUE.
+        sum would mean nothing - and names the rows it totals: the ten on THIS API
+        page, which are the rows in the table above and the rows totalTickets() and
+        totalValue() sum. The label is given `registrations().length`, the same count
+        the "Showing X of Y" line uses, so the three numbers cannot drift apart; the
+        size of the whole matched set belongs to that line and to the pager, which is
+        where it can be acted on. Each figure stays under its own column heading - the
+        ticket count under TICKETS, the money under VALUE.
 
         The wording was "Tickets", which named only half of what the row totals -
         the count AND the ticket-sales money. It is now a summary label, translated
@@ -201,13 +205,15 @@
   <!--
     THE PAGER.
 
-    Previous / numbered pages / Next, under the table, over the set the page already
-    loaded - the whole API response, not one page of it. `aria-current="page"` marks
-    the page a reader is on, each end disables itself when there is nowhere to go,
-    and the numbered buttons carry "Page n of m" as their accessible name so the bare
-    digit is not announced on its own. The status line repeats that position as a
+    Previous / numbered pages / Next, under the table. Each button asks the API for the
+    page it names (the page holds one API page of rows at a time, so the row set is
+    replaced rather than sliced); `pageCount()` covers every page of the MATCHED set,
+    which is what makes the last numbered page the last match. `aria-current="page"`
+    marks the page a reader is on, each end disables itself when there is nowhere to
+    go, and the numbered buttons carry "Page n of m" as their accessible name so the
+    bare digit is not announced on its own. The status line repeats that position as a
     live region, which is the announcement a page change otherwise would not produce:
-    the "Showing X of Y" line above can read identically on two pages.
+    the "Showing X of Y" line above reads identically on two pages of the same filter.
   -->
   <nav class="admin-pager" [attr.aria-label]="'registrations.pagination' | t">
     <button

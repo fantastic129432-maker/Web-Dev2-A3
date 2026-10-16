@@ -13,6 +13,7 @@ import { filter, map } from 'rxjs';
 
 import { SiteFooterComponent } from './layout/site-footer';
 import { SiteHeaderComponent } from './layout/site-header';
+import { FragmentScrollService } from './shared/fragment-scroll';
 
 /**
  * The root of the CLIENT-SIDE website: the four segments in order - Header (which
@@ -37,6 +38,15 @@ import { SiteHeaderComponent } from './layout/site-header';
  *
  * The 404 page still needs to exist as a route of its own; this component only
  * decides whether it is framed by the site chrome.
+ *
+ * THE SHELL ALSO STARTS THE FRAGMENT WATCHER
+ *   `FragmentScrollService` is created here, in the component that lives for the
+ *   whole session, so it starts listening before the initial navigation resolves
+ *   and stops when the application is torn down. It is not rendered and has no
+ *   template: it is the answer to the cross-route fragment link described in its
+ *   own file (`clientside/src/app/shared/fragment-scroll.ts`), which arrives
+ *   before the home page's listing has rendered and would otherwise come to rest
+ *   a thousand pixels short of the section it named.
  */
 @Component({
   selector: 'app-root',
@@ -45,6 +55,15 @@ import { SiteHeaderComponent } from './layout/site-header';
 })
 export class App {
   private readonly router = inject(Router);
+
+  /**
+   * The cross-route fragment watcher, created for its own subscription.
+   *
+   * Injected into a field rather than called from a method because the work is
+   * the service's constructor: creating it subscribes to the router's events, and
+   * the session it watches is this component's own lifetime.
+   */
+  private readonly fragmentScroll = inject(FragmentScrollService);
 
   /**
    * The URL after the latest completed navigation.

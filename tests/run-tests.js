@@ -1243,6 +1243,39 @@ async function testA3Api() {
     body.data.forEach((event) => assert.equal(event.status, 'suspended'));
   });
 
+  await test('an unknown publishStatus is a 400 naming the accepted values, not a dropped filter', async () => {
+    /*
+     * The defect this pins: `past` is one of the STATE words, not one of the four
+     * publishing statuses, and ?publishStatus=past used to answer 200 with the whole
+     * admin table (11 seeded events) while reporting publishStatus: 'all' in
+     * meta.appliedFilters - a filter that looks applied and is not. That is the worst
+     * shape of wrong answer, because the response is indistinguishable from a correct
+     * one. ?sort=nope and ?state=nope were already 400s, so the check is that the
+     * sibling parameter behaves like its siblings: the unknown value is refused AND
+     * the message names the four values that are accepted, while every accepted value
+     * still works.
+     */
+    const unknown = await api('/admin/events?publishStatus=past');
+    assert.equal(unknown.status, 400, 'an unknown publishStatus must be refused, not ignored');
+
+    const issue = (unknown.body.error.details || []).find(
+      (detail) => detail.field === 'publishStatus'
+    );
+    assert.ok(issue, 'the 400 must name the parameter that was wrong');
+    for (const accepted of ['active', 'suspended', 'cancelled', 'all']) {
+      assert.ok(
+        issue.message.includes(accepted),
+        `the message must name the accepted value "${accepted}" (got: ${issue.message})`
+      );
+    }
+
+    // Every documented value still filters rather than erroring.
+    const known = await api('/admin/events?publishStatus=suspended');
+    assert.equal(known.status, 200, 'a documented publishStatus must still be accepted');
+    assert.equal(known.body.meta.appliedFilters.publishStatus, 'suspended');
+    known.body.data.forEach((event) => assert.equal(event.status, 'suspended'));
+  });
+
   await test('GET /api/admin/reference-data supplies the form dropdowns', async () => {
     const { status, body } = await api('/admin/reference-data');
     assert.equal(status, 200);

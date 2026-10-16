@@ -14,6 +14,34 @@ import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import type { TranslationValues } from '@charity/shared/i18n/translation.service';
 
 /**
+ * How many dialog headings have been given an id in this page's lifetime.
+ *
+ * `aria-labelledby` names an id, and an id must be unique within the document. The
+ * heading used to carry the literal `id="confirm-title"`, which is correct only while
+ * a page renders ONE dialog - every page does today, because each renders the dialog
+ * once, outside its table - and silently wrong the moment two are on screen together:
+ * both headings would claim the same id, the browser would resolve both labels to the
+ * first heading, and a screen reader would read one dialog's title for the other. A
+ * counter removes the dependency on how many dialogs a page happens to render.
+ *
+ * A counter rather than a generated UUID because it is deterministic (the rendered
+ * DOM stays reproducible for the end-to-end run, which reads rendered text), because
+ * it needs no `crypto.randomUUID` on browsers that lack it, and because components are
+ * constructed one at a time as a page opens its dialogs, so there is no race to lose.
+ */
+let dialogsSeen = 0;
+
+/**
+ * Reserve the id for one dialog heading.
+ *
+ * @returns An id unique among the dialogs of this document, such as `confirm-title-1`.
+ */
+function nextTitleId(): string {
+  dialogsSeen += 1;
+  return `confirm-title-${dialogsSeen}`;
+}
+
+/**
  * The "are you sure?" step in front of anything that cannot be undone: deleting
  * an event, deleting a registration.
  *
@@ -53,6 +81,15 @@ import type { TranslationValues } from '@charity/shared/i18n/translation.service
   },
 })
 export class ConfirmDialog {
+  /**
+   * The id of THIS dialog's heading, and the value `aria-labelledby` points at.
+   *
+   * Reserved per instance so the label stays correct however many dialogs a page
+   * renders; the template was the last place the two were assumed to be one fixed
+   * string. The behaviour of the dialog is untouched - only which id its heading has.
+   */
+  protected readonly titleId = nextTitleId();
+
   /** Translation keys, not text: the dialog must re-render on a language change. */
   readonly titleKey = input.required<string>();
 

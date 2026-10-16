@@ -1,4 +1,5 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, DestroyRef, ElementRef, afterNextRender, inject, input, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { TranslationService } from '@charity/shared/i18n/translation.service';
@@ -29,6 +30,24 @@ import { SiteNavComponent } from './site-nav/site-nav';
  *   component holds no state of its own and the two can never disagree. The admin
  *   header forwards `showNav` the same way; it has no menu button, because the admin
  *   menu is always visible, so it has no `menuOpen` either.
+ *
+ * WHY THE HEADER MEASURES ITSELF AND PUBLISHES ITS HEIGHT
+ *   This header is sticky, so every sticky card in the page under it has to come to
+ *   rest clear of its bottom edge - and that height is not the same in all four
+ *   languages, because the nav labels and the settings note wrap onto more lines
+ *   once the header row runs out of room. Measured in a 1000px-tall window:
+ *   65.31px in English and 85.02px in Chinese at every two-column width, and in
+ *   Vietnamese and Japanese 89.63px at 1400px wide against 113.94px and 162.56px at
+ *   1024px wide, the narrowest window the two-column layouts are used at. The three
+ *   sticky cards used to share a written `top: 96px` derived from the English
+ *   height, so at 1024px their top edge came to rest 17.94px (Vietnamese) and
+ *   66.56px (Japanese) BEHIND the header. The height is therefore read from the
+ *   real element and written to `--site-header-height` on the document element
+ *   (`:root` in clientside/src/styles.css carries the English fallback used before
+ *   the first measurement, and the whole table), and the cards compute their offset
+ *   from it. A ResizeObserver rather than a window `resize` listener is what makes
+ *   the value follow a language switch, a font swap or any other reflow of this
+ *   row, none of which the window fires an event for.
  */
 @Component({
   selector: 'app-site-header',
@@ -38,6 +57,39 @@ import { SiteNavComponent } from './site-nav/site-nav';
 })
 export class SiteHeaderComponent {
   protected readonly i18n = inject(TranslationService);
+
+  /** The document whose root carries the measured header height. */
+  private readonly document = inject(DOCUMENT);
+
+  /** This component's lifetime, which is what disconnects the observer. */
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** The `<header>` element itself, so its real height can be measured. */
+  private readonly headerBox = viewChild.required<ElementRef<HTMLElement>>('headerBox');
+
+  constructor() {
+    /*
+     * Measured AFTER the first render, because the height is only real once the
+     * element is in the document, and re-measured on every resize of the element
+     * itself. The fallback in the stylesheet is the English height, so the one frame
+     * before this runs is a third of a pixel away from the value it writes.
+     */
+    afterNextRender(() => {
+      const element = this.headerBox().nativeElement;
+      const publish = () => {
+        const { height } = element.getBoundingClientRect();
+        this.document.documentElement.style.setProperty('--site-header-height', `${height}px`);
+      };
+
+      publish();
+      // Absent only in a browser old enough that the fallback is the better answer.
+      if (typeof ResizeObserver === 'function') {
+        const observer = new ResizeObserver(publish);
+        observer.observe(element);
+        this.destroyRef.onDestroy(() => observer.disconnect());
+      }
+    });
+  }
 
   /**
    * Whether the page wants the primary menu.

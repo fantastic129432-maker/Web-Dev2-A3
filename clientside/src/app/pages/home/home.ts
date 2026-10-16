@@ -99,10 +99,22 @@ interface EventsState {
  *   footer is now the single home for contact details, and the About card's
  *   "Talk to our events team" button points at `#contact` - the id the footer now
  *   carries - so its fragment still resolves to the contact details instead of to a
- *   section that no longer exists. (Whether the browser then scrolls to a fragment
- *   is the router's `withInMemoryScrolling` setting in app.config.ts, which is
- *   configured for scroll-position restoration only; that was already true of the
- *   old `#contact` section, so nothing about this button changed but its target.)
+ *   section that no longer exists. That button is a plain `href="#contact"` clicked
+ *   on this page, so the browser performs the jump itself and the router is not
+ *   involved; that was already true of the old `#contact` section, so nothing about
+ *   this button changed but its target.
+ *
+ *   THE ONE FRAGMENT HERE THAT DOES INVOLVE THE ROUTER is `#about`, which the
+ *   footer's "About us" link reaches from another route. `withInMemoryScrolling` in
+ *   app.config.ts does have `anchorScrolling: 'enabled'`, and it scrolls to the
+ *   anchor once, a frame after the route activates - a moment when the event
+ *   listing above this section has not been fetched yet, so that first scroll is
+ *   against a page that is still short. The second attempt is made by
+ *   `shared/fragment-scroll.ts` as soon as this page's own content has arrived,
+ *   which is what makes the footer link land here. It is also why this page's two
+ *   own fragment links (`#upcoming-events` and `#contact`) need no help: their
+ *   targets, the listing section and the footer, are in the document before either
+ *   link is clicked.
  *   `GET /api/organization` is still fetched here for the mission sentence, which
  *   is the only thing on this page it feeds.
  */

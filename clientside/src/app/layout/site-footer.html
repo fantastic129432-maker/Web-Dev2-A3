@@ -68,27 +68,41 @@
       <ul>
         <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
         <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
+        <li><a routerLink="/" fragment="about">{{ 'about.eyebrow' | t }}</a></li>
       </ul>
       <!--
-        THE TWO REAL ROUTES ARE BOTH HERE, AND THERE IS NO THIRD TO ADD. `/` and
+        THE TWO ROUTES AND THE ONE SECTION a visitor can be sent to. `/` and
         `/search` are the only routes the public site has that do not need an
         event id (`/events/:id` and `/register/:id` cannot be linked to without
-        one), so nothing was invented to fill the list.
+        one), and `/#about` is a section of the first of them, so nothing was
+        invented to fill the list.
 
-        A FRAGMENT LINK TO THE ABOUT SECTION WAS TRIED AND REMOVED, and the reason
-        is worth recording because the pattern looks like it should work. A
-        `routerLink="/"` with `fragment="about"` navigates correctly - the URL lands
-        on `/#about` - but the scroll happens as soon as the router activates the
-        route, while the home page's event listing is still being fetched. Measured
-        in headless Edge at 1440x1080: the page finished at scrollY 1287 with the
-        `#about` section at document y 2470, so the visitor landed 1183px short of
-        the section the link named, and it stayed there (the section only becomes
-        visible once the listing above it has rendered and the page stops growing).
-        The event hero's "Get tickets" link does not hit this because it stays on
-        the route it is already on, so nothing is being loaded underneath it. A
-        link that says "About us" and lands in the middle of the event grid is
-        worse than no link, so the column carries the mission sentence itself
-        instead - which is what a visitor wanted from that link anyway.
+        THE ABOUT LINK WAS TRIED, REMOVED, AND IS BACK WITH THE SCROLL FIXED. The
+        history is worth keeping, because the pattern still looks like it should
+        work on its own. A `routerLink="/"` with `fragment="about"` always
+        navigated correctly - the URL lands on `/#about` - but the router's single
+        anchor scroll happens as soon as the route activates, while the home
+        page's event listing is still being fetched, so it was measured against a
+        page that was still short. In headless Edge at 1440x1080 the page finished
+        at scrollY 1287 with the `#about` section at document y 2470: 1183px short,
+        and it stayed there, because the section only reaches its final position
+        once the listing above it has rendered and the page stops growing. A link
+        that says "About us" and lands in the middle of the event grid is worse
+        than no link, so the column carried the mission sentence itself instead -
+        which is what a visitor wanted from that link anyway.
+
+        WHY IT CAN SHIP NOW. That short landing was re-measured on this build at
+        1400x1000 with `GET /api/events/upcoming` delayed 600ms: the router asked
+        for top 1274.95 - the section's position at that instant, 1px inside the
+        page's whole scroll range of 1276 - and the section finished at y 2469.5,
+        1149px below where the visitor was left; with a wheel gesture in between,
+        the short landing was permanent (measured 1226.5px short, still short a
+        second later). The page now makes the second scroll attempt itself, once
+        its own content has arrived, in
+        clientside/src/app/shared/fragment-scroll.ts - which is what lets this link
+        name the section it goes to. The event hero's "Get tickets" link never had
+        this problem (it stays on the route it is already on, so nothing is being
+        loaded underneath it) and is unchanged.
       -->
     </div>
 

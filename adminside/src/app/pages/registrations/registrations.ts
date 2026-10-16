@@ -21,9 +21,10 @@ import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
  *
  * Ten rows fit one screen without the summary row being scrolled away from the
  * figures it totals, which is what the review asked for: twenty rows ran for three
- * screens. It is also the page size the reviewer's own numbers point at. The value
- * lives here rather than in the API because the paging is done on the client - see
- * the class comment for why.
+ * screens. It is also the page size the reviewer's own numbers point at. It is the
+ * `limit` this page sends to the API and the divisor of every page number it
+ * renders, so the ten rows on screen are exactly the ten rows the request asked
+ * for - see the class comment for why the API does the paging.
  */
 const PAGE_SIZE = 10;
 
@@ -48,34 +49,48 @@ const PAGE_SIZE = 10;
  *   This is where the rule becomes workable, and the Edit link on every row goes
  *   straight to the event the registration belongs to.
  *
- * PAGING, AND WHY IT IS DONE HERE RATHER THAN BY THE API
- *   The page asks for `limit: 100` - the same hundred rows the route returns when
- *   no limit is sent (registrationService.listRegistrations, whose own ceiling is
- *   200) - so the whole filtered set is already in the browser and the pager slices
- *   what is in memory. That is deliberate: a previous / next that re-queried the API
- *   could only ever total the rows it happened to be showing, and the footer would
- *   then report one page's tickets and money as if they were the set's. Keeping the
- *   set and paging the view lets `totalTickets()`, `totalValue()` and the
- *   `registrations.totalSummary` label describe every filtered row while only
- *   `PAGE_SIZE` of them are on screen. The consequence to be honest about: if a
- *   filter ever matched more than the 100 rows the request asks for, the pager would
- *   page within those 100 and `meta.total` would still report the larger figure -
- *   which is why the footer label counts the rows that were actually summed rather
- *   than the API's total.
+ * PAGING, AND WHY THE API DOES IT RATHER THAN THIS PAGE
+ *   The page asks the API for ONE page of `PAGE_SIZE` rows at a time - `limit` plus
+ *   `offset` - and takes the size of the matched set from `meta.total`, which is what
+ *   makes the three numbers on the page tell the same story once a filter matches
+ *   more rows than a single request can carry. It used to ask for `limit: 100` and
+ *   slice that one response in the browser, and past 100 matches the page then
+ *   contradicted itself: the count line read "Showing 10 of 250" above a pager whose
+ *   ten buttons could only reach page 10, while the footer totalled the 100 rows it
+ *   happened to hold under a label claiming to describe the matched set. Paging
+ *   through the API is the smaller honest fix here: the wording alternative ("the
+ *   first hundred of however many matched") needs a new sentence in four shared
+ *   dictionaries, and this needs none. The cost is one request per page change
+ *   instead of one per filter change, and the page's own spinner while that request
+ *   lands - `loading` already covered "a list request is in flight", and now a page
+ *   change is one.
+ *
+ *   What that means for the figures, stated plainly: `total()` is the API's count of
+ *   every row the filters matched and is what `pageCount()` is derived from, so the
+ *   pager can reach the last match; the rows in hand are the rows of the current API
+ *   page, and totalTickets(), totalValue() and the `registrations.totalSummary` label
+ *   describe exactly those rows - the same rows the table above the footer is
+ *   showing. A footer that claimed to total the whole matched set could only be
+ *   honest if the whole set were in the browser, and the API publishes no whole-set
+ *   ticket total (its own `meta.ticketsSold` sums the page it returns).
  *
  * THE TWO MONEY FIGURES, AND WHY THEY ARE NOT RECONCILED
- *   This page's footer totals the registrations it holds, and the dashboard's
- *   "Total raised" tile shows `totalRaised` from GET /api/stats. They disagree -
- *   $20,575 against $99,290 on the seeded data - because they measure different
- *   things, and the disagreement was verified against the running API before
- *   anything was written on the page:
+ *   This page's footer totals TICKET SALES for the rows of the page on screen, and
+ *   the dashboard's "Total raised" tile shows `totalRaised` from GET /api/stats.
+ *   They disagree - $20,575 against $99,290 over the whole seed - because they
+ *   measure different things, and the disagreement was verified against the running
+ *   API before anything was written on the page:
  *
  *     GET /api/registrations   each row carries `ticketPrice` and `totalAmount`,
  *                              and `totalAmount` is ticketsPurchased x ticketPrice
  *                              as the API computes it (repository.local.ts
  *                              toApiShape, the mirror of the same expression in
- *                              repository.mysql.ts). Summed over the 20 rows:
- *                              49 tickets and $20,575 of TICKET SALES.
+ *                              repository.mysql.ts). Summed over the 20 seeded
+ *                              rows: 49 tickets and $20,575 of TICKET SALES. Those
+ *                              twenty rows are now two pages of ten, so page one's
+ *                              footer shows the first half of that sum: the figure
+ *                              is unchanged, but the page no longer presents a
+ *                              ten-row total as if it were the set's.
  *     GET /api/stats           `totalRaised` is the sum, over the public events, of
  *                              each event's `raisedAmount`, and `raisedAmount` is
  *                              the sum of that event's DONATIONS (repository.local
@@ -84,11 +99,11 @@ const PAGE_SIZE = 10;
  *
  *   The two endpoints agree on the counts - `registrations: 20` and
  *   `ticketsSold: 49` on /api/stats are exactly the 20 rows and 49 tickets
- *   /api/registrations returns - so nothing is double-counted or missing; the money
- *   is simply two different kinds of income. Neither computation is changed here,
- *   and the page now states its own scope in words under the totals row
- *   (`registrations.totalScope`), because a reader comparing the two figures has no
- *   way to know that from the numbers alone.
+ *   /api/registrations returns across its pages - so nothing is double-counted or
+ *   missing; the money is simply two different kinds of income. Neither computation
+ *   is changed here, and the page still states its own scope in words under the
+ *   totals row (`registrations.totalScope`), because a reader comparing the two
+ *   figures has no way to know that from the numbers alone.
  */
 @Component({
   selector: 'admin-registrations',
@@ -109,7 +124,7 @@ export class Registrations {
     keyword: new FormControl('', { nonNullable: true }),
   });
 
-  /** The registrations matched by the filters, as the API returned them. */
+  /** The registrations on the page the API last returned, newest purchase first. */
   protected readonly registrations = signal<readonly Registration[]>([]);
 
   /**
@@ -124,14 +139,20 @@ export class Registrations {
   /** The page-level message, or null when nothing has been reported. */
   protected readonly banner = signal<Banner | null>(null);
 
-  /** How many registrations the API matched, which can exceed the rows returned. */
+  /**
+   * How many registrations the filters matched, across every page.
+   *
+   * This is the API's `meta.total` and not the number of rows in hand, which is what
+   * lets `pageCount()` reach the last match even though the browser only ever holds
+   * the one page it requested.
+   */
   protected readonly total = signal(0);
 
   /**
    * The page the pager last asked for, one-based.
    *
    * It is the REQUEST, not the page on screen: `currentPage` clamps it against the
-   * page count, so a delete that shortens the loaded set cannot leave the table
+   * page count, so a delete that shortens the matched set cannot leave the table
    * pointing past its own last page.
    */
   protected readonly requestedPage = signal(1);
@@ -143,13 +164,16 @@ export class Registrations {
   protected readonly deleting = signal(false);
 
   /**
-   * How many pages the loaded rows need, and never fewer than one.
+   * How many pages the matched set needs, and never fewer than one.
    *
-   * The floor matters: an empty result still has to render one disabled page rather
-   * than a pager with no pages, and it keeps `currentPage` from clamping to zero.
+   * Derived from the API's total rather than from the rows in hand, because the rows
+   * in hand are one page by construction now and counting them would always give one.
+   * The floor matters too: an empty result still has to render one disabled page
+   * rather than a pager with no pages, and it keeps `currentPage` from clamping to
+   * zero.
    */
   protected readonly pageCount = computed(() =>
-    Math.max(1, Math.ceil(this.registrations().length / PAGE_SIZE))
+    Math.max(1, Math.ceil(this.total() / PAGE_SIZE))
   );
 
   /** The page actually on screen, with the requested page clamped to the range. */
@@ -157,19 +181,18 @@ export class Registrations {
     Math.min(this.requestedPage(), this.pageCount())
   );
 
-  /** The rows of the current page, sliced out of the set the page already loaded. */
-  protected readonly visibleRegistrations = computed(() => {
-    const start = (this.currentPage() - 1) * PAGE_SIZE;
-    return this.registrations().slice(start, start + PAGE_SIZE);
-  });
-
   /**
    * Every page number, for the numbered buttons.
    *
-   * Rendered in full rather than windowed with ellipses: the request asks for at
-   * most 100 rows and PAGE_SIZE is 10, so the widest pager this page can build is
-   * ten buttons - a set a reader can take in at once, and cheaper to build and to
-   * explain than a sliding window that would never be seen.
+   * Rendered in full rather than windowed with ellipses. That was already true when
+   * the page sliced a fixed hundred rows in the browser; now that the page count
+   * follows the API's total it is a deliberate trade rather than a free one, because
+   * a filter matching a few thousand rows would render a long, wrapped row of
+   * buttons. It is kept because the buttons wrap, the "Page {page} of {pages}" status
+   * beside them still names the position, and a windowing rule would have to invent
+   * ellipsis markup and a second way to say the same thing - while the seeded set
+   * (20 rows) and the filter this page exists for (one event) both stay inside two
+   * buttons.
    */
   protected readonly pageNumbers = computed(() =>
     Array.from({ length: this.pageCount() }, (_, index) => index + 1)
@@ -196,22 +219,51 @@ export class Registrations {
 
   /* ---------------------------------------------------------------- load ---- */
 
-  /** Fetch the registrations that match the filters. */
-  private load(): void {
+  /**
+   * Fetch ONE page of the registrations that match the filters.
+   *
+   * The page is asked of the API with `limit` and `offset` rather than sliced out of a
+   * larger response, so what the browser holds is the rows on screen and `meta.total`
+   * is the size of the whole matched set - the two figures the pager needs to reach
+   * the last page. See the class comment for the contradiction this replaced.
+   *
+   * @param page - The one-based page to fetch. Defaults to the page the pager is on,
+   *   which is what a filter change or a delete wants: stay where the reader is, with
+   *   the new data.
+   */
+  private load(page = this.currentPage()): void {
     const { eventId, keyword } = this.filters.getRawValue();
+    const wanted = Math.max(1, Math.trunc(page));
+    const offset = (wanted - 1) * PAGE_SIZE;
     this.loading.set(true);
 
     this.api
       .getRegistrations({
-        limit: 100,
+        limit: PAGE_SIZE,
+        offset,
         eventId: eventId === '' ? undefined : eventId,
         keyword: keyword === '' ? undefined : keyword,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (page) => {
-          this.registrations.set(page.items);
-          this.total.set(page.meta.total);
+        next: (response) => {
+          // A delete can shorten the matched set out from under the pager, and the page
+          // just fetched can then be past the new end - where the API truthfully answers
+          // with no rows at all. Fetch the new last page instead of painting an empty
+          // table under a pager that still claims there are rows. Each retry strictly
+          // lowers the page number, and page one always has rows while the total is
+          // positive, so this settles after one extra request.
+          const lastPage = Math.max(1, Math.ceil(response.meta.total / PAGE_SIZE));
+          if (response.items.length === 0 && response.meta.total > 0 && wanted > lastPage) {
+            this.requestedPage.set(lastPage);
+            this.load(lastPage);
+            return;
+          }
+          this.registrations.set(response.items);
+          this.total.set(response.meta.total);
+          // Record the page that was really fetched: `currentPage` may have clamped the
+          // request, and the pager's marker has to point at the rows in hand.
+          this.requestedPage.set(wanted);
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -273,16 +325,20 @@ export class Registrations {
    * Show one numbered page.
    *
    * The target is clamped rather than trusted. The buttons cannot ask for a page
-   * outside the range, but the loaded set can shrink under the pager - deleting the
+   * outside the range, but the matched set can shrink under the pager - deleting the
    * only row of the last page is the case - and clamping here is what keeps the
-   * table from rendering empty and the current page marker from pointing at a page
-   * that no longer exists.
+   * current page marker from pointing at a page that no longer exists. The rows
+   * themselves are not in the browser, so the clamped page is then FETCHED; load()
+   * repeats the clamp against the total the API reports, which covers the set
+   * shrinking between this request and the reply.
    *
    * @param page - The one-based page to show.
    */
   protected goToPage(page: number): void {
     const wanted = Number.isFinite(page) ? Math.trunc(page) : 1;
-    this.requestedPage.set(Math.min(Math.max(1, wanted), this.pageCount()));
+    const target = Math.min(Math.max(1, wanted), this.pageCount());
+    this.requestedPage.set(target);
+    this.load(target);
   }
 
   /* -------------------------------------------------------------- delete ---- */
@@ -387,25 +443,29 @@ export class Registrations {
   /* ------------------------------------------------------------- display ---- */
 
   /**
-   * Total tickets across EVERY row the filters matched, for the table's footer.
+   * Total tickets across the rows of the page on screen, for the table's footer.
    *
-   * Not just the visible page: the footer is the set's summary, and a pager that
-   * made it report one page's tickets would give two different answers for the same
-   * filter depending on where the reader had paged to. See the class comment for the
-   * 100-row request this sums.
+   * The rows in hand ARE the page, because the API pages the list (see the class
+   * comment), so this totals exactly the rows the table above it is showing and the
+   * `registrations.totalSummary` label is given that same row count. It used to be
+   * meant as the whole set's total, which only worked while every matched row fitted
+   * in one 100-row response - past that it presented a hundred rows' tickets as the
+   * set's. A whole-set figure would have to come from a whole-set request, and the
+   * API publishes no such total for this endpoint.
    */
   protected totalTickets(): number {
     return this.registrations().reduce((sum, row) => sum + Number(row.ticketsPurchased || 0), 0);
   }
 
   /**
-   * Total money across EVERY row the filters matched, for the table's footer.
+   * Total money across the rows of the page on screen, for the table's footer.
    *
-   * The same whole-set rule as totalTickets(). The figure is ticket sales - the sum
-   * of each row's `totalAmount`, which the API computes as tickets x tier price - and
-   * the page states that scope in words under the footer; it is deliberately NOT the
-   * dashboard's `totalRaised`, which measures donations. The class comment records
-   * the endpoints and fields behind both figures.
+   * The same page-scoped rule as totalTickets(), for the same reason. The figure is
+   * ticket sales - the sum of each row's `totalAmount`, which the API computes as
+   * tickets x tier price - and the page states that scope in words under the footer;
+   * it is deliberately NOT the dashboard's `totalRaised`, which measures donations.
+   * The class comment records the endpoints and fields behind both figures, and the
+   * two-pages-of-ten arithmetic the 20-row seed now produces.
    */
   protected totalValue(): number {
     return this.registrations().reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);

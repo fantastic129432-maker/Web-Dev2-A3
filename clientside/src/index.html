@@ -11,13 +11,19 @@
   <!--
     Applied BEFORE Angular bootstraps, so a dark-mode visitor never sees a white
     flash while the bundle loads. This mirrors shared/src/theme/theme.service.ts
-    (EARLY_THEME_SNIPPET) and reads the same localStorage key; if you change the
-    key or the attribute name, change it in both places.
+    (EARLY_THEME_SNIPPET): it reads the same localStorage key, narrows the stored
+    value to the same three theme names the service accepts, and writes the same
+    two data attributes and color-scheme. The narrowing is what keeps the first
+    paint and the service from disagreeing - a corrupted value such as "purple"
+    resolves to 'system' here, exactly as it does after bootstrap, instead of
+    painting one theme and then repainting. If you change the key, an attribute or
+    that test, change it in both places.
   -->
   <script>
     (function () {
       try {
-        var p = localStorage.getItem('charity-events:theme') || 'system';
+        var s = localStorage.getItem('charity-events:theme');
+        var p = s === 'light' || s === 'dark' || s === 'system' ? s : 'system';
         var d = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme-preference', p);

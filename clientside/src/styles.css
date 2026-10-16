@@ -102,6 +102,51 @@
   --font-body: Arial, "Helvetica Neue", Helvetica, sans-serif;
 
   --container: 1180px;
+
+  /*
+   * THE STICKY OFFSET IS DERIVED FROM THE HEADER, NOT WRITTEN DOWN (the review
+   * item about the sticky cards tucking under the header in two languages).
+   *
+   * The site header is sticky, so every sticky card in the page below it has to
+   * come to rest clear of its bottom edge. That height is not the same in every
+   * language, because the nav labels and the settings note wrap onto more lines -
+   * and how many more depends on how much room the header row has. Measured in
+   * headless Edge in a 1000px-tall window:
+   *
+   *   width    en       zh       vi       ja
+   *   1400px   65.31    85.02    89.63    89.63
+   *   1024px   65.31    85.02    113.94   162.56
+   *
+   * 1024px is the narrowest window these two-column layouts are used in (below
+   * 1000px they stack and the cards stop being sticky), so those are the heights
+   * the cards actually have to clear. The three cards used to share a written
+   * `top: 96px` - the English height plus 31px of clearance - which at 1400px still
+   * cleared the header in all four languages (by 30.69, 10.98, 6.37 and 6.37px),
+   * and at 1024px did not: measured on /register/2 and /events/2, the register
+   * page's summary card and the event page's ticket card both pinned at 96px
+   * against a 113.94px header bottom in Vietnamese (-17.94px, i.e. this much of the
+   * card behind the header) and a 162.56px one in Japanese (-66.56px).
+   *
+   * (Those heights were recorded in the review as "measured at 1400x1000", and the
+   * 113.94px in particular is the 1024px measurement - which is where the -17.94px
+   * the review names comes from. At 1400px the Vietnamese and Japanese header is
+   * 89.63px, and a written 96px offset left those cards 6.37px clear rather than
+   * 17.94px under.)
+   *
+   * So the header measures itself. SiteHeaderComponent writes its own height here
+   * from a ResizeObserver, which means the value follows a language switch, a
+   * resize, or any other reflow of the header row, and the cards below compute
+   * their offset from it. The fallback below is the English height, so the first
+   * paint - before the header has been measured - is 65.31 + 31 = 96.31px, within
+   * a third of a pixel of the 96px those cards were reviewed with; English keeps
+   * the geometry it had.
+   *
+   * `--sticky-card-gap` is the clearance the review asked for (16-24px) with the
+   * 31px the English measurement actually had, kept rather than retuned so that
+   * the only thing this change moves is the card in the languages that were wrong.
+   */
+  --site-header-height: 65.31px;
+  --sticky-card-gap: 31px;
 }
 
 /* ==========================================================================
@@ -1527,16 +1572,27 @@ textarea {
  * scroll container entirely: measured `scrollHeight === clientHeight` on the
  * card, and the page's own scrollbar is the only one in the column.
  *
- * WHY THE STICKY OFFSET IS 96px
- * The site header is sticky too (`position: sticky; top: 0`, 65px tall at these
- * widths). 96px leaves the card's top edge 31px below the header's bottom edge
- * once the card is stuck, so the tinted "1. When" panel never touches the header
- * and the card's rounded top corner is never clipped by it - the review asked for
- * 16-24px of clearance and this measures 31px, at scrollY 700 and at scrollY 800,
- * on a 1440x1000 and a 1366x768 window alike. It is a fixed value rather than a
- * calc() on the header height because the header is one row at every width where
- * this layout is two columns (above 1000px), so its height does not change across
- * those widths; the stacked layout below 1000px turns the sticky off entirely.
+ * WHY THE STICKY OFFSET IS THE HEADER'S HEIGHT PLUS A GAP
+ * The site header is sticky too (`position: sticky; top: 0`), so this card has to
+ * come to rest clear of its bottom edge: the offset leaves the card's top edge
+ * 31px below the header's bottom edge once the card is stuck, so the tinted
+ * "1. When" panel never touches the header and the card's rounded top corner is
+ * never clipped by it - the review asked for 16-24px of clearance and this
+ * measures 31px, at scrollY 700 and at scrollY 800, on a 1440x1000 and a
+ * 1366x768 window alike.
+ *
+ * It used to be the written value 96px, on the reasoning that the header is one
+ * row at every width where this layout is two columns (above 1000px), so its
+ * height does not change across those widths. Its height does not change with the
+ * WIDTH alone; it changes with the LANGUAGE, because the nav labels and the
+ * settings note wrap onto more lines - at 1024px wide, 65.31px in English against
+ * 113.94px in Vietnamese and 162.56px in Japanese - and a 96px offset then leaves
+ * this card's top edge 17.94px and 66.56px behind the header respectively (section
+ * 1 has the full table). The offset is therefore computed from the header's own
+ * measured height (the two tokens in section 1): 65.31 + 31 = 96.31px in English,
+ * which is the geometry this rule was reviewed with to within a third of a pixel,
+ * and header + 31px in every language and at every width. The stacked layout below
+ * 1000px still turns the sticky off entirely.
  *
  * The card that results from this is about 1450px tall and therefore taller than
  * a 1366x768 window. A sticky element taller than its scrollport stops moving
@@ -1547,7 +1603,7 @@ textarea {
  */
 .filter-panel {
   position: sticky;
-  top: 96px;
+  top: calc(var(--site-header-height) + var(--sticky-card-gap));
   border: 1px solid var(--line);
   border-radius: var(--radius);
   /* Flat: the search page's form container holds controls, not data, and the
@@ -1965,14 +2021,27 @@ textarea:focus { border-color: var(--brand-500); }
 /*
  * The sticky ticket card.
  *
- * `top` clears the sticky site header (as `.side-column` and `.registration-summary`
- * both do), and the card follows the viewport while the description is read so the
- * prices and the Register button stay reachable. It is the CARD that sticks, not
- * the whole side column: a sticky column moves as one block, which is what leaves
- * a tall empty area under the last card once the column has scrolled away.
+ * `top` clears the sticky site header (as `.filter-panel` and
+ * `.registration-summary` both do) - it is the same derived offset those two use,
+ * the header's own measured height plus the shared gap, so in the languages and at
+ * the widths whose header wraps onto a second or third line the card comes to rest
+ * BELOW the header instead of behind it (17.94px behind, in Vietnamese, at 1024px
+ * wide - see the token table in section 1). The card then follows the viewport
+ * while the description is read, so the prices and the Register button stay
+ * reachable. It is the CARD that sticks, not the whole side column: a sticky
+ * column moves as one block, which is what leaves a tall empty area under the
+ * last card once the column has scrolled away.
  *
- * `scroll-margin-top` is what makes the "Get tickets" fragment land the card just
- * below the header instead of under it.
+ * WHAT HOLDS THE "GET TICKETS" LANDING CLEAR OF THE HEADER IS THIS STICKY `top`,
+ * NOT the `scroll-margin-top` below it, and the difference was measured rather
+ * than assumed. The router's `anchorScrolling` scrolls with `window.scrollTo`,
+ * asking for the element's document position and nothing else, and `scrollTo`
+ * does not honour `scroll-margin-top` - the scroll margin belongs to a
+ * browser-driven jump (a native fragment navigation or `scrollIntoView`), which is
+ * the only path that uses it here. The card therefore rests at its own sticky
+ * offset after the router's scroll, and the scroll margin is kept on the same two
+ * tokens so that the second path, if it is ever the one taken, lands on the same
+ * line instead of a different one.
  *
  * HOW FAR IT TRAVELS IS DECIDED BY THE RAIL IT SITS IN, not by this rule: a
  * sticky element is confined to its containing block, so the card can only follow
@@ -1984,8 +2053,8 @@ textarea:focus { border-color: var(--brand-500); }
  */
 .panel--sticky {
   position: sticky;
-  top: 96px;
-  scroll-margin-top: 110px;
+  top: calc(var(--site-header-height) + var(--sticky-card-gap));
+  scroll-margin-top: calc(var(--site-header-height) + 45px);
 }
 
 /*
@@ -2537,18 +2606,30 @@ textarea:focus { border-color: var(--brand-500); }
  * The summary is the narrower column and sticks while the form scrolls, so the
  * visitor can always see what they are registering for.
  *
- * `top: 96px` is the offset `.panel--sticky` and `.side-column` already use, so
- * every sticky card on the site comes to rest on the same line, and it clears the
- * site header at its English height. The header is not one height in every
- * language: measured at 1400x1000 it is 65.31px in English, 85.08px in Chinese and
- * 113.94px in Vietnamese and Japanese, because the nav labels and the settings
- * note wrap onto more lines. In those last two languages a 96px offset therefore
- * leaves the card's top 17.94px behind the header once it is pinned. That is true
- * of every `top: 96px` card on the site, the event page's ticket card included, so
- * it is a fact about the shared offset rather than about this card, and one shared
- * value is the fix for it rather than a second value on one page.
+ * ONE SHARED OFFSET, NOW DERIVED FROM THE HEADER ITSELF. This card, the search
+ * page's filter panel and the event page's ticket card all come to rest on the same
+ * line by using the same two tokens - the header's own measured height plus the
+ * shared gap, both in section 1 - so `top` is 65.31 + 31 = 96.31px in English,
+ * which is the 96px geometry the review measured to within a third of a pixel, and
+ * header + 31px wherever the header is taller.
+ *
+ * THE MEASUREMENT THAT MADE IT DERIVED. The header is not one height in every
+ * language, nor at every width this layout is used at: measured in a 1000px-tall
+ * window it is 65.31px in English, 85.02px in Chinese, and in Vietnamese and
+ * Japanese 89.63px at 1400px wide but 113.94px and 162.56px at 1024px wide, where
+ * the nav labels and the settings note have less room and wrap onto more lines
+ * (section 1 carries the whole table). The written `top: 96px` these cards shared
+ * was the English height plus its 31px of clearance, so at 1024px it left the
+ * card's top 17.94px behind the header in Vietnamese and 66.56px behind it in
+ * Japanese, once the card was pinned - measured on this page and on the event
+ * page's ticket card. That was true of every `top: 96px` card on the site, which is
+ * why it was a fact about the shared offset rather than about this card, and why
+ * the fix is one shared value derived from the header rather than a second value on
+ * one page. (The earlier note here also listed `.side-column` among the users of
+ * that offset; that column is no longer sticky - the card inside its rail is - so
+ * the three cards above are the complete set.)
  */
-.registration-summary { position: sticky; top: 96px; }
+.registration-summary { position: sticky; top: calc(var(--site-header-height) + var(--sticky-card-gap)); }
 
 .registration-summary__media img {
   width: 100%;

@@ -55,6 +55,10 @@ const ALLOWED_AUDIENCES = ['public', 'admin'];
  *   includePast           true | false (used by the home page)
  *   sort, direction       whitelisted sort keys
  *   limit, offset, page   pagination
+ *   audience              public | admin (the A3 admin switch)
+ *   publishStatus         active | suspended | cancelled | all, checked like `state`
+ *                         and `sort`: a value outside the list is a 400 rather than
+ *                         a filter that is quietly ignored
  *
  * @param query - The untrusted query string. May be omitted, in which case the defaults describe the next upcoming events.
  * @returns The validated filters and the paging values derived from them.
@@ -178,6 +182,26 @@ function buildQuery(query: UntrustedInput = {}) {
       ? undefined
       : parseInteger(organizationIdText, 'organizationId', { min: 1, errors });
 
+  // The publishing state the admin list filters on is checked exactly like `state`
+  // and `sort` above, and the problem is collected BEFORE the throw below so it
+  // joins the same single 400 as every other bad parameter.
+  //
+  // This used to fall back to 'all' - the admin list's default - whenever the value
+  // was not one of the four accepted words, which is the one failure mode a filter
+  // must never have: GET /api/admin/events?publishStatus=past answered 200 with the
+  // WHOLE table (11 events) and no hint that the filter had been dropped, so the
+  // caller was told, in the shape of a successful response, that every event had
+  // that status. A client cannot tell that apart from a correct answer, whereas
+  // ?sort=nope and ?state=nope were already 400s - so an unknown value is now a 400
+  // naming the accepted ones instead of a silently widened result set.
+  const publishStatusText = (parseText(query.publishStatus) || 'all').toLowerCase();
+  if (!ALLOWED_PUBLISH_STATUSES.includes(publishStatusText)) {
+    errors.push({
+      field: 'publishStatus',
+      message: `Publish status must be one of: ${ALLOWED_PUBLISH_STATUSES.join(', ')}.`,
+    });
+  }
+
   if (errors.length > 0) {
     throw HttpError.badRequest('One or more query parameters are invalid.', errors);
   }
@@ -188,10 +212,9 @@ function buildQuery(query: UntrustedInput = {}) {
   const audienceText = (parseText(query.audience) || 'public').toLowerCase();
   const audience = ALLOWED_AUDIENCES.includes(audienceText) ? audienceText : 'public';
 
-  const publishStatusText = (parseText(query.publishStatus) || 'all').toLowerCase();
-  const publishStatus = ALLOWED_PUBLISH_STATUSES.includes(publishStatusText)
-    ? publishStatusText
-    : 'all';
+  // Already known to be one of the four accepted words: everything outside that
+  // list was reported and threw above, so this needs no second fallback.
+  const publishStatus = publishStatusText;
 
   return {
     filters: {

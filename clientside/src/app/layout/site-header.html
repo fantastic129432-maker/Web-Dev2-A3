@@ -15,8 +15,12 @@
   The heart-in-a-circle mark is inline SVG rather than a file: it is four lines of
   path data, it inherits the brand colour from CSS, and it cannot 404. The legacy
   header did the same.
+
+  `#headerBox` is the template reference the component measures itself through:
+  the header's own height is what every sticky card below it clears, and that height
+  is not the same in all four languages. See the class comment in site-header.ts.
 -->
-<header class="site-header">
+<header class="site-header" #headerBox>
   <div class="site-header__inner">
     <a class="brand" routerLink="/" [attr.aria-label]="'a11y.orgHome' | t: { name: ('nav.siteName' | t) }">
       <span class="brand__mark" aria-hidden="true">

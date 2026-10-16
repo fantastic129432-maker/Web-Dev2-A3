@@ -19,9 +19,10 @@
  * The white-flash problem
  *   A theme applied by Angular only after bootstrap means a dark-mode visitor
  *   sees a white flash first. Both index.html files therefore run a tiny inline
- *   script in <head>, before the first paint, reading the SAME localStorage key
- *   and writing the SAME attributes. EARLY_THEME_SNIPPET below is the source of
- *   that script, kept next to the code it mirrors so the two cannot drift apart.
+ *   script in <head>, before the first paint, reading the SAME localStorage key,
+ *   narrowing the stored value the same way and writing the SAME attributes.
+ *   EARLY_THEME_SNIPPET below is the source of that script, kept next to the code
+ *   it mirrors so the two cannot drift apart.
  */
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
@@ -211,9 +212,22 @@ export class ThemeService {
  * tools/check-angular-architecture.mjs verifies that both pages still carry it,
  * so a change to the storage key or the attribute name cannot be made in only
  * one place.
+ *
+ * WHAT COUNTS AS A STORED VALUE IS PART OF WHAT IS MIRRORED, not just the key and
+ * the attributes. The script narrows the stored string to the three names `THEMES`
+ * lists - exactly the test `isThemePreference` applies when the service reads the
+ * same key back - and falls back to 'system' for anything else. That matters for a
+ * corrupted value ('purple', an older build's value, another application's value
+ * under the same key): narrowing paints the resolved theme immediately, so the
+ * first paint and the service agree and nothing repaints. Accepting the raw string
+ * instead painted the LIGHT theme for the frame before bootstrap and then repainted
+ * for a dark-mode visitor - the flash this whole snippet exists to prevent - and
+ * left the script and the service disagreeing about what was stored, which is the
+ * drift the two files are kept side by side to make impossible.
  */
 export const EARLY_THEME_SNIPPET =
-  "(function(){try{var p=localStorage.getItem('charity-events:theme')||'system';" +
+  "(function(){try{var s=localStorage.getItem('charity-events:theme');" +
+  "var p=s==='light'||s==='dark'||s==='system'?s:'system';" +
   "var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);" +
   "document.documentElement.setAttribute('data-theme',d?'dark':'light');" +
   "document.documentElement.setAttribute('data-theme-preference',p);" +

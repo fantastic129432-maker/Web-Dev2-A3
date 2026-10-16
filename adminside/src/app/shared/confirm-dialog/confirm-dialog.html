@@ -8,8 +8,13 @@
      keydown only bubbles through its own ancestors and the trap has to recover the
      focus after it has escaped to the body; see onKeydown() in confirm-dialog.ts. -->
 <div class="confirm-backdrop" (click)="onBackdrop($event)">
-  <div #panel class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-    <h2 class="confirm-panel__title" id="confirm-title">{{ titleKey() | t }}</h2>
+  <!-- The heading's id and the label that points at it are bound together from the
+       component's own `titleId`, not written as one shared literal: two dialogs on one
+       page would otherwise both call their heading `confirm-title` and both labels would
+       resolve to the first heading, so one dialog would be announced with the other's
+       title. See nextTitleId() in confirm-dialog.ts. -->
+  <div #panel class="confirm-panel" role="dialog" aria-modal="true" [attr.aria-labelledby]="titleId">
+    <h2 class="confirm-panel__title" [id]="titleId">{{ titleKey() | t }}</h2>
     <p class="confirm-panel__body">{{ bodyKey() | t: bodyValues() }}</p>
     <!-- The optional consequence line. It is rendered only when the parent supplies
          a key, so a caller with nothing extra to say gets the same two-paragraph
