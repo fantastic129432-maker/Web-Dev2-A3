@@ -1799,9 +1799,20 @@ textarea:focus { border-color: var(--brand-500); }
   border: 1px dashed var(--line);
   border-radius: var(--radius);
 }
+/*
+  The heading rule covers `h1` as well as `h3`, because the two panels that own the
+  whole page while they are shown - the event detail page's failure state and the
+  registration page's - carry their heading as an `h1`. They have to: every other
+  branch of those pages has its `h1` (the event name, or 'form.title'), so a
+  failure branch written with an `h3` left the document with no top-level heading
+  at all. The rule is shared rather than duplicated so the error panel looks
+  exactly as it did before the level changed; only the outline it produces differs.
+*/
+.state h1,
 .state h3 { margin-bottom: var(--space-2); }
 .state p { color: var(--ink-500); margin: 0; }
 .state--error { border-color: #f0c3bf; background: var(--danger-bg); }
+.state--error h1,
 .state--error h3 { color: var(--danger); }
 .state--error p { color: #7c2d28; }
 .state__details { text-align: left; max-width: 520px; margin: var(--space-3) auto 0; color: #7c2d28; }

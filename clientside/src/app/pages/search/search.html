@@ -287,10 +287,12 @@
         four languages whose plural rules differ would be wrong in three of them),
         and because this section is `aria-labelledby="results-heading"` the count is
         part of the ACCESSIBLE NAME of the results region rather than a floating
-        element beside the heading. `resultsHeading()` in search.ts chooses the
-        counted or the plain string, the heading stays a real <h2>, and
-        `aria-live="polite"` keeps the completion announcement the old count
-        element used to provide.
+        element beside the heading. `resultsHeading()` in search.ts chooses between
+        the counted and the plain string - and picks the plain one whenever the
+        search was cut short by its own row limit, so the number in the heading can
+        never disagree with the number of cards below it. The heading stays a real
+        <h2>, and `aria-live="polite"` keeps the completion announcement the old
+        count element used to provide.
       -->
       <div class="results-head">
         <h2 id="results-heading" aria-live="polite">{{ resultsHeading() }}</h2>

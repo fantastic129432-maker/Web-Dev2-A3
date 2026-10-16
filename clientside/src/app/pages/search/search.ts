@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { catchError, forkJoin, of } from 'rxjs';
+import { Subject, catchError, forkJoin, of, switchMap } from 'rxjs';
 
 import { ApiError } from '@charity/shared/api/api-error';
 import { ApiService } from '@charity/shared/api/api.service';
@@ -173,7 +173,9 @@ interface LocationOption {
  *    turning the first paint into a long download; pressing Search events then
  *    runs the same query with the full `limit: 60` documented above. The API's
  *    reported total drives the count either way, so the number shown is the
- *    number that matched and not the number of rows requested.
+ *    number that matched and not the number of rows requested - and when the
+ *    arrival request came back with fewer rows than matched, the heading drops the
+ *    number rather than name a total the grid contradicts. See `resultsHeading`.
  *
  * 5. A native date input paints its own placeholder, and no attribute can change
  *    it.
@@ -208,6 +210,24 @@ export class SearchPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+
+  /**
+   * One entry per search the visitor asks for, carrying that search's query.
+   *
+   * This exists so two searches can never arrive out of order. Every trigger of
+   * `runSearch()` used to subscribe to its own `getEvents()` call, and nothing
+   * cancelled the previous one: ticking two category checkboxes in quick
+   * succession left two requests in flight, and if the FIRST one happened to
+   * answer last its rows replaced the newer search's rows - the grid then showed
+   * events that did not match the ticked boxes while the chips above it named
+   * them. Measured against this build with the first request delayed by 2.5s:
+   * chips read "Category: Fun Run, Category: Gala Dinner" while the single card
+   * on screen was the Fun Run response. The subscription set up in the
+   * constructor pipes this through `switchMap`, which unsubscribes the in-flight
+   * request the moment a newer one is emitted - so the LAST search is the one
+   * that fills the grid, whatever order the answers come back in.
+   */
+  private readonly searchTrigger = new Subject<EventQuery>();
 
   /** Tab title, from the route's `data.titleKey` ('search.title'). */
   private readonly title = useDocumentTitle();
@@ -261,12 +281,30 @@ export class SearchPage {
    * calling `i18n.t` (which reads the language signal) makes this recompute on
    * both a new result set and a language switch.
    *
+   * THE COUNT IS ONLY FOLDED IN WHEN THE WHOLE RESULT SET IS ON SCREEN
+   *   `state.total` is the API's count of everything that matched, while
+   *   `state.events` is what the search asked for - and a search can legitimately
+   *   be cut short by its own row limit. The page opens with the deliberately small
+   *   arrival search (ARRIVAL_LIMIT), so any event list longer than nine rows used
+   *   to produce a heading that contradicted the grid underneath it: measured
+   *   against this build with a mocked response reporting 30 matches and returning
+   *   nine rows, the heading read "Matching events (30)" above exactly nine cards,
+   *   and nothing on the page said why. A visitor reading "30" and counting nine
+   *   cards has been told that seven tenths of their results are missing without
+   *   being told how to reach them, which is worse than no number at all. So the
+   *   total is stated only when every matching event was received and rendered;
+   *   when the list was truncated, the plain heading is shown instead, because
+   *   "Matching events" is true either way and a number that disagrees with the
+   *   cards is not. Pressing "Search events" asks for FULL_LIMIT rows, which is
+   *   where the number comes back for every result set the seeded data can produce.
+   *
    * @returns The translated heading, with the API's reported total in parentheses
-   *   once the search has finished.
+   *   once the search has finished and every matching event is on screen.
    */
   protected readonly resultsHeading = computed(() => {
     const state = this.results();
-    return state.status === 'done'
+    const complete = state.events.length >= state.total;
+    return state.status === 'done' && complete
       ? this.i18n.t('search.resultsHeadingCount', { count: state.total })
       : this.i18n.t('search.resultsHeading');
   });
@@ -378,6 +416,44 @@ export class SearchPage {
     this.title.set();
 
     this.loadFilterOptions();
+
+    /*
+     * The single search pipeline: every query `runSearch()` accepts is pushed
+     * through the trigger below, and `switchMap` cancels whatever request is still
+     * in flight, so only the newest search can write to `results`. Subscribing once
+     * here rather than once per search is also what makes the cancellation
+     * possible - see `searchTrigger`.
+     */
+    this.searchTrigger
+      .pipe(
+        switchMap((query) => this.api.getEvents(query)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (page) => {
+          this.results.set({
+            status: 'done',
+            events: page.items,
+            total: page.meta.total,
+            // A completed search with no rows is not an error: the message below
+            // the form explains it in the same tone as a successful search. The
+            // count is the number of rows that arrived, not `meta.total`, so this
+            // sentence agrees with the cards on screen when a search was cut short
+            // by its own row limit - which the results heading also reports.
+            message: this.i18n.t(
+              page.items.length === 1 ? 'search.eventCountOne' : 'search.eventCountMany',
+              { count: page.items.length }
+            ),
+          });
+        },
+        error: (error: unknown) => {
+          const message =
+            error instanceof ApiError
+              ? error.friendlyMessage((key) => this.i18n.t(key))
+              : this.i18n.t('error.searchFailed');
+          this.results.set({ status: 'error', events: [], total: 0, message });
+        },
+      });
 
     /*
      * Exactly one request leaves this constructor. `applyFiltersFromUrl()` builds
@@ -535,33 +611,11 @@ export class SearchPage {
     const query = this.buildQuery(scope === 'arrival' ? ARRIVAL_LIMIT : FULL_LIMIT);
     this.syncUrl(query);
 
+    // Hand the query to the one search subscription set up in the constructor,
+    // which cancels the request this one supersedes. The subscriber writes the
+    // result, so this method issues the request and nothing else.
     this.results.set({ status: 'loading', events: [], total: 0, message: null });
-
-    this.api
-      .getEvents(query)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (page) => {
-          this.results.set({
-            status: 'done',
-            events: page.items,
-            total: page.meta.total,
-            // A completed search with no rows is not an error: the message below
-            // the form explains it in the same tone as a successful search.
-            message: this.i18n.t(
-              page.items.length === 1 ? 'search.eventCountOne' : 'search.eventCountMany',
-              { count: page.meta.total }
-            ),
-          });
-        },
-        error: (error: unknown) => {
-          const message =
-            error instanceof ApiError
-              ? error.friendlyMessage((key) => this.i18n.t(key))
-              : this.i18n.t('error.searchFailed');
-          this.results.set({ status: 'error', events: [], total: 0, message });
-        },
-      });
+    this.searchTrigger.next(query);
   }
 
   /**

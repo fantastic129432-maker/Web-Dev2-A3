@@ -28,10 +28,19 @@
       A failure panel with the two ways out. A 404 additionally explains that the
       organisation may have suspended the event, which is a normal outcome for an
       old link rather than a fault.
+
+      THE PANEL HEADING IS AN <h1>, NOT AN <h3>. The event's own <h1> lives in the
+      branch below, so on this branch the document had no top-level heading at all:
+      the outline jumped straight from nothing to the <h3> "Something went wrong",
+      and the next headings a screen reader met were the footer's. Measured on
+      /events/9999 before the change: h1 count 0, first heading h3. This is the
+      only heading on the page while the panel is shown, so it is the page's
+      heading - see `.state h1` in clientside/src/styles.css, which keeps it
+      looking exactly as the <h3> did.
     -->
     <div class="container section">
       <div class="state state--error" role="alert">
-        <h3>{{ 'error.title' | t }}</h3>
+        <h1>{{ 'error.title' | t }}</h1>
         <p>{{ state().error }}</p>
         @if (state().details.length > 0) {
           <ul class="state__details">

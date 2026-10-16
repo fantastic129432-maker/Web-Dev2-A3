@@ -60,10 +60,19 @@
     }
 
     @case ('problem') {
-      <!-- A failed load, or an event that is already over. -->
+      <!--
+        A failed load, or an event that is already over.
+
+        THE PANEL HEADING IS AN <h1>, NOT AN <h3>: the form's own <h1>
+        ('form.title') is in the @default branch, so this branch had no top-level
+        heading and its outline began at <h3>. The h1 in the form card and the h1
+        here are never on screen at the same time, because the @switch above shows
+        exactly one branch. `.state h1` in clientside/src/styles.css keeps the
+        panel looking the way the <h3> did.
+      -->
       <div class="container section">
         <div class="state state--error" role="alert">
-          <h3>{{ 'error.title' | t }}</h3>
+          <h1>{{ 'error.title' | t }}</h1>
           <p>{{ problem() }}</p>
           @if (problemDetails().length > 0) {
             <ul class="state__details">
