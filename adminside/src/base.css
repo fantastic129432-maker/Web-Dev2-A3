@@ -33,16 +33,39 @@
 
    Maintenance rule: a change to a design token belongs in BOTH
    clientside/src/styles.css and here WHEN BOTH APPLICATIONS READ IT. The two
-   files are not padded to the same list. `--container`, for example, is the
-   public sheet's alone: every width in the admin app is set by its own layout
-   (`.admin-container` and `.admin-header__inner` use `min(1440px, 100% - 3rem)`),
-   so no admin rule reads it. A token that no rule in either application reads is
-   not declared here at all rather than mirrored, which is why this file declares
-   no `--radius-lg` (clientside/src/styles.css's radius note records why 20px is
-   no longer a step) and no `--accent-100`. A change to a token both applications
-   read still belongs in both files. tools/check-angular-architecture.mjs enforces
-   the Angular architecture, not this duplication, so this comment is the
-   contract.
+   files are not padded to the same list, and the lists below are the measured
+   ones - every token named here was checked against the rules that read it, in
+   both applications, rather than assumed.
+
+   THE TOKENS ONLY THE PUBLIC SHEET DECLARES, and why no admin rule reads them:
+
+     --container           every width in this app is set by its own layout
+                           (`.admin-container` and `.admin-header__inner` use
+                           `min(1440px, 100% - 3rem)`), so `var(--container)`
+                           appears in no admin rule;
+     --site-header-height  the public sheet's sticky machinery. This app's
+     --sticky-card-gap     navigation is `.admin-nav`, pinned at `top: 0`, and no
+                           admin card is offset from a measured header height, so
+                           neither token has a reader here;
+     --ink-600             the public small-metadata step (the event card's
+                           summary and its When/Where/Cause labels). This app
+                           renders no event card: its secondary lines are
+                           `.cell-stack__secondary` on --ink-500, and --ink-700
+                           only where a measured ratio needed it (a totals cell,
+                           a zebra stripe).
+
+   THE TOKENS DECLARED HERE WHOSE ONLY READERS ARE ADMIN RULES, kept at the public
+   sheet's values so the two applications cannot drift apart in a theme:
+   --warning and --warning-bg (`.banner--warning`), --accent-600
+   (weather-preview.css) and --shadow-lg (`.confirm-panel`). Neither sheet is
+   pruned of them: the public sheet is where the palette is published.
+
+   A token that no rule in EITHER application reads is not declared here at all
+   rather than mirrored, which is why this file declares no `--radius-lg`
+   (clientside/src/styles.css's radius note records why 20px is no longer a step)
+   and no `--accent-100`. A change to a token both applications read still belongs
+   in both files. tools/check-angular-architecture.mjs enforces the Angular
+   architecture, not this duplication, so this comment is the contract.
    ========================================================================== */
 
 /* ==========================================================================
@@ -88,8 +111,73 @@
   --warning: #8a6100;
   --warning-bg: #fdf3dc;
 
-  --radius-sm: 6px;
+  /*
+   * Radius: the SAME THREE steps the public sheet draws, at the same values.
+   *
+   *   --radius-sm    4px   controls: inputs, selects, tiles, chips-as-boxes
+   *   --radius      12px   cards and panels: one corner for every bounded surface
+   *   --radius-pill 999px  pills and pill-shaped buttons, and the round badges
+   *
+   * THE DIVERGENCE THIS CLOSES. This file is a copy of the public design system,
+   * and the copy predated the public radius round - the one that collapsed the
+   * scale to three steps and moved the small control corner from 6px to 4px (see
+   * the radius note in clientside/src/styles.css, which carries the reasoning).
+   * The public round was not carried across, so the same token, read by rules in
+   * BOTH applications, resolved to 6px here and 4px there. The public value is
+   * the documented one, so 4px is what this file declares; the admin controls
+   * below are the only thing the change moves, and the public elements do not
+   * move at all.
+   *
+   * WHAT READS --radius-sm HERE, measured in headless Edge against the built app
+   * in both themes at 1024, 1440 and 1920px wide - border-radius, then (in
+   * brackets) the border box, which is identical before and after because only
+   * the corner changed. The four languages were measured too: every value below
+   * is the same in en-AU, zh-CN, vi-VN and ja-JP, because no rule that sets a
+   * corner is language-conditional (there is no :lang() selector in either
+   * sheet).
+   *
+   *   .admin-brand__mark       6px -> 4px   (38x38, the header mark, every page)
+   *   .attention-card__icon    6px -> 4px   (34x34, the dashboard's card chip)
+   *   input[type='text']       6px -> 4px   (up to 592x48 / 832x48, event form)
+   *   input[type='date']       6px -> 4px   (208x50, event form)
+   *   input[type='time']       6px -> 4px   (208x50, event form)
+   *   input[type='number']     6px -> 4px   (224x48, event form)
+   *   select                   6px -> 4px   (160x42 - 832x42, filter bars and
+   *                                          event form; the header's language
+   *                                          picker is excluded below)
+   *   textarea                 6px -> 4px   (592x184, event form description)
+   *   .image-picker            6px -> 4px   (352x74, the artwork card)
+   *   .image-picker__preview   6px -> 4px   (56x56, its square thumbnail)
+   *
+   * Every one of those boxes keeps its size and position: the corner is the only
+   * declaration that changed, so nothing moves, nothing overlaps and nothing
+   * inside a 4px corner comes any closer to the 12px corner of the panel it sits
+   * in. The measured check is the border box of each element above, which is
+   * identical before and after at all three widths in both themes. The pixel
+   * check agrees: with the old 6px put back on the live page and the two
+   * screenshots diffed, 96-1332 pixels differ per page - 0.004% to 0.049% of the
+   * page, every one of them on a corner listed above, with no row, no cell and no
+   * control moving.
+   *
+   * THE HAND-WRITTEN CORNERS. `.button`, `.badge` and `.spinner` used to write
+   * 999px and 50% out by hand - the very corners the public round replaced with
+   * --radius-pill - and the admin header controls and the dashboard's reason tag
+   * and status dot did the same. They all read the token now, which is why this
+   * file declares it: --radius-pill has readers in BOTH applications, so the
+   * maintenance rule above puts it in both sheets. The spinner and the status dot
+   * are square boxes (34x34 and 11x11), and on a square box a 50% radius and a
+   * 999px radius produce the identical circle, so --radius-pill is what "fully
+   * rounded" means at that size here too.
+   *
+   * THE ONE PLACE THE ADMIN APP TAKES A DIFFERENT TOKEN FROM THE PUBLIC SITE, on
+   * purpose: the header's language picker is a pill (--radius-pill) rather than
+   * the public settings bar's --radius-sm select, because it shares one rule with
+   * the theme button beside it on the dark header band; adminside/src/styles.css
+   * records why.
+   */
+  --radius-sm: 4px;
   --radius: 12px;
+  --radius-pill: 999px;
   --shadow-sm: 0 1px 2px rgba(16, 36, 43, 0.08), 0 1px 3px rgba(16, 36, 43, 0.06);
   --shadow: 0 6px 18px rgba(16, 36, 43, 0.1);
   --shadow-lg: 0 18px 40px rgba(16, 36, 43, 0.16);
@@ -263,7 +351,10 @@ textarea {
   gap: var(--space-2);
   padding: 0.7rem 1.35rem;
   border: 1px solid transparent;
-  border-radius: 999px;
+  /* --radius-pill, the design system's one "fully rounded" value (base.css's
+     radius note records the round that replaced the hand-written 999px and 50%
+     corners with it, in both applications). */
+  border-radius: var(--radius-pill);
   background: var(--brand-700);
   /* --on-brand rather than #fff: the dark theme inverts --brand-700 to a light
      teal, so white text would measure 2.4:1 there. Pairing one flipping token
@@ -320,7 +411,9 @@ textarea {
 .badge {
   display: inline-block;
   padding: 0.2rem 0.65rem;
-  border-radius: 999px;
+  /* --radius-pill: a badge is a pill, and the value is the token's rather than a
+     written 999px so the two applications keep one "fully rounded" value. */
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
   font-weight: bold;
   letter-spacing: 0.04em;
@@ -548,7 +641,9 @@ textarea[aria-invalid='true'] {
   margin: 0 auto var(--space-3);
   border: 3px solid var(--surface-100);
   border-top-color: var(--brand-700);
-  border-radius: 50%;
+  /* Square box: --radius-pill draws the same circle the written 50% did (review
+     item D1 on the public sheet, which this layer had not been moved with). */
+  border-radius: var(--radius-pill);
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

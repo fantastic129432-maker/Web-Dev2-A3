@@ -109,6 +109,17 @@
    * --radius-pill so the whole stylesheet has one "fully rounded" value, and the
    * circle is what "full" means at that size.
    *
+   * THE OTHER APPLICATION READS THE SAME THREE STEPS, at the same values. The
+   * admin layer (adminside/src/base.css) is a copy of this design system, and
+   * that copy predated this round: it still had the 6px control corner, so
+   * --radius-sm - one token, read by rules in both applications - drew two
+   * different corners. It declares 4px now, together with --radius-pill for the
+   * first time, because the admin .button, .badge and .spinner had written 999px
+   * and 50% out by hand in the same way the eleven corners this note describes
+   * did. Both files carry a radius note; the admin one holds the measured
+   * before/after for the admin controls, and the public elements were
+   * re-measured to confirm that nothing on this site moved.
+   *
    * The one deliberate non-token corner is `.info-card--plain`'s `0`: that rule
    * exists to REMOVE the box (see the note on it), so a radius there would be a
    * property with nothing to round.

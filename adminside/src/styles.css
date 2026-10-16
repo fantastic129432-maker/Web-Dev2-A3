@@ -192,12 +192,19 @@
  * They share a rule so they cannot drift apart visually. The language picker is
  * a <select>, which brings its own background and arrow, so it overrides just
  * those two properties below.
+ *
+ * The pill corner is --radius-pill, not a written 999px, so this pair reads the
+ * same "fully rounded" token as the public theme button that sits in the same
+ * place in the public header - and, deliberately, NOT the --radius-sm the public
+ * settings bar's language select uses: this one sits on the dark header band and
+ * has to match the button beside it, which is the one thing a shared rule can
+ * say. base.css's radius note records the token's collapse into both sheets.
  */
 .admin-theme-toggle,
 .admin-lang-select {
   padding: 0.4rem 0.8rem;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--on-brand);
   font: inherit;

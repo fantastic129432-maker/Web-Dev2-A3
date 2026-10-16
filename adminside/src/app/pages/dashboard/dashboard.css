@@ -149,7 +149,9 @@
   justify-self: start;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  /* A pill tag, so it takes the design system's one "fully rounded" value rather
+     than writing 999px out by hand (base.css's radius note records the round). */
+  border-radius: var(--radius-pill);
   background: var(--surface-50);
   color: var(--ink-700);
   font-size: 0.72rem;
@@ -195,7 +197,10 @@
   flex: 0 0 auto;
   width: 0.7rem;
   height: 0.7rem;
-  border-radius: 50%;
+  /* Square box: --radius-pill draws the same circle the written 50% did, so the
+     scale keeps one "fully rounded" value (the reasoning the public sheet's
+     radius note gives for .spinner and .confirmation__glyph). */
+  border-radius: var(--radius-pill);
   background: var(--ink-300);
   box-shadow: 0 0 0 3px var(--surface-100);
 }
