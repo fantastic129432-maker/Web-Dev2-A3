@@ -145,7 +145,7 @@ function rawForEvent(eventId: number): DataRecord[] {
  * empty name yields an empty string so the caller can fall back to the
  * registration id rather than rendering a blank cell.
  *
- * The public page renders this inside the `event.registrationsBacker` dictionary
+ * The public page renders this inside the registrations table
  * key, so the words around it are translated while the name itself is data.
  *
  * @param attendeeName - The name as the registration stored it, or null when the row carries none.

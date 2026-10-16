@@ -15,7 +15,6 @@ import {
   formatDateRange,
   formatDateTime,
   formatPrice,
-  formatShortDate,
   formatTimeRange,
   imageUrl,
   stateKey,
@@ -382,42 +381,40 @@ export class EventDetailPage {
   }
 
   /**
-   * The masked backer line for one row: "Grace T. - 2 tickets - 14 Sept 2026".
+   * The masked backer name for one row: "Grace T.".
    *
-   * The name half is the API's `attendeeDisplayName` where it was sent and
+   * The name is the API's `attendeeDisplayName` where it was sent and
    * `maskAttendeeName()` of the full name otherwise, both through `backerName()`,
-   * so the page cannot invent a second masking rule. The other two halves are
-   * dictionary text with values substituted, which is why they are built here
-   * rather than in the template: the words around the numbers have to be
-   * translated, while the numbers themselves must not be.
+   * so the page cannot invent a second masking rule. That name is the whole cell:
+   * the ticket count and the purchase date have their own columns in the
+   * registrations table ("Tickets" and "Purchased"), so they are not built into
+   * this string as well.
+   *
+   * WHAT THE CELL USED TO CARRY, AND WHY IT DOES NOT ANY MORE
+   *   It read "Grace T. - 2 tickets - 14 Sep 2026", with the last two parts
+   *   substituted into dictionary keys, because the words around the numbers have
+   *   to be translated while the numbers themselves must not be. The two columns
+   *   already print exactly those facts, each under its own heading, so the line
+   *   repeated the row instead of describing it; the two keys it used
+   *   (`event.registrationsBacker` and `event.registrationsBackerTickets`) were
+   *   removed with it, from all four languages.
    *
    * This EXISTS BECAUSE THE CONTACT DETAILS ARE GONE. The cell used to print the
    * attendee's email address and phone number; the API no longer sends either on
-   * this endpoint, and the masked line is what keeps the list useful without
+   * this endpoint, and the masked name is what keeps the list useful without
    * identifying anybody - the person who booked can still find their own row by
-   * its ticket count and purchase date.
+   * the ticket count and the purchase date beside it.
    */
-  protected backerLine(registration: Registration): string {
+  protected backerLabel(registration: Registration): string {
     const name = backerName(registration);
-    // The "2 tickets" half is its own translated phrase rather than the word
-    // "Tickets" glued to a number: languages that put the noun first need the
-    // number inside the sentence, so it is substituted into a dictionary key.
-    const tickets = this.i18n.t('event.registrationsBackerTickets', {
-      count: Number(registration.ticketsPurchased),
-    });
-    const date = formatShortDate(String(registration.registeredAt).slice(0, 10));
 
     if (name === '') {
       // A row with no name at all is a data problem, not a display one. It stays
       // identifiable by its registration id rather than rendering an empty cell.
-      return `${this.i18n.t('event.registrationsLogin')} #${registration.registrationId} \u00B7 ${tickets} \u00B7 ${date}`;
+      return `${this.i18n.t('event.registrationsLogin')} #${registration.registrationId}`;
     }
 
-    return this.i18n.t('event.registrationsBacker', {
-      name,
-      tickets,
-      date,
-    });
+    return name;
   }
 
   /**

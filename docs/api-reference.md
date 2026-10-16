@@ -1096,7 +1096,7 @@ identity next to a ticket count and a date, which is what turns a booking list
 into a list of contactable people. A single-word name is shown as it is, and an
 empty name yields an empty string so the caller can fall back to the
 registration id rather than rendering a blank cell.
-The public page renders this inside the `event.registrationsBacker` dictionary
+The public page renders this inside the registrations table
 key, so the words around it are translated while the name itself is data.
 - `@param attendeeName - The name as the registration stored it, or null when the row carries none.`
 - `@returns The masked name, for example "Grace T.", or an empty string when no name was stored.`
@@ -2974,7 +2974,7 @@ empty string so the caller can fall back to the registration id.
 
 #### function `backerName`
 
-The backer line under a registrations row: who, how many tickets, and when.
+The backer name under a registrations row: who, in the short form the API sends. The ticket count and the purchase date have their own columns in that table, so only the name is rendered here.
 Built from the masked name the API sends (`attendeeDisplayName`) where it is
 present, and from the full name via maskAttendeeName() otherwise, so the same
 mask is produced whichever shape arrived. The ticket and date halves are added

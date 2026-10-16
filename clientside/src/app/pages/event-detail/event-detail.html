@@ -307,7 +307,7 @@
                     @for (registration of registrations(); track registration.registrationId) {
                       <tr>
                         <!--
-                          THE ATTENDEE CELL IS A MASKED BACKER LINE, NOT A CONTACT CARD.
+                          THE ATTENDEE CELL IS A MASKED NAME, NOT A CONTACT CARD.
 
                           This table is on a public page, so it must not identify the
                           people who booked. It used to print each attendee's full
@@ -315,21 +315,25 @@
                           either any more (the keys are absent from the public
                           response - see REGISTRATION_COLUMNS_PUBLIC in
                           api/src/repositories/repository.mysql.ts), and what replaces
-                          them is a first name, the initial of the surname, the number
-                          of tickets and the purchase date:
+                          them is a first name and the initial of the surname:
 
-                            Grace T. · 2 tickets · 14 Sep 2026
+                            Grace T.
 
                           which is enough for the visitor who booked to recognise
                           their own row and not enough to publish anyone else's
-                          identity. The words around the numbers come from the
-                          dictionary (all four languages), the numbers do not.
+                          identity. The cell is the row's own header, so it names the
+                          row and each column is then read under its own heading; the
+                          ticket count and the purchase date are deliberately NOT
+                          repeated inside it. This table already has a TICKETS column
+                          and a PURCHASED column that print those two facts, and the
+                          cell used to duplicate them as
+                          "Grace T. · 2 tickets · 14 Sep 2026".
 
-                          `backerLine()` builds the whole line, so there is exactly
-                          one place that decides how a backer is described.
+                          `backerLabel()` builds the cell, so there is exactly one
+                          place that decides how a backer is named.
                         -->
                         <th scope="row">
-                          <span class="data-table__primary">{{ backerLine(registration) }}</span>
+                          <span class="data-table__primary">{{ backerLabel(registration) }}</span>
                         </th>
                         <td>
                           @if (registration.ticketName) {

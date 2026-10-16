@@ -179,7 +179,7 @@ export function maskAttendeeName(attendeeName: string | null | undefined): strin
 }
 
 /**
- * The backer line under a registrations row: who, how many tickets, and when.
+ * The backer name under a registrations row: who, in the short form the API sends. The ticket count and the purchase date have their own columns in that table, so only the name is rendered here.
  *
  * Built from the masked name the API sends (`attendeeDisplayName`) where it is
  * present, and from the full name via maskAttendeeName() otherwise, so the same
