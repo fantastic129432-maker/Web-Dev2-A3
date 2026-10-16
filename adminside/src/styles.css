@@ -103,6 +103,26 @@
 [data-theme='dark'] .admin-theme-toggle { color: rgba(255, 255, 255, 0.92); }
 [data-theme='dark'] .admin-lang-select { color: rgba(255, 255, 255, 0.92); }
 
+/*
+ * THE HEADER ROW IS THE SAME SHAPE IN EVERY LANGUAGE, and `flex-wrap` alone did
+ * not make it so (the reported defect: switching the interface language moved the
+ * header's controls, because longer translations wrapped onto a second line and
+ * made the header taller).
+ *
+ * `flex-wrap: wrap` reflows on the CONTENT's intrinsic width, so the number of rows
+ * followed the language: measured in headless Edge in the default 'system' theme,
+ * this band was 107.17px in English and Vietnamese against 55.39px in Chinese at
+ * 600px wide, 107.17px against 55.39px at 660px, and 150.95px for Vietnamese and
+ * Japanese against 107.17px for English and Chinese at 390px. Two blocks below
+ * replace that with explicit breakpoints, so the row count is a decision:
+ *
+ *   above 760px   one row - brand | link | language | theme - which fits in every
+ *                 language and every theme state from 761px up (the widest, English
+ *                 with its 277.11px brand and 124px theme pill, needs 707.61px of
+ *                 the 729px the row has at 761px);
+ *   601 to 760px  two rows - brand, then the actions on a row of their own;
+ *   up to 600px   three rows - brand, the public-site link, then language + theme.
+ */
 .admin-header__inner {
   width: min(1440px, 100% - 3rem);
   margin-inline: auto;
@@ -147,6 +167,13 @@
   color: var(--brand-100);
 }
 
+/*
+ * The admin header's settings, controls and menu: the same labels as the public
+ * header, and the same risk. See `.admin-header__inner` above for the breakpoints
+ * that keep the header row the same shape in all four languages, `.admin-nav__link`
+ * for the one-line labels, and `.admin-nav__list` for what happens to the menu
+ * below 600px.
+ */
 .admin-header__actions {
   display: flex;
   align-items: center;
@@ -213,6 +240,38 @@
 }
 .admin-theme-toggle:hover { background: rgba(255, 255, 255, 0.12); }
 
+/*
+ * THE THEME PILL KEEPS ONE WIDTH IN EVERY LANGUAGE AND EVERY THEME STATE, which is
+ * what stops the language picker beside it from moving.
+ *
+ * The two controls sit at the right-hand end of the header row, so the language
+ * picker's own box is `row right edge - theme pill - gap - picker width`: the
+ * picker is a fixed 101.80px because a native select is as wide as its longest
+ * option ("Tiếng Việt", the same in all four languages), and the gap is fixed, so
+ * the only thing left that could move the picker is the pill's label. It did move:
+ * measured in headless Edge in the default 'system' theme, the pill is 71.34px
+ * ("System"), 80.08px ("跟随系统"), 112.22px ("Theo hệ thống") and 119.05px
+ * ("システムに従う") - 47.71px of movement, which slid the language picker by the
+ * same amount between English and Japanese. The light and dark labels differ too
+ * ("Light" 56.05px against "ライト" 66.97px).
+ *
+ * `min-width` is the widest of them all, the 119.05px Japanese "システムに従う",
+ * rounded up: 7.75rem is 124px. Every language and every state therefore draws the
+ * same 124px pill, and both controls hold their exact position when the language
+ * changes. The cost is honest and visible: "Light" and "Dark" sit in a pill wider
+ * than their own word needs, because a pill that resized itself would take the
+ * picker with it. `text-align: center` centres the label in that fixed box (a
+ * <button> centres its text by default, but this says so rather than relying on it).
+ *
+ * It is a `min-width` and not a `width` so the label can never be clipped: a
+ * translation longer than the current widest would widen the pill rather than
+ * truncate, and only the width would move - never a row.
+ */
+.admin-theme-toggle {
+  min-width: 7.75rem;
+  text-align: center;
+}
+
 .admin-lang-select {
   padding-right: 0.5rem;
   /*
@@ -247,6 +306,23 @@
   box-shadow: var(--shadow-sm);
 }
 
+/*
+ * The menu row. `flex-wrap: wrap` used to be the whole layout, which made the
+ * number of ROWS depend on the labels: at 390px wide English and Chinese fitted
+ * four links on one row (measured 64.39px of menu) while Vietnamese and Japanese
+ * did not and took two (115.78px), so `--site-header-height` - the value this menu
+ * publishes, and the one the event form's sticky column offsets itself from - was
+ * a different number in different languages.
+ *
+ * The `.admin-nav__link` labels now hold one line (see that rule), which makes the
+ * menu narrower and removes the mid-word breaks, and the two breakpoints at the end
+ * of this file make the row count explicit: from 601px up four one-line links fit
+ * on one row in every language (the widest, Vietnamese, measures 383px of the
+ * 569px the row has at 601px), and at 600px and below the menu becomes a
+ * two-column grid, so it is two rows in all four languages rather than one in two
+ * of them. `flex-wrap` stays as the fallback it now never is: every one of the four
+ * languages has been measured to fit above 600px.
+ */
 .admin-nav__list {
   width: min(1440px, 100% - 3rem);
   margin-inline: auto;
@@ -264,6 +340,27 @@
   text-decoration: none;
   font-size: 0.92rem;
   border-bottom: 3px solid transparent;
+  /*
+   * ONE LINE IN EVERY LANGUAGE, the admin half of the reported defect.
+   *
+   * Dashboard / Events / Add event / Registrations are translated, and the
+   * translations are wider: measured in headless Edge at 1920px, "Bảng điều khiển"
+   * is 146px against "Dashboard" at 109px and "イベントを追加" is 135px against
+   * "Add event" at 98px. Once the row ran out of room a label broke mid-phrase -
+   * "Bảng điều khiển" over two lines, "ダッシュボード" over two - and the menu band
+   * grew, which moved every link below it and changed the height the event form's
+   * sticky column is offset by.
+   *
+   * With `nowrap` a label can neither wrap nor shrink, so the width has to be given
+   * to it: the `@media (max-width: 600px)` grid at the end of this file is that
+   * change, and from 601px up the four one-line links already fit. Re-measured after
+   * the change: every label is one line at 1920, 1440, 1100, 900 and 390px in all
+   * four languages, and the menu is 70.73px above 900px, 64.39px from 601 to 900px
+   * (this sheet's own 900px block narrows the link padding) and 115.78px at 600px and
+   * below - the same three numbers in every language, which is what makes
+   * `--site-header-height` language-independent.
+   */
+  white-space: nowrap;
 }
 .admin-nav__link:hover { color: var(--brand-700); background: var(--surface-50); }
 .admin-nav__link--active {
@@ -985,10 +1082,76 @@ html body.admin-body .admin-page-header p {
   .admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 760px) {
+  /*
+   * The header band stacks HERE, at an explicit breakpoint, instead of wherever the
+   * settings controls happen to stop fitting. Above this the row is one line in
+   * every language and every theme state; below it the brand keeps the first row and
+   * the controls take a full row of their own, which is the same two rows in all
+   * four languages - and that is the whole point, because a `flex-wrap` that fires
+   * at a different width in each language is what made the header 107.17px in
+   * English and 55.39px in Chinese on the same page.
+   *
+   * 760px is where the widest case stops fitting: English at its widest is a
+   * 277.11px brand plus a 361.84px actions group and the 16px row gap, 655px against
+   * the 729px the row has at 761px. `.admin-header__inner` measures the same in each
+   * language from there up.
+   *
+   * `justify-content: flex-end` IS PART OF THE SAME FIX, one level down. A full-width
+   * row of [link] [language] [theme] laid out from its left edge puts the two
+   * controls at `link width + gap`, so they still moved with the language - measured
+   * at 660px, the language picker sat at 192.70px in English and 131.08px in Chinese.
+   * Pushing the group against the right edge instead makes both controls depend only
+   * on their own (fixed) widths and the row's, so they hold their exact position in
+   * all four languages at every width below 761px, exactly as the public header's
+   * settings bar does. The link keeps the room it needs on the left of them.
+   */
+  .admin-header__actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 600px) {
   .admin-container,
   .admin-header__inner,
   .admin-nav__list { width: min(1440px, 100% - 1.5rem); }
+
+  /*
+   * THREE ROWS, EXACTLY, IN EVERY LANGUAGE.
+   *
+   * One more breakpoint inside the actions group is needed below 600px, because at
+   * 390px the row is 366px wide and the group needs 415.50px in Vietnamese and
+   * 376.08px in Japanese (link + picker + theme) - so without this the group would
+   * fold differently in different languages, which is the defect one level down.
+   * Sending the public-site link to a line of its own leaves the picker and the
+   * theme button (101.80px + 12px + 124px = 237.80px) together on the last row in
+   * all four languages, and the link's own line is full width, so a translated link
+   * cannot change the row count either.
+   */
+  .admin-link { flex: 1 0 100%; }
+
+  /*
+   * THE MENU BECOMES A TWO-COLUMN GRID, which is the "layout change at a narrow
+   * width" the defect asks for rather than a wrapped label.
+   *
+   * Four one-line links need 383px in Vietnamese and 398px in Japanese against the
+   * 366px this row has at 390px, so a single row is impossible there without
+   * shrinking or truncating a label - both of which are ruled out. Two columns of
+   * 181px hold every label with room to spare: the longest, "Bảng điều khiển", is
+   * 130px at this width. Four links in two columns is two rows in ALL four
+   * languages, so the menu measures 115.78px in each of them and
+   * `--site-header-height` stops depending on the language.
+   *
+   * The alternative - a single row that scrolls sideways - was considered and
+   * rejected: it keeps the height constant too, but it puts destinations off screen
+   * behind a scrollbar on a phone, and every one of the four is meant to stay
+   * visible and clickable.
+   */
+  .admin-nav__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
   .admin-filters { grid-template-columns: 1fr; }
   /* Two columns will not fit a phone, so every tile takes the full width and the

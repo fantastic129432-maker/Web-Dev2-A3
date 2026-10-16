@@ -33,21 +33,29 @@ import { SiteNavComponent } from './site-nav/site-nav';
  *
  * WHY THE HEADER MEASURES ITSELF AND PUBLISHES ITS HEIGHT
  *   This header is sticky, so every sticky card in the page under it has to come to
- *   rest clear of its bottom edge - and that height is not the same in all four
- *   languages, because the nav labels and the settings note wrap onto more lines
- *   once the header row runs out of room. Measured in a 1000px-tall window:
- *   65.31px in English and 85.02px in Chinese at every two-column width, and in
- *   Vietnamese and Japanese 89.63px at 1400px wide against 113.94px and 162.56px at
- *   1024px wide, the narrowest window the two-column layouts are used at. The three
+ *   rest clear of its bottom edge. That height USED TO DEPEND ON THE LANGUAGE, and
+ *   through two separate lines of the header: the nav labels wrapped onto more
+ *   lines once the row ran out of room, and the "interface language only" note was
+ *   a full-width second line inside the settings bar that only the three
+ *   non-English languages render. Measured in a 1000px-tall window before the fix:
+ *   65.31px in English, 85.02px in Chinese at every width; Vietnamese and Japanese
+ *   89.63px at 1920 and 1440px, 113.94px at 1100 and 900px, and 211.19px for
+ *   Japanese at 900px; at 390px 120.09 / 146.52 / 146.52 / 164.94px. The three
  *   sticky cards used to share a written `top: 96px` derived from the English
  *   height, so at 1024px their top edge came to rest 17.94px (Vietnamese) and
- *   66.56px (Japanese) BEHIND the header. The height is therefore read from the
- *   real element and written to `--site-header-height` on the document element
- *   (`:root` in clientside/src/styles.css carries the English fallback used before
- *   the first measurement, and the whole table), and the cards compute their offset
- *   from it. A ResizeObserver rather than a window `resize` listener is what makes
- *   the value follow a language switch, a font swap or any other reflow of this
- *   row, none of which the window fires an event for.
+ *   66.56px (Japanese) BEHIND the header.
+ *
+ *   THE HEIGHT IS NOW THE SAME IN ALL FOUR LANGUAGES: 65.31px at 1920, 1440, 1100
+ *   and 900px and 120.09px at 390px, because the labels hold one line at every
+ *   width (see the nowrap note on `.site-nav__link`) and the note renders in a band
+ *   BELOW this element instead of inside it (see the template). The height is still
+ *   read from the real element and written to `--site-header-height` on the
+ *   document element (`:root` in clientside/src/styles.css carries the 900px-and-up
+ *   fallback used before the first measurement, and the whole before/after table),
+ *   and the cards compute their offset from it. A ResizeObserver rather than a
+ *   window `resize` listener is what makes the value follow a resize, a font swap
+ *   or any other reflow of this row, none of which the window fires an event for -
+ *   the language switch no longer changes this element's height at all.
  */
 @Component({
   selector: 'app-site-header',

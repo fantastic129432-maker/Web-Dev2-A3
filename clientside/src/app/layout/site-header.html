@@ -17,8 +17,11 @@
   header did the same.
 
   `#headerBox` is the template reference the component measures itself through:
-  the header's own height is what every sticky card below it clears, and that height
-  is not the same in all four languages. See the class comment in site-header.ts.
+  the header's own height is what every sticky card below it clears, and that
+  height is now THE SAME IN ALL FOUR LANGUAGES - 65.31px from 900px up and 120.09px
+  below, because the nav labels hold one line and nothing language-dependent is
+  left inside this element. See the class comment in site-header.ts for the
+  measurements that used to differ.
 -->
 <header class="site-header" #headerBox>
   <div class="site-header__inner">
@@ -96,3 +99,32 @@
     </div>
   </div>
 </header>
+
+<!--
+  The "interface language only" note, in a band of its own BELOW the header.
+
+  WHY IT IS OUTSIDE <header> AND NOT INSIDE IT (the reported defect: switching the
+  interface language moved the header's navigation buttons). The note only renders
+  when the interface language is not English, so while it lived inside the header
+  it made the header taller in three languages than in English - 85.02px against
+  65.31px at 1920px - and, because a `flex-basis: 100%` item still contributes its
+  max-content width, it also made the settings bar 542.64px wide in Vietnamese
+  where its two controls need 199.61px. That width was taken out of the navigation,
+  and the nav labels wrapped and moved as a result. Below the header the note can
+  do neither: it is a sibling of `<header>`, not a child, so it adds nothing to the
+  element whose height is published as `--site-header-height`.
+
+  It is still the same sentence, still shown only when `i18n.language()` is not
+  'en', and never hidden or shortened: `.settings-note` in clientside/src/styles.css
+  carries the band's styling and the full before/after measurements.
+
+  `:host { display: contents }` in site-header.css is what keeps this sibling
+  relationship real: without it the host element would be a box around both, and
+  the sticky `<header>` would then be confined to that box and could not follow the
+  scroll at all.
+-->
+@if (i18n.language() !== 'en') {
+  <div class="settings-note">
+    <p class="settings-note__text">{{ 'settings.interfaceOnly' | t }}</p>
+  </div>
+}

@@ -1,7 +1,31 @@
 /*
- * Only the desktop arrangement is adjusted on top of the shared stylesheet; the
- * mobile rules stay entirely in clientside/src/styles.css, because they are the
- * ones the end-to-end suite exercises.
+ * The header component's own box, and the reason this file starts with a rule it
+ * did not have before.
+ *
+ * `display: contents` MAKES THE NOTE BAND A SIBLING OF THE STICKY HEADER.
+ * This template now renders two things: the sticky `<header>` and, below it, the
+ * "interface language only" band that only three of the four languages show. The
+ * band has to be OUTSIDE the measured header element - that is what keeps the
+ * height published as `--site-header-height` the same in every language - and it
+ * has to be a real block below it, not inside it.
+ *
+ * Without this rule the host element is inline (no other stylesheet declares a box
+ * for `app-site-header`), and an inline box around two block children is exactly
+ * the arrangement that makes the second one's position depend on anonymous block
+ * boxes. Worse, if the host were given `display: block` instead, the sticky
+ * `<header>` would be confined to that block - a containing block exactly as tall
+ * as the header itself - and a sticky element with no travel is not sticky. With
+ * `display: contents` the host generates no box at all: `<header>` and the note
+ * band are laid out as if they were children of `<body>`, so the header's
+ * containing block is the body and it follows the scroll the way it always has,
+ * and the band is an ordinary block right under it. `site-nav.css` and
+ * `admin-nav.css` use the same rule for the same "this host must not add a box"
+ * reason.
+ *
+ * ONLY THE DESKTOP ARRANGEMENT IS ADJUSTED ON TOP OF THE SHARED STYLESHEET; the
+ * stacked rules live in clientside/src/styles.css, in the header's own
+ * `@media (max-width: 899px)` block, because they belong with the page rules the
+ * whole header is read against.
  *
  * WHAT THE LEGACY HEADER DID
  * It inserted the settings bar and the menu into a wrapper with
@@ -10,16 +34,20 @@
  * space-between would place the menu in the middle of a wide screen. Pushing
  * `.site-header__nav` to the right with an automatic left margin produces the
  * same arrangement for any number of children, and the mobile button is hidden
- * above 760px anyway.
+ * above the breakpoint anyway.
  *
  * WHY A SECOND FLEX ITEM WAS ADDED INSIDE THAT WRAPPER
  * The menu and the settings controls used to be one per row, which made the
- * header two rows tall and left the logo centred against nothing. Above 760px
- * `.site-header__nav` is now a single row again, so the settings controls are
+ * header two rows tall and left the logo centred against nothing. In the one-row
+ * layout `.site-header__nav` is a single row again, so the settings controls are
  * wrapped in `.site-header__controls`; that one box is what the desktop rules
  * below treat as the end of the row, and it is also what collapses the controls
- * back under the menu on a phone.
+ * back under the menu when the header stacks.
  */
+:host {
+  display: contents;
+}
+
 .site-header__inner {
   justify-content: flex-start;
 }
@@ -28,7 +56,28 @@
   margin-left: auto;
 }
 
-@media (min-width: 761px) {
+/*
+ * 900px, NOT 761px, AND THE NUMBER IS THE FIX'S SECOND HALF.
+ *
+ * A navigation label is now `white-space: nowrap` (clientside/src/styles.css,
+ * `.site-nav__link`): a label that may not wrap may not shrink either, so the row
+ * has to be wide enough for the widest translation or it will overflow instead of
+ * breaking. Measured in headless Edge with every label on one line, the row needs
+ * 784.94px (English), 613.59px (Chinese), 846.33px (Vietnamese) and 770.40px
+ * (Japanese) - brand + menu + divider + settings controls at their max-content
+ * widths. The row has 852px at a 900px viewport, so Vietnamese binds with 5.67px of
+ * slack and no language fits below 900px. Above 900px the header is one row in all
+ * four; at 899px and below it stacks and the menu collapses, which is a layout
+ * change rather than a wrapped label.
+ *
+ * The breakpoint used to be 761px, and it was not enough: at 900px the Japanese
+ * header measured 211.19px because "イベントを探す" broke over seven lines, and at
+ * 1100px the Vietnamese and Japanese headers measured 113.94px against English's
+ * 65.31px. The page's own single-column breakpoint stays at 760px; only the header
+ * has to be this wide, because only the header carries four translated menus at
+ * once.
+ */
+@media (min-width: 900px) {
   /* One row: brand | menu | controls, all centred against the logo. */
   .site-header__inner {
     flex-wrap: nowrap;

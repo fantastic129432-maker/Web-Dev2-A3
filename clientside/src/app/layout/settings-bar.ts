@@ -100,9 +100,4 @@ export class SettingsBarComponent {
   protected cycleTheme(): void {
     this.theme.cycle();
   }
-
-  /** Exposed so the template's @if can hide the note in English. */
-  protected get isEnglish(): boolean {
-    return this.language() === 'en';
-  }
 }

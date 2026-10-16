@@ -237,12 +237,15 @@
 
    THE OFFSET IS DERIVED, NOT WRITTEN. `--site-header-height` is the admin nav's
    real height, measured by AdminNav and published on the document element the same
-   way SiteHeaderComponent publishes the public header's (70.73px in all four
-   languages from 601px up, 64.39px at 390px in English and Chinese, 115.78px when
-   the menu wraps to two rows in Vietnamese and Japanese at 390px - which is why a
-   written number would be wrong somewhere), and `--sticky-card-gap` is the public
-   sheet's 31px clearance, kept rather than retuned. The offset is therefore
-   101.73px at every width this layout is two columns at.
+   way SiteHeaderComponent publishes the public header's. It used to be a
+   language-dependent number - 64.39px in English and Chinese against 115.78px in
+   Vietnamese and Japanese at 390px, where the menu wrapped onto two rows - and a
+   written number would have been wrong somewhere. Menu labels now hold one line and
+   the menu is a two-column grid at 600px and below, so the height is 70.73px above
+   900px, 64.39px from 601 to 900px and 115.78px at 600px and below IN ALL FOUR
+   LANGUAGES, and `--sticky-card-gap` is the public sheet's 31px clearance, kept
+   rather than retuned. The offset is therefore 101.73px at every width this layout
+   is two columns at, in every language.
 
    MEASURED AFTER THE CHANGE, stepping the scroll from the top of the page to the
    bottom in 40px steps and intersecting the card's box with EVERY visible element in

@@ -4,6 +4,19 @@
   Markup follows the legacy js/nav.js buildSettingsBar() exactly, so the 52 kB
   shared stylesheet styles it without any component CSS beyond the one rule that
   lets the settings bar wrap onto its own line inside the header.
+
+  THE "INTERFACE LANGUAGE ONLY" NOTE HAS MOVED OUT OF THIS COMPONENT, and that is
+  the fix for the reported defect rather than a tidy-up. The note was the third
+  child here with `flex-basis: 100%`, so it was a second line INSIDE the header:
+  it made the header taller in the three languages that render it (65.31px against
+  85.02px at 1920px), and - because a full-basis flex item still contributes its
+  max-content width to the bar - it made the settings bar 542.64px wide in
+  Vietnamese where the picker and the theme button together need 199.61px. That
+  extra width came out of the navigation, and the nav labels are what then wrapped
+  and moved. The band below the header cannot do either: it is not in the header
+  row at all. It is rendered by site-header.html, which is the template that owns
+  the header the note is about; `.settings-note` in clientside/src/styles.css
+  carries its measurements in full.
 -->
 <div class="settings-bar">
   <!-- Language: every supported language, each shown in its own script. -->
@@ -117,13 +130,4 @@
       }
     </button>
   </div>
-
-  <!--
-    Only shown while a language other than English is active: the event names,
-    descriptions and venue names come from the database in English, so the
-    visitor is told that switching language translates the interface only.
-  -->
-  @if (!isEnglish) {
-    <p class="settings-note">{{ 'settings.interfaceOnly' | t }}</p>
-  }
 </div>

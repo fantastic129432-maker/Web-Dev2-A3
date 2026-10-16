@@ -1,13 +1,23 @@
 /*
- * The settings bar needs only two declarations beyond the shared stylesheet:
- * the header lays its children out in a row, so the bar has to be allowed to
- * wrap (a four-option language picker plus a theme button is wide) and the
- * "interface language only" note has to be able to take a line of its own
- * underneath both controls rather than squeezing between them.
+ * The settings bar needs only two declarations beyond the shared stylesheet: it
+ * takes the full width of the box the header gives it, and its two controls sit
+ * against the right-hand edge of that box.
  *
  * Everything else - the pill-shaped theme button, the language <select>, the
  * colour of each control - comes from clientside/src/styles.css, which is the
  * same stylesheet the pre-Angular pages used.
+ *
+ * THE BAR NO LONGER CARRIES THE "INTERFACE LANGUAGE ONLY" NOTE, and both
+ * declarations here are the ones it needed. The note was the bar's third child
+ * with `flex-basis: 100%`, which is what the wrap below was for: it had to take a
+ * line of its own underneath both controls rather than squeezing between them.
+ * Inside the header that line made the header taller in the three languages that
+ * render it AND made the bar 542.64px wide in Vietnamese, which squeezed the
+ * navigation until its labels wrapped. The note is a band below the header now
+ * (site-header.html, `.settings-note` in clientside/src/styles.css), so it can do
+ * neither, and `flex-wrap` is left declared rather than removed: the two controls
+ * that remain cannot need it, and if a third control is ever added the bar is
+ * where it should wrap, not the header.
  */
 :host {
   display: block;

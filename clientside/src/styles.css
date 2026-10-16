@@ -149,14 +149,20 @@
    * item about the sticky cards tucking under the header in two languages).
    *
    * The site header is sticky, so every sticky card in the page below it has to
-   * come to rest clear of its bottom edge. That height is not the same in every
-   * language, because the nav labels and the settings note wrap onto more lines -
-   * and how many more depends on how much room the header row has. Measured in
-   * headless Edge in a 1000px-tall window:
+   * come to rest clear of its bottom edge. THAT HEIGHT USED TO DEPEND ON THE
+   * LANGUAGE, through two separate lines of the header: the nav labels wrapped
+   * onto more lines once the row ran out of room, and the "interface language
+   * only" note was a full-width second line inside the settings bar that only the
+   * three non-English languages rendered. Measured in headless Edge in a
+   * 1000px-tall window, before the header was made language-independent:
    *
    *   width    en       zh       vi       ja
-   *   1400px   65.31    85.02    89.63    89.63
+   *   1920px   65.31    85.02    89.63    89.63
+   *   1440px   65.31    85.02    89.63    89.63
+   *   1100px   65.31    85.02    113.94   113.94
    *   1024px   65.31    85.02    113.94   162.56
+   *    900px   65.31    85.02    113.94   211.19
+   *    390px   120.09   146.52   146.52   164.94
    *
    * 1024px is the narrowest window these two-column layouts are used in (below
    * 1000px they stack and the cards stop being sticky), so those are the heights
@@ -174,17 +180,33 @@
    * 89.63px, and a written 96px offset left those cards 6.37px clear rather than
    * 17.94px under.)
    *
-   * So the header measures itself. SiteHeaderComponent writes its own height here
-   * from a ResizeObserver, which means the value follows a language switch, a
-   * resize, or any other reflow of the header row, and the cards below compute
-   * their offset from it. The fallback below is the English height, so the first
+   * THE LANGUAGE-DEPENDENT OFFSET IS GONE. The header now measures the same in all
+   * four languages at a given width - 65.31px at 1920, 1440, 1100 and 900px, and
+   * 120.09px at 390px - because the labels hold one line at every width (see
+   * .site-nav__link) and the note that only non-English pages rendered is a band
+   * BELOW the header instead of a second line inside it (see .settings-note). The
+   * token below is therefore one height and not an English stand-in for four
+   * different ones. Every card that reads it comes to rest at the same 96.31px with
+   * the same 31.00px of clearance in every language, where the language used to move
+   * the pinned position to 116.02px (Chinese) and 120.63/144.94px (Vietnamese and
+   * Japanese); the stepped re-measurement of that is recorded on `.filter-panel` in
+   * section 8.
+   *
+   * The header still measures itself rather than trusting this number.
+   * SiteHeaderComponent writes its own height here from a ResizeObserver, which
+   * means the value follows a resize, a font swap or any other reflow of the
+   * header row. The fallback below is the height at 900px and up, so the first
    * paint - before the header has been measured - is 65.31 + 31 = 96.31px, within
-   * a third of a pixel of the 96px those cards were reviewed with; English keeps
-   * the geometry it had.
+   * a third of a pixel of the 96px those cards were reviewed with.
    *
    * `--sticky-card-gap` is the clearance the review asked for (16-24px) with the
    * 31px the English measurement actually had, kept rather than retuned so that
    * the only thing this change moves is the card in the languages that were wrong.
+   *
+   * The fallback is deliberately NOT made width-dependent. The three cards that
+   * read it are only sticky in the two-column layouts, which start at 1000px, so
+   * the value that matters on the first frame is the 900px-and-up one; below that
+   * the header is measured long before anyone can scroll a card into the offset.
    */
   --site-header-height: 65.31px;
   --sticky-card-gap: 31px;
@@ -736,11 +758,17 @@ textarea {
    *
    * The menu and the settings controls used to be two children of this row, and
    * the row wrapped - which is what put the controls on a line of their own and
-   * made the header two rows tall above the 760px breakpoint. They now sit in
+   * made the header two rows tall above the header breakpoint. They now sit in
    * one wrapper (`.site-header__controls`), and the desktop rules in
    * site-header.css keep this a single line, so the header is one row.
-   * Below 760px the mobile block further down turns this wrapper into a column
-   * again, and that is the only place a second line is wanted.
+   * Below 900px the block at the end of this file turns this wrapper into a column
+   * again, and that is the only place a second line is wanted. The breakpoint moved
+   * from 760px to 900px with the nowrap rule on `.site-nav__link`: a label that
+   * cannot wrap also cannot shrink, and 900px is the narrowest window at which the
+   * widest language (Vietnamese, which needs 846.33px of the 852px the row has
+   * there) still fits on one line. Below that the menu collapses instead of the
+   * labels wrapping, which is the layout change the defect needs rather than a
+   * second line.
    */
   justify-content: flex-end;
 }
@@ -773,8 +801,11 @@ textarea {
 }
 
 /* The settings controls at the end of the desktop row. `flex: 1` only takes
-   effect below 760px, where the wrapper is a column and the controls should use
-   the full width; on desktop site-header.css pins them to their content width. */
+   effect below 900px, where the wrapper is a column and the controls should use
+   the full width; on desktop site-header.css pins them to their content width.
+   The controls are now exactly two boxes - the language group and the theme
+   button, 199.61px together in every language - because the note that used to sit
+   under them in the same bar is a band below the header. See `.settings-note`. */
 .site-header__controls {
   display: flex;
   align-items: center;
@@ -847,11 +878,66 @@ textarea {
   max-width: 10.5rem;
 }
 
-/* The note that explains only the interface is translated, shown while the
-   visitor has picked a language other than English. */
+/*
+ * The note that explains only the interface is translated, shown while the
+ * visitor has picked a language other than English.
+ *
+ * IT IS A BAND UNDER THE HEADER NOW, NOT A LINE INSIDE IT (the reported defect:
+ * switching the interface language moved the header's navigation buttons).
+ *
+ * WHAT IT USED TO DO. The note was the third child of `.settings-bar`, carrying
+ * `flex-basis: 100%`, so it took a line of its own underneath the language picker
+ * and the theme button - inside the header. Two things followed from that, and
+ * both of them were language-dependent:
+ *
+ *   1. IT WAS TALLER. English renders no note at all, so the header was one line
+ *      shorter in English than in the other three languages: measured in headless
+ *      Edge, 65.31px against 85.02px at 1920px, 146.52px against 164.94px at
+ *      390px.
+ *   2. IT WAS WIDER, WHICH IS WHAT BROKE THE MENU. `flex-basis: 100%` makes the
+ *      note's max-content width part of the settings bar's, and therefore of
+ *      `.site-header__controls`. That sentence measures 542.64px in Vietnamese
+ *      and 566.42px in Japanese against 199.61px for the picker and the theme
+ *      button together, so the controls block was ~343px wider than the controls
+ *      it holds. The extra width came straight out of `.site-nav`, and the nav
+ *      labels are what wrapped: "Trang quản trị" broke over two lines at 1920px
+ *      and three at 1100px.
+ *
+ * WHAT IT IS NOW. A band of its own below `<header>` (site-header.html renders it
+ * after the closing tag), so it cannot contribute width or height to the header
+ * row. The header is the same height in all four languages because of that, and
+ * the note itself is unchanged: same sentence, same 0.72rem size, same --ink-500,
+ * still rendered - never hidden, truncated or shortened - and still only when the
+ * interface language is not English.
+ *
+ * The band is aligned to the same 1180px container as the header's own content,
+ * so its right edge lines up with the theme button above it and its left edge
+ * with the brand. `text-align: right` keeps it under the controls it explains.
+ * It is not sticky, so it scrolls away with the page while the header stays: the
+ * sticky cards are offset from the HEADER's measured height, and a band that has
+ * already scrolled under the header cannot be behind a card that rests 31px below
+ * it.
+ *
+ * THE COLOUR PAIR, MEASURED, BECAUSE MOVING THE NOTE MOVED ITS BACKGROUND. The
+ * note used to sit on the header's own translucent white; the band paints
+ * `--surface-0`, which is the same surface as the header in the light theme (#fff
+ * under a rgba(255,255,255,0.96) header) and #16211f in the dark one. --ink-500 on
+ * it measures 4.93:1 in the light theme and 6.63:1 in the dark one - the first
+ * figure is the 4.94:1 the note already measured inside the header, to a hundredth,
+ * which is the margin this palette deliberately runs (see the --ink-600 note in
+ * section 1). A tinted band was tried first and is WRONG: --surface-100 as the
+ * background measured 4.46:1 against --ink-500 - just under the 4.5:1 minimum - and
+ * tools/check-contrast.mjs failed all four public pages on it until the background
+ * became --surface-0.
+ */
 .settings-note {
-  flex-basis: 100%;
-  margin: 0;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--line);
+}
+.settings-note__text {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-5);
   font-size: 0.72rem;
   color: var(--ink-500);
   text-align: right;
@@ -908,6 +994,31 @@ textarea {
   color: var(--ink-700);
   font-weight: bold;
   font-size: 0.95rem;
+  /*
+   * ONE LINE IN EVERY LANGUAGE (the reported defect: switching the interface
+   * language moved the navigation buttons).
+   *
+   * The labels are translated and the translations are not the same width as the
+   * English ones - measured in headless Edge, "Trang quản trị" is 125px against
+   * "Admin site" at 102px, and "イベントを探す" is 130px against "Search Events" at
+   * 129px. The row ran out of room, `.site-nav` shrank, and the labels broke:
+   * before this rule the DOM showed "ホー" + "ム", "イベントを探" + "す" and
+   * "管理サイ" + "ト", and the header grew from 65.31px (English) to 89.63px
+   * (Vietnamese and Japanese) at 1920px, 113.94px at 1100 and 900px, and 211.19px
+   * for Japanese at 900px, where "イベントを探す" broke over SEVEN lines.
+   *
+   * `nowrap` is half the fix; the other half is that a label which cannot wrap also
+   * cannot shrink, so the row has to give the menu the room it needs instead. That
+   * is the 900px header breakpoint in the mobile block at the end of this file: the
+   * header stacks and the menu collapses BEFORE the labels would have had to wrap.
+   * Re-measured after both halves: every label is one line at 1920, 1440, 1100, 900
+   * and 390px in all four languages, and the header is 65.31px at 900px and up and
+   * 120.09px below it - in every language.
+   *
+   * `overflow-wrap` is deliberately NOT set alongside this: a nav label is one
+   * destination and breaking it mid-word is exactly what the defect looked like.
+   */
+  white-space: nowrap;
 }
 .site-nav__link:hover { background: var(--surface-100); text-decoration: none; }
 .site-nav__link--active { color: var(--brand-700); background: var(--brand-100); }
@@ -1904,16 +2015,28 @@ textarea {
  *
  * It used to be the written value 96px, on the reasoning that the header is one
  * row at every width where this layout is two columns (above 1000px), so its
- * height does not change across those widths. Its height does not change with the
- * WIDTH alone; it changes with the LANGUAGE, because the nav labels and the
- * settings note wrap onto more lines - at 1024px wide, 65.31px in English against
- * 113.94px in Vietnamese and 162.56px in Japanese - and a 96px offset then leaves
- * this card's top edge 17.94px and 66.56px behind the header respectively (section
- * 1 has the full table). The offset is therefore computed from the header's own
- * measured height (the two tokens in section 1): 65.31 + 31 = 96.31px in English,
- * which is the geometry this rule was reviewed with to within a third of a pixel,
- * and header + 31px in every language and at every width. The stacked layout below
- * 1000px still turns the sticky off entirely.
+ * height does not change across those widths. Its height did not change with the
+ * WIDTH alone; it changed with the LANGUAGE, because the nav labels and the
+ * settings note wrapped onto more lines - at 1024px wide, 65.31px in English
+ * against 113.94px in Vietnamese and 162.56px in Japanese - and a 96px offset then
+ * left this card's top edge 17.94px and 66.56px behind the header respectively
+ * (section 1 has the full before/after table). The offset is still computed from
+ * the header's own measured height (the two tokens in section 1): 65.31 + 31 =
+ * 96.31px, which is the geometry this rule was reviewed with to within a third of
+ * a pixel.
+ *
+ * WHAT CHANGED AFTER THE LANGUAGE-DEPENDENCE WAS REMOVED, RE-MEASURED ON THIS
+ * CARD. The card was already clear of the header in every language before this
+ * round, because the offset had already been derived from the header - what the
+ * language moved was the OFFSET ITSELF, not the clearance. Stepped down the page in
+ * 25px steps until the card's top edge equalled its computed `top`, in both themes
+ * and at 1100, 1440 and 1920px, this card's pinned position was 96.31px in English,
+ * 116.02px in Chinese and 120.63px (1920/1440) or 144.94px (1100) in Vietnamese and
+ * Japanese, always with exactly 31.00px of clearance under the header. It is
+ * 96.31px in all four languages now, at all three widths, still 31.00px clear -
+ * because the header is 65.31px in every one of them. The header band is 65.31px in
+ * every language, and the 1000px-and-below stacked layout still turns the sticky off
+ * entirely.
  *
  * The card that results from this is about 1450px tall and therefore taller than
  * a 1366x768 window. A sticky element taller than its scrollport stops moving
@@ -2667,12 +2790,15 @@ textarea:focus { border-color: var(--brand-500); }
  *
  * `top` clears the sticky site header (as `.filter-panel` and
  * `.registration-summary` both do) - it is the same derived offset those two use,
- * the header's own measured height plus the shared gap, so in the languages and at
- * the widths whose header wraps onto a second or third line the card comes to rest
- * BELOW the header instead of behind it (17.94px behind, in Vietnamese, at 1024px
- * wide - see the token table in section 1). The card then follows the viewport
- * while the description is read, so the prices and the Register button stay
- * reachable. It is the CARD that sticks, not the whole side column: a sticky
+ * the header's own measured height plus the shared gap. WHEN THE HEADER'S HEIGHT
+ * DEPENDED ON THE LANGUAGE the card came to rest BELOW the header in the languages
+ * whose header wrapped onto a second or third line, and 17.94px behind it in
+ * Vietnamese at 1024px wide - see the before/after table in section 1. The header
+ * now measures 65.31px in all four languages at every width from 900px up, so this
+ * card's offset is the same 96.31px everywhere and it clears the header by 31.00px
+ * in English, Chinese, Vietnamese and Japanese alike. The card then follows the
+ * viewport while the description is read, so the prices and the Register button
+ * stay reachable. It is the CARD that sticks, not the whole side column: a sticky
  * column moves as one block, which is what leaves a tall empty area under the
  * last card once the column has scrolled away.
  *
@@ -3316,23 +3442,33 @@ textarea:focus { border-color: var(--brand-500); }
  * ONE SHARED OFFSET, NOW DERIVED FROM THE HEADER ITSELF. This card, the search
  * page's filter panel and the event page's ticket card all come to rest on the same
  * line by using the same two tokens - the header's own measured height plus the
- * shared gap, both in section 1 - so `top` is 65.31 + 31 = 96.31px in English,
- * which is the 96px geometry the review measured to within a third of a pixel, and
- * header + 31px wherever the header is taller.
+ * shared gap, both in section 1 - so `top` is 65.31 + 31 = 96.31px, which is the
+ * 96px geometry the review measured to within a third of a pixel.
  *
- * THE MEASUREMENT THAT MADE IT DERIVED. The header is not one height in every
- * language, nor at every width this layout is used at: measured in a 1000px-tall
- * window it is 65.31px in English, 85.02px in Chinese, and in Vietnamese and
- * Japanese 89.63px at 1400px wide but 113.94px and 162.56px at 1024px wide, where
- * the nav labels and the settings note have less room and wrap onto more lines
- * (section 1 carries the whole table). The written `top: 96px` these cards shared
- * was the English height plus its 31px of clearance, so at 1024px it left the
- * card's top 17.94px behind the header in Vietnamese and 66.56px behind it in
- * Japanese, once the card was pinned - measured on this page and on the event
- * page's ticket card. That was true of every `top: 96px` card on the site, which is
- * why it was a fact about the shared offset rather than about this card, and why
- * the fix is one shared value derived from the header rather than a second value on
- * one page. (The earlier note here also listed `.side-column` among the users of
+ * THE MEASUREMENT THAT MADE IT DERIVED, AND WHAT IT READS NOW. The header used not
+ * to be one height in every language, nor at every width this layout is used at:
+ * measured in a 1000px-tall window it was 65.31px in English, 85.02px in Chinese,
+ * and in Vietnamese and Japanese 89.63px at 1400px wide but 113.94px and 162.56px
+ * at 1024px wide, where the nav labels and the settings note had less room and
+ * wrapped onto more lines (section 1 carries the whole before/after table). The
+ * written `top: 96px` these cards shared was the English height plus its 31px of
+ * clearance, so at 1024px it left the card's top 17.94px behind the header in
+ * Vietnamese and 66.56px behind it in Japanese, once the card was pinned -
+ * measured on this page and on the event page's ticket card. That was true of
+ * every `top: 96px` card on the site, which is why it was a fact about the shared
+ * offset rather than about this card, and why the fix is one shared value derived
+ * from the header rather than a second value on one page.
+ *
+ * The header is now 65.31px in all four languages at every width from 900px up (and
+ * 120.09px at 390px, where this card is not sticky), so this card's pinned `top` is
+ * 96.31px in English, Chinese, Vietnamese and Japanese alike. Its clearance under
+ * the header is 31.00px in all four, and was 31.00px in all four BEFORE this round
+ * as well - the offset was already derived from the measured header, so what the
+ * language used to move was the pinned position (96.31px in English against 116.02px
+ * in Chinese and 144.94px in Vietnamese at 1100px), not how close the card came. The
+ * offset is still read from the header rather than written down, because the
+ * measurement is what keeps the two in step if the header's own row ever changes
+ * height again. (The earlier note here also listed `.side-column` among the users of
  * that offset; that column is no longer sticky - the card inside its rail is - so
  * the three cards above are the complete set.)
  */
@@ -3594,9 +3730,36 @@ textarea:focus { border-color: var(--brand-500); }
   .registration-summary { position: static; }
 }
 
-@media (max-width: 760px) {
-  body { font-size: 16px; }
-  .section { padding: var(--space-7) 0; }
+/*
+ * THE HEADER'S OWN BREAKPOINT, WHICH IS NOT THE PAGE'S (the reported defect).
+ *
+ * The page below (`.section`, the form rows, the footer bar, the data table) goes
+ * to a single column at 760px, and that stays. The HEADER stacks and its menu
+ * collapses at 899px instead, because the header is the one row that has to hold
+ * four translated menus, a brand and two settings controls at once - and a label
+ * that must not wrap also must not shrink.
+ *
+ * WHY 900px, MEASURED RATHER THAN GUESSED. With every label on one line the row
+ * needs, in headless Edge at 900x900: 784.94px (English), 613.59px (Chinese),
+ * 846.33px (Vietnamese) and 770.40px (Japanese) - the brand plus the menu plus the
+ * divider plus the settings controls, measured as the max-content width of each
+ * group. The row has 852px there (a 900px viewport inside the 1180px container and
+ * its 24px gutters). Vietnamese is the binding language with 5.67px to spare, and
+ * it is the widest at every width from 900px up. Below 900px the row cannot hold
+ * four one-line groups, so the header collapses the menu rather than wrapping the
+ * labels - the layout change the defect calls for. This is the same breakpoint
+ * `site-header.css` reads from the other side (`min-width: 900px`).
+ *
+ * WHAT THE STACKED HEADER IS. Brand and menu button on one line, the settings
+ * controls on the next, and the menu itself behind the button. `.site-header__nav`
+ * takes a full row of its own at `flex-basis: 100%`; that used to happen by
+ * accident, because the non-English settings note made the controls 542.64px wide
+ * and they could not fit beside the brand. With the note out of the header the
+ * basis is declared, so the stacked shape is a decision rather than a side effect
+ * of a sentence only three languages render - and it is the same shape in all
+ * four languages, which is what makes the header 120.09px in all four.
+ */
+@media (max-width: 899px) {
   .site-nav__toggle { display: block; }
   .site-nav {
     display: none;
@@ -3606,17 +3769,24 @@ textarea:focus { border-color: var(--brand-500); }
   }
   .site-nav--open { display: block; }
   .site-nav__list { flex-direction: column; align-items: stretch; gap: var(--space-1); }
+  /* A full-width row per link, so a one-line label has the whole width of the
+     panel and cannot be the reason for a break. */
   .site-nav__link { padding: 0.6rem 0.75rem; }
   .site-header__inner { flex-wrap: wrap; }
   /* Stacked header: the collapsed menu on one line, the settings controls under
      it. The order is the markup order of `.site-header__nav`, so the controls
      never end up above the menu even though desktop puts them at the far right. */
-  .site-header__nav { flex-direction: column; align-items: stretch; }
+  .site-header__nav { flex: 1 1 100%; flex-direction: column; align-items: stretch; }
   /* The header's rule between the menu and the preferences is hidden on a phone:
      the wrapper above is a column here, so a vertical rule would be separating two
      stacked groups and reading as a stray mark rather than as a divider. */
   .site-header__divider { display: none; }
   .site-header__controls { flex: 1 1 100%; }
+}
+
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  .section { padding: var(--space-7) 0; }
   .form-row { grid-template-columns: 1fr; }
   /* The row is one column here, so the note that sits under its second column
      takes the width of the single column instead of opening an implicit second
@@ -3642,12 +3812,18 @@ textarea:focus { border-color: var(--brand-500); }
 
 @media (max-width: 520px) {
   .container, .site-header__inner, .hero__inner, .site-footer__inner { padding-inline: var(--space-4); }
+  /* The note band matches the header's own gutter at this width, so its right
+     edge stays under the theme button and its left edge under the brand. */
+  .settings-note__text { padding-inline: var(--space-4); }
   .event-card__details li { grid-template-columns: 1fr; }
   .brand__text small { display: none; }
 }
 
 @media print {
   .site-header, .site-footer, .filter-panel, .button { display: none !important; }
+  /* The note explains a control on the header, and the header is not printed, so
+     the band goes with it rather than printing as a line of its own at the top. */
+  .settings-note { display: none !important; }
   body { background: #fff; }
   .event-card, .panel { box-shadow: none; border-color: #999; }
 }

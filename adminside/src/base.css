@@ -56,12 +56,16 @@
    two exactly as the public sheet's `.panel--sticky` does. The admin site's pinned
    chrome is `.admin-nav`, sticky at `top: 0`, so `--site-header-height` here means
    THAT band's height, MEASURED rather than written: 70.73px in all four languages
-   from 601px up, 64.39px in English and Chinese at 390px, and 115.78px when the
-   menu wraps onto two rows in Vietnamese and Japanese at 390px. AdminNav measures
-   the element and publishes the value on the document element with a
-   ResizeObserver, which is the mechanism clientside/src/app/layout/site-header.ts
-   uses for the public header, so the fallback below is only what the one frame
-   before the first measurement reads.
+   above 900px, 64.39px in all four from 601 to 900px, and 115.78px in all four at
+   600px and below, where the menu is a two-column grid. THOSE NUMBERS USED TO
+   DEPEND ON THE LANGUAGE - at 390px it was 64.39px in English and Chinese against
+   115.78px in Vietnamese and Japanese, whose labels wrapped onto a second row - and
+   they do not any more: the labels hold one line (`.admin-nav__link`) and the row
+   count is set by breakpoints rather than by how wide a translation happens to be.
+   AdminNav measures the element and publishes the value on the document element
+   with a ResizeObserver, which is the mechanism
+   clientside/src/app/layout/site-header.ts uses for the public header, so the
+   fallback below is only what the one frame before the first measurement reads.
 
    THE TOKENS DECLARED HERE WHOSE ONLY READERS ARE ADMIN RULES, kept at the public
    sheet's values so the two applications cannot drift apart in a theme:
@@ -209,11 +213,15 @@
    * --site-header-height is the fallback for the admin nav's height, and the real
    * value is written onto the document element by AdminNav from a ResizeObserver -
    * the same arrangement the public sheet documents in section 1 for
-   * `.panel--sticky`. The number here is the measured English height of
-   * `.admin-nav` at every width from 601px up (70.73px, identical in all four
-   * languages); the token is re-measured rather than assumed because the menu
-   * wraps to two rows in Vietnamese and Japanese at 390px, where the same rule
-   * would otherwise put a sticky card 51.39px behind the menu.
+   * `.panel--sticky`. The number here is the measured height of `.admin-nav` above
+   * 900px (70.73px, identical in all four languages), and the token is re-measured
+   * rather than assumed because the menu is 64.39px from 601 to 900px (the link
+   * padding the admin's own 900px block narrows) and 115.78px at 600px and below,
+   * where it is a two-column grid - one number would be wrong at two of the three
+   * widths. Every one of those three figures is the same in every language now; the
+   * 64.39px/115.78px split at 390px used to be English-and-Chinese against
+   * Vietnamese-and-Japanese, which is the language-dependent height this round
+   * removed.
    *
    * --sticky-card-gap is the clearance under that band: the public sheet's 31px,
    * kept rather than retuned, so the card rests 101.73px from the top of the

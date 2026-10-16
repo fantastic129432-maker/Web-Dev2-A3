@@ -44,16 +44,23 @@ interface NavItem {
  *   element's measured height - a ResizeObserver writing the property onto the
  *   document element, which is exactly what `SiteHeaderComponent` does for the
  *   public header (clientside/src/app/layout/site-header.ts). A ResizeObserver and
- *   not a window `resize` listener, because the value has to follow a language
- *   switch or any other reflow of the menu row, and a window resize event does not
- *   fire for those.
+ *   not a window `resize` listener, because the value has to follow any reflow of
+ *   the menu row - the breakpoints at 760 and 600px above all of them - and a
+ *   window resize event does not fire for a reflow that is not the window's.
  *
- *   THE MENU REALLY DOES CHANGE HEIGHT, which is why this is measured rather than
- *   written into the stylesheet: 70.73px in all four languages from 601px up, but
- *   64.39px in English and Chinese at 390px and 115.78px when the Vietnamese and
- *   Japanese labels wrap the list onto a second row at that width. The stylesheet's
- *   fallback (base.css, section 1) is the 70.73px English value, used only for the
- *   frame before the first measurement.
+ *   THE MENU USED TO CHANGE HEIGHT WITH THE LANGUAGE, which is why this is measured
+ *   rather than written into the stylesheet. Measured in headless Edge before the
+ *   fix: at 390px the menu was 64.39px in English and Chinese against 115.78px in
+ *   Vietnamese and Japanese, whose labels wrapped the list onto a second row - a
+ *   51.39px error waiting in any written number. The labels now hold one line
+ *   (`white-space: nowrap` on `.admin-nav__link`) and the list becomes a two-column
+ *   grid at 600px and below (`adminside/src/styles.css`), so the menu has three
+ *   heights and THEY ARE THE SAME THREE IN EVERY LANGUAGE: 70.73px above 900px,
+ *   64.39px from 601 to 900px - the admin's own 900px block narrows the links'
+ *   padding there, not their labels - and 115.78px at 600px and below, where the
+ *   grid is. The published value no longer depends on which language the staff
+ *   member is reading. The stylesheet's fallback (base.css, section 1) is the
+ *   70.73px one, used only for the frame before the first measurement.
  *
  * No API endpoint is called by this component.
  */
