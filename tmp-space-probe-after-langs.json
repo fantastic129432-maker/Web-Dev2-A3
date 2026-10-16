@@ -1,0 +1,2314 @@
+[
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "en",
+    "page": "/register/2",
+    "url": "/register/2",
+    "title": "Register for an event | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 1805,
+    "overflowX": 0,
+    "htmlLang": "en-AU",
+    "bannerSelector": ".page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 65.31,
+      "bottom": 287.77,
+      "height": 222.45,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "HomeSearch EventsCoastal Stars Gala DinnerRegister for an ev"
+    },
+    "cardSelector": ".registration-form-card",
+    "card": {
+      "top": 287.77,
+      "bottom": 1318.94,
+      "height": 1031.17,
+      "width": 588.38,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Your detailsFull name * Email address *The confirmation is r"
+    },
+    "control": {
+      "top": 390.8,
+      "bottom": 439.17,
+      "height": 48.38,
+      "width": 263.19,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 7,
+    "formControlsVisibleWithoutScroll": 5,
+    "formFirstControlId": "reg-attendeeName",
+    "controlTops": [
+      {
+        "id": "reg-attendeeName",
+        "top": 390.8
+      },
+      {
+        "id": "reg-attendeeEmail",
+        "top": 390.8
+      },
+      {
+        "id": "reg-attendeePhone",
+        "top": 572.75
+      },
+      {
+        "id": "reg-ticketTypeId",
+        "top": 765.22
+      },
+      {
+        "id": "reg-ticketsPurchased",
+        "top": 880.05
+      },
+      {
+        "id": "reg-notes",
+        "top": 1092.72
+      },
+      {
+        "id": "registration-submit",
+        "top": 1245.25
+      }
+    ],
+    "formVisibleHeight": 759.234375,
+    "formHeight": 973.17,
+    "formLabelsVisible": 6,
+    "breadcrumb": {
+      "top": 85.31,
+      "bottom": 107.83,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "HomeSearch EventsCoastal Stars Gala DinnerRegister for an ev",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 4,
+      "links": 3,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 65.31
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 65.31,
+        "height": 1253.63
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 65.31,
+        "height": 0
+      },
+      {
+        "tag": "app-register-page",
+        "cls": "",
+        "top": 65.31,
+        "height": 1253.63
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 1382.94,
+        "height": 422.31
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 65.31,
+      "height": 65.31,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Unity Heart FoundationCharity events in your cityToggle navi"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "en",
+    "page": "/search",
+    "url": "/search",
+    "title": "Search charity events | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 2852,
+    "overflowX": 0,
+    "htmlLang": "en-AU",
+    "bannerSelector": "section.page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 65.31,
+      "bottom": 261.2,
+      "height": 195.89,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "HomeSearch eventsSearch charity eventsChoose any combination"
+    },
+    "cardSelector": ".filter-panel",
+    "card": {
+      "top": 309.2,
+      "bottom": 1762.2,
+      "height": 1453,
+      "width": 330,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Filter eventsAll criteria are optional. Select one or many.1"
+    },
+    "control": {
+      "top": 464.3,
+      "bottom": 514.67,
+      "height": 50.38,
+      "width": 280,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 18,
+    "formControlsVisibleWithoutScroll": 5,
+    "formFirstControlId": "filter-from",
+    "controlTops": [
+      {
+        "id": "filter-from",
+        "top": 464.3
+      },
+      {
+        "id": "filter-to",
+        "top": 615.31
+      },
+      {
+        "id": "filter-location",
+        "top": 833.84
+      },
+      {
+        "id": "category-7",
+        "top": 1007.63
+      },
+      {
+        "id": "category-4",
+        "top": 1045.86
+      },
+      {
+        "id": "category-5",
+        "top": 1084.09
+      },
+      {
+        "id": "category-1",
+        "top": 1122.33
+      },
+      {
+        "id": "category-2",
+        "top": 1160.56
+      },
+      {
+        "id": "category-6",
+        "top": 1198.8
+      },
+      {
+        "id": "category-3",
+        "top": 1237.03
+      },
+      {
+        "id": "category-8",
+        "top": 1275.27
+      },
+      {
+        "id": "filter-free",
+        "top": 1287.67
+      },
+      {
+        "id": "filter-keyword",
+        "top": 1354.34
+      },
+      {
+        "id": "state",
+        "top": 1484.38
+      },
+      {
+        "id": "state",
+        "top": 1534.61
+      },
+      {
+        "id": "state",
+        "top": 1534.61
+      },
+      {
+        "id": "button button--block",
+        "top": 1586.23
+      },
+      {
+        "id": "button button--outline button--block",
+        "top": 1642.92
+      }
+    ],
+    "formVisibleHeight": 677.796875,
+    "formHeight": 1319,
+    "formLabelsVisible": 6,
+    "breadcrumb": {
+      "top": 85.31,
+      "bottom": 107.83,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "HomeSearch events",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 2,
+      "links": 1,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 65.31
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 65.31,
+        "height": 2300.44
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 65.31,
+        "height": 0
+      },
+      {
+        "tag": "app-search-page",
+        "cls": "",
+        "top": 65.31,
+        "height": 2300.44
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2429.75,
+        "height": 422.31
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 65.31,
+      "height": 65.31,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Unity Heart FoundationCharity events in your cityToggle navi"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "en",
+    "page": "/events/2",
+    "url": "/events/2",
+    "title": "Coastal Stars Gala Dinner | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 2972,
+    "overflowX": 0,
+    "htmlLang": "en-AU",
+    "bannerSelector": ".event-hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 111.83,
+      "bottom": 787.41,
+      "height": 675.58,
+      "width": 1920,
+      "paddingTop": "32px",
+      "paddingBottom": "48px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Upcoming Gala Dinner Tickets from $185.00 to $1,650.00 Get t"
+    },
+    "cardSelector": ".side-column .panel",
+    "card": {
+      "top": 835.41,
+      "bottom": 1274.28,
+      "height": 438.88,
+      "width": 416.94,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Goal vs progressHelp Coastal Youth Trust reach the goal for "
+    },
+    "control": {
+      "top": 1620.58,
+      "bottom": 1669.27,
+      "height": 48.69,
+      "width": 366.94,
+      "paddingTop": "11.2px",
+      "paddingBottom": "11.2px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(15, 123, 108)",
+      "text": "Register"
+    },
+    "formControls": 0,
+    "formControlsVisibleWithoutScroll": 0,
+    "formFirstControlId": "",
+    "controlTops": [],
+    "formVisibleHeight": 0,
+    "formHeight": 395.98,
+    "formLabelsVisible": 0,
+    "breadcrumb": {
+      "top": 89.31,
+      "bottom": 111.83,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "24px",
+      "marginBottom": "0px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "HomeSearch EventsCoastal Stars Gala Dinner",
+      "insideBanner": false,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 3,
+      "links": 2,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(246, 250, 249)",
+      "selfRatio": 9.03,
+      "linkRatio": 4.9
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 65.31
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 89.31,
+        "height": 2396.64
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 89.31,
+        "height": 0
+      },
+      {
+        "tag": "app-event-detail-page",
+        "cls": "",
+        "top": 89.31,
+        "height": 2396.64
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2549.95,
+        "height": 422.31
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 65.31,
+      "height": 65.31,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Unity Heart FoundationCharity events in your cityToggle navi"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "en",
+    "page": "/",
+    "url": "/",
+    "title": "Unity Heart Foundation | Charity Events",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 3421,
+    "overflowX": 0,
+    "htmlLang": "en-AU",
+    "bannerSelector": ".hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 65.31,
+      "bottom": 462.55,
+      "height": 397.23,
+      "width": 1920,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(8, 69, 60)",
+      "text": "Community charity eventsEvery ticket you buy becomes help so"
+    },
+    "cardSelector": ".stat",
+    "card": {
+      "top": 652.75,
+      "bottom": 803.52,
+      "height": 150.77,
+      "width": 271,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "6Upcoming events listed"
+    },
+    "control": null,
+    "breadcrumb": null,
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 65.31
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 65.31,
+        "height": 2869.42
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 65.31,
+        "height": 0
+      },
+      {
+        "tag": "app-home-page",
+        "cls": "",
+        "top": 65.31,
+        "height": 2869.42
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2998.73,
+        "height": 422.31
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 65.31,
+      "height": 65.31,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Unity Heart FoundationCharity events in your cityToggle navi"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "zh",
+    "page": "/register/2",
+    "url": "/register/2",
+    "title": "Register for an event | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 1754,
+    "overflowX": 0,
+    "htmlLang": "zh-CN",
+    "bannerSelector": ".page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 85.08,
+      "bottom": 280.66,
+      "height": 195.58,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "首页搜索活动Coastal Stars Gala Dinner活动报名活动报名活动报名请填写下面的表单以预留名额。带星号"
+    },
+    "cardSelector": ".registration-form-card",
+    "card": {
+      "top": 280.66,
+      "bottom": 1291.36,
+      "height": 1010.7,
+      "width": 588.38,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "您的信息姓名 * 电子邮箱 *确认信息将记录在该邮箱名下。 联系电话选填，但活动改期时便于联系您。 门票信息门票类型 S"
+    },
+    "control": {
+      "top": 383.69,
+      "bottom": 432.06,
+      "height": 48.38,
+      "width": 263.19,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 7,
+    "formControlsVisibleWithoutScroll": 6,
+    "formFirstControlId": "reg-attendeeName",
+    "controlTops": [
+      {
+        "id": "reg-attendeeName",
+        "top": 383.69
+      },
+      {
+        "id": "reg-attendeeEmail",
+        "top": 383.69
+      },
+      {
+        "id": "reg-attendeePhone",
+        "top": 545.17
+      },
+      {
+        "id": "reg-ticketTypeId",
+        "top": 737.64
+      },
+      {
+        "id": "reg-ticketsPurchased",
+        "top": 852.47
+      },
+      {
+        "id": "reg-notes",
+        "top": 1065.14
+      },
+      {
+        "id": "registration-submit",
+        "top": 1217.67
+      }
+    ],
+    "formVisibleHeight": 766.34375,
+    "formHeight": 952.7,
+    "formLabelsVisible": 6,
+    "breadcrumb": {
+      "top": 105.08,
+      "bottom": 127.59,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "首页搜索活动Coastal Stars Gala Dinner活动报名",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 4,
+      "links": 3,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 85.08
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 85.08,
+        "height": 1206.28
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 85.08,
+        "height": 0
+      },
+      {
+        "tag": "app-register-page",
+        "cls": "",
+        "top": 85.08,
+        "height": 1206.28
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 1355.36,
+        "height": 398.77
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 85.08,
+      "height": 85.08,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "同心慈善基金会您身边的公益活动展开导航菜单☰首页搜索活动 管理后台 语言: English 中文 Tiếng Việt "
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "zh",
+    "page": "/search",
+    "url": "/search",
+    "title": "Search charity events | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 2848,
+    "overflowX": 0,
+    "htmlLang": "zh-CN",
+    "bannerSelector": "section.page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 85.08,
+      "bottom": 280.97,
+      "height": 195.89,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "首页搜索活动搜索公益活动可任意组合日期、地点和类别条件。类别可以多选，也可以全部留空以查看所有即将举办的活动。"
+    },
+    "cardSelector": ".filter-panel",
+    "card": {
+      "top": 328.97,
+      "bottom": 1761.5,
+      "height": 1432.53,
+      "width": 330,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "筛选活动所有条件均为可选，可单选也可多选。1. 时间开始日期 结束日期 留空表示不限日期。例如：2026-10-012."
+    },
+    "control": {
+      "top": 484.06,
+      "bottom": 534.44,
+      "height": 50.38,
+      "width": 280,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 18,
+    "formControlsVisibleWithoutScroll": 5,
+    "formFirstControlId": "filter-from",
+    "controlTops": [
+      {
+        "id": "filter-from",
+        "top": 484.06
+      },
+      {
+        "id": "filter-to",
+        "top": 635.08
+      },
+      {
+        "id": "filter-location",
+        "top": 853.61
+      },
+      {
+        "id": "category-7",
+        "top": 1006.92
+      },
+      {
+        "id": "category-4",
+        "top": 1045.16
+      },
+      {
+        "id": "category-5",
+        "top": 1083.39
+      },
+      {
+        "id": "category-1",
+        "top": 1121.63
+      },
+      {
+        "id": "category-2",
+        "top": 1159.86
+      },
+      {
+        "id": "category-6",
+        "top": 1198.09
+      },
+      {
+        "id": "category-3",
+        "top": 1236.33
+      },
+      {
+        "id": "category-8",
+        "top": 1274.56
+      },
+      {
+        "id": "filter-free",
+        "top": 1286.97
+      },
+      {
+        "id": "filter-keyword",
+        "top": 1353.64
+      },
+      {
+        "id": "state",
+        "top": 1483.67
+      },
+      {
+        "id": "state",
+        "top": 1533.91
+      },
+      {
+        "id": "state",
+        "top": 1533.91
+      },
+      {
+        "id": "button button--block",
+        "top": 1585.53
+      },
+      {
+        "id": "button button--outline button--block",
+        "top": 1642.22
+      }
+    ],
+    "formVisibleHeight": 658.03125,
+    "formHeight": 1298.53,
+    "formLabelsVisible": 6,
+    "breadcrumb": {
+      "top": 105.08,
+      "bottom": 127.59,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "首页搜索活动",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 2,
+      "links": 1,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 85.08
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 85.08,
+        "height": 2300.44
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 85.08,
+        "height": 0
+      },
+      {
+        "tag": "app-search-page",
+        "cls": "",
+        "top": 85.08,
+        "height": 2300.44
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2449.52,
+        "height": 398.77
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 85.08,
+      "height": 85.08,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "同心慈善基金会您身边的公益活动展开导航菜单☰首页搜索活动 管理后台 语言: English 中文 Tiếng Việt "
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "zh",
+    "page": "/events/2",
+    "url": "/events/2",
+    "title": "Coastal Stars Gala Dinner | 同心慈善基金会",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 2941,
+    "overflowX": 0,
+    "htmlLang": "zh-CN",
+    "bannerSelector": ".event-hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 131.59,
+      "bottom": 807.17,
+      "height": 675.58,
+      "width": 1920,
+      "paddingTop": "32px",
+      "paddingBottom": "48px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "即将开始 Gala Dinner 票价 $185.00 至 $1,650.00 获取门票 Coastal Stars G"
+    },
+    "cardSelector": ".side-column .panel",
+    "card": {
+      "top": 855.17,
+      "bottom": 1294.05,
+      "height": 438.88,
+      "width": 416.94,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "目标与进度帮助Coastal Youth Trust达成这场活动的筹款目标。目前已筹 达成目标的 25% 已筹 $14,"
+    },
+    "control": {
+      "top": 1640.34,
+      "bottom": 1689.03,
+      "height": 48.69,
+      "width": 366.94,
+      "paddingTop": "11.2px",
+      "paddingBottom": "11.2px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(15, 123, 108)",
+      "text": "报名"
+    },
+    "formControls": 0,
+    "formControlsVisibleWithoutScroll": 0,
+    "formFirstControlId": "",
+    "controlTops": [],
+    "formVisibleHeight": 0,
+    "formHeight": 395.98,
+    "formLabelsVisible": 0,
+    "breadcrumb": {
+      "top": 109.08,
+      "bottom": 131.59,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "24px",
+      "marginBottom": "0px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "首页搜索活动Coastal Stars Gala Dinner",
+      "insideBanner": false,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 3,
+      "links": 2,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(246, 250, 249)",
+      "selfRatio": 9.03,
+      "linkRatio": 4.9
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 85.08
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 109.08,
+        "height": 2369.45
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 109.08,
+        "height": 0
+      },
+      {
+        "tag": "app-event-detail-page",
+        "cls": "",
+        "top": 109.08,
+        "height": 2369.45
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2542.53,
+        "height": 398.77
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 85.08,
+      "height": 85.08,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "同心慈善基金会您身边的公益活动展开导航菜单☰首页搜索活动 管理后台 语言: English 中文 Tiếng Việt "
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "zh",
+    "page": "/",
+    "url": "/",
+    "title": "Unity Heart Foundation | Charity Events",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 3316,
+    "overflowX": 0,
+    "htmlLang": "zh-CN",
+    "bannerSelector": ".hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 85.08,
+      "bottom": 482.31,
+      "height": 397.23,
+      "width": 1920,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(8, 69, 60)",
+      "text": "社区公益活动您购买的每一张门票，都会变成别人能感受到的帮助。同心慈善基金会通过趣味跑、慈善晚宴、拍卖会和音乐会，把邻里聚"
+    },
+    "cardSelector": ".stat",
+    "card": {
+      "top": 645.64,
+      "bottom": 775.94,
+      "height": 130.3,
+      "width": 271,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "6已发布的 upcoming 活动"
+    },
+    "control": null,
+    "breadcrumb": null,
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 85.08
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 85.08,
+        "height": 2768.02
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 85.08,
+        "height": 0
+      },
+      {
+        "tag": "app-home-page",
+        "cls": "",
+        "top": 85.08,
+        "height": 2768.02
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2917.09,
+        "height": 398.77
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 85.08,
+      "height": 85.08,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "同心慈善基金会您身边的公益活动展开导航菜单☰首页搜索活动 管理后台 语言: English 中文 Tiếng Việt "
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "vi",
+    "page": "/register/2",
+    "url": "/register/2",
+    "title": "Register for an event | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 1830,
+    "overflowX": 0,
+    "htmlLang": "vi-VN",
+    "bannerSelector": ".page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 113.94,
+      "bottom": 309.52,
+      "height": 195.58,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "Trang chủTìm sự kiệnCoastal Stars Gala DinnerĐăng ký sự kiện"
+    },
+    "cardSelector": ".registration-form-card",
+    "card": {
+      "top": 309.52,
+      "bottom": 1320.22,
+      "height": 1010.7,
+      "width": 588.38,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Thông tin của bạnHọ và tên * Địa chỉ email *Thông tin xác nh"
+    },
+    "control": {
+      "top": 412.55,
+      "bottom": 460.92,
+      "height": 48.38,
+      "width": 263.19,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 7,
+    "formControlsVisibleWithoutScroll": 5,
+    "formFirstControlId": "reg-attendeeName",
+    "controlTops": [
+      {
+        "id": "reg-attendeeName",
+        "top": 412.55
+      },
+      {
+        "id": "reg-attendeeEmail",
+        "top": 412.55
+      },
+      {
+        "id": "reg-attendeePhone",
+        "top": 574.03
+      },
+      {
+        "id": "reg-ticketTypeId",
+        "top": 766.5
+      },
+      {
+        "id": "reg-ticketsPurchased",
+        "top": 881.33
+      },
+      {
+        "id": "reg-notes",
+        "top": 1094
+      },
+      {
+        "id": "registration-submit",
+        "top": 1246.53
+      }
+    ],
+    "formVisibleHeight": 737.484375,
+    "formHeight": 952.7,
+    "formLabelsVisible": 6,
+    "breadcrumb": {
+      "top": 133.94,
+      "bottom": 156.45,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "Trang chủTìm sự kiệnCoastal Stars Gala DinnerĐăng ký sự kiện",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 4,
+      "links": 3,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 113.94,
+        "height": 1206.28
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 113.94,
+        "height": 0
+      },
+      {
+        "tag": "app-register-page",
+        "cls": "",
+        "top": 113.94,
+        "height": 1206.28
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 1384.22,
+        "height": 445.86
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Quỹ Trái Tim Đồng LòngSự kiện từ thiện tại thành phố của bạn"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "vi",
+    "page": "/search",
+    "url": "/search",
+    "title": "Search charity events | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 2993,
+    "overflowX": 0,
+    "htmlLang": "vi-VN",
+    "bannerSelector": "section.page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 113.94,
+      "bottom": 309.83,
+      "height": 195.89,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "Trang chủTìm sự kiệnTìm kiếm sự kiện từ thiệnChọn bất kỳ tổ "
+    },
+    "cardSelector": ".filter-panel",
+    "card": {
+      "top": 357.83,
+      "bottom": 1926.59,
+      "height": 1568.77,
+      "width": 330,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Lọc sự kiệnMọi tiêu chí đều không bắt buộc. Chọn một hoặc nh"
+    },
+    "control": {
+      "top": 534.94,
+      "bottom": 585.31,
+      "height": 50.38,
+      "width": 280,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 18,
+    "formControlsVisibleWithoutScroll": 3,
+    "formFirstControlId": "filter-from",
+    "controlTops": [
+      {
+        "id": "filter-from",
+        "top": 534.94
+      },
+      {
+        "id": "filter-to",
+        "top": 685.95
+      },
+      {
+        "id": "filter-location",
+        "top": 924.95
+      },
+      {
+        "id": "category-7",
+        "top": 1098.73
+      },
+      {
+        "id": "category-4",
+        "top": 1136.97
+      },
+      {
+        "id": "category-5",
+        "top": 1175.2
+      },
+      {
+        "id": "category-1",
+        "top": 1213.44
+      },
+      {
+        "id": "category-2",
+        "top": 1251.67
+      },
+      {
+        "id": "category-6",
+        "top": 1289.91
+      },
+      {
+        "id": "category-3",
+        "top": 1328.14
+      },
+      {
+        "id": "category-8",
+        "top": 1366.38
+      },
+      {
+        "id": "filter-free",
+        "top": 1378.78
+      },
+      {
+        "id": "filter-keyword",
+        "top": 1445.45
+      },
+      {
+        "id": "state",
+        "top": 1587.02
+      },
+      {
+        "id": "state",
+        "top": 1648.77
+      },
+      {
+        "id": "state",
+        "top": 1699
+      },
+      {
+        "id": "button button--block",
+        "top": 1750.63
+      },
+      {
+        "id": "button button--outline button--block",
+        "top": 1807.31
+      }
+    ],
+    "formVisibleHeight": 607.15625,
+    "formHeight": 1412.75,
+    "formLabelsVisible": 3,
+    "breadcrumb": {
+      "top": 133.94,
+      "bottom": 156.45,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "Trang chủTìm sự kiện",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 2,
+      "links": 1,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 113.94,
+        "height": 2369.58
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 113.94,
+        "height": 0
+      },
+      {
+        "tag": "app-search-page",
+        "cls": "",
+        "top": 113.94,
+        "height": 2369.58
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2547.52,
+        "height": 445.86
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Quỹ Trái Tim Đồng LòngSự kiện từ thiện tại thành phố của bạn"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "vi",
+    "page": "/events/2",
+    "url": "/events/2",
+    "title": "Coastal Stars Gala Dinner | Quỹ Trái Tim Đồng Lòng",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 3044,
+    "overflowX": 0,
+    "htmlLang": "vi-VN",
+    "bannerSelector": ".event-hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 160.45,
+      "bottom": 836.03,
+      "height": 675.58,
+      "width": 1920,
+      "paddingTop": "32px",
+      "paddingBottom": "48px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Sắp diễn ra Gala Dinner Vé từ $185.00 đến $1,650.00 Nhận vé "
+    },
+    "cardSelector": ".side-column .panel",
+    "card": {
+      "top": 884.03,
+      "bottom": 1322.91,
+      "height": 438.88,
+      "width": 416.94,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "Mục tiêu và tiến độHãy giúp Coastal Youth Trust đạt mục tiêu"
+    },
+    "control": {
+      "top": 1669.2,
+      "bottom": 1717.89,
+      "height": 48.69,
+      "width": 366.94,
+      "paddingTop": "11.2px",
+      "paddingBottom": "11.2px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(15, 123, 108)",
+      "text": "Đăng ký"
+    },
+    "formControls": 0,
+    "formControlsVisibleWithoutScroll": 0,
+    "formFirstControlId": "",
+    "controlTops": [],
+    "formVisibleHeight": 0,
+    "formHeight": 395.98,
+    "formLabelsVisible": 0,
+    "breadcrumb": {
+      "top": 137.94,
+      "bottom": 160.45,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "24px",
+      "marginBottom": "0px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "Trang chủTìm sự kiệnCoastal Stars Gala Dinner",
+      "insideBanner": false,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 3,
+      "links": 2,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(246, 250, 249)",
+      "selfRatio": 9.03,
+      "linkRatio": 4.9
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 137.94,
+        "height": 2396.64
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 137.94,
+        "height": 0
+      },
+      {
+        "tag": "app-event-detail-page",
+        "cls": "",
+        "top": 137.94,
+        "height": 2396.64
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2598.58,
+        "height": 445.86
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Quỹ Trái Tim Đồng LòngSự kiện từ thiện tại thành phố của bạn"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "vi",
+    "page": "/",
+    "url": "/",
+    "title": "Unity Heart Foundation | Charity Events",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 3539,
+    "overflowX": 0,
+    "htmlLang": "vi-VN",
+    "bannerSelector": ".hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 113.94,
+      "bottom": 511.17,
+      "height": 397.23,
+      "width": 1920,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(8, 69, 60)",
+      "text": "Sự kiện từ thiện cộng đồngMỗi tấm vé bạn mua đều trở thành s"
+    },
+    "cardSelector": ".stat",
+    "card": {
+      "top": 701.38,
+      "bottom": 852.14,
+      "height": 150.77,
+      "width": 271,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "6Sự kiện sắp diễn ra"
+    },
+    "control": null,
+    "breadcrumb": null,
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 113.94,
+        "height": 2915.52
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 113.94,
+        "height": 0
+      },
+      {
+        "tag": "app-home-page",
+        "cls": "",
+        "top": 113.94,
+        "height": 2915.52
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 3093.45,
+        "height": 445.86
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "Quỹ Trái Tim Đồng LòngSự kiện từ thiện tại thành phố của bạn"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "ja",
+    "page": "/register/2",
+    "url": "/register/2",
+    "title": "Register for an event | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 1861,
+    "overflowX": 0,
+    "htmlLang": "ja-JP",
+    "bannerSelector": ".page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 113.94,
+      "bottom": 336.39,
+      "height": 222.45,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "ホームイベントを探すCoastal Stars Gala Dinnerイベント参加登録イベント参加登録イベント参加登録以"
+    },
+    "cardSelector": ".registration-form-card",
+    "card": {
+      "top": 336.39,
+      "bottom": 1347.09,
+      "height": 1010.7,
+      "width": 588.38,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "お客様の情報お名前 * メールアドレス *確認内容はこのアドレスに記録されます。 電話番号任意ですが、開催延期の際に役立"
+    },
+    "control": {
+      "top": 439.42,
+      "bottom": 487.8,
+      "height": 48.38,
+      "width": 263.19,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 7,
+    "formControlsVisibleWithoutScroll": 5,
+    "formFirstControlId": "reg-attendeeName",
+    "controlTops": [
+      {
+        "id": "reg-attendeeName",
+        "top": 439.42
+      },
+      {
+        "id": "reg-attendeeEmail",
+        "top": 439.42
+      },
+      {
+        "id": "reg-attendeePhone",
+        "top": 600.91
+      },
+      {
+        "id": "reg-ticketTypeId",
+        "top": 793.38
+      },
+      {
+        "id": "reg-ticketsPurchased",
+        "top": 908.2
+      },
+      {
+        "id": "reg-notes",
+        "top": 1120.88
+      },
+      {
+        "id": "registration-submit",
+        "top": 1273.41
+      }
+    ],
+    "formVisibleHeight": 710.609375,
+    "formHeight": 952.7,
+    "formLabelsVisible": 5,
+    "breadcrumb": {
+      "top": 133.94,
+      "bottom": 156.45,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "ホームイベントを探すCoastal Stars Gala Dinnerイベント参加登録",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 4,
+      "links": 3,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 113.94,
+        "height": 1233.16
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 113.94,
+        "height": 0
+      },
+      {
+        "tag": "app-register-page",
+        "cls": "",
+        "top": 113.94,
+        "height": 1233.16
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 1411.09,
+        "height": 449.5
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "ハート・ユニティ財団あなたの街のチャリティーイベントナビゲーションを開く☰ホームイベントを探す 管理サイト 言語: En"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "ja",
+    "page": "/search",
+    "url": "/search",
+    "title": "Search charity events | Unity Heart Foundation",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 2928,
+    "overflowX": 0,
+    "htmlLang": "ja-JP",
+    "bannerSelector": "section.page-header",
+    "bannerFound": true,
+    "banner": {
+      "top": 113.94,
+      "bottom": 309.83,
+      "height": 195.89,
+      "width": 1920,
+      "paddingTop": "20px",
+      "paddingBottom": "20px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(227, 243, 240)",
+      "text": "ホームイベントを探すチャリティーイベントを検索日付、場所、カテゴリーを自由に組み合わせて指定できます。カテゴリーは複数選"
+    },
+    "cardSelector": ".filter-panel",
+    "card": {
+      "top": 357.83,
+      "bottom": 1903.55,
+      "height": 1545.72,
+      "width": 330,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "イベントを絞り込むすべて任意の条件です。1つでも複数でも選べます。1. いつ開始日 終了日 未入力の場合は日付を問いませ"
+    },
+    "control": {
+      "top": 534.94,
+      "bottom": 585.31,
+      "height": 50.38,
+      "width": 280,
+      "paddingTop": "9.6px",
+      "paddingBottom": "9.6px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": ""
+    },
+    "formControls": 18,
+    "formControlsVisibleWithoutScroll": 3,
+    "formFirstControlId": "filter-from",
+    "controlTops": [
+      {
+        "id": "filter-from",
+        "top": 534.94
+      },
+      {
+        "id": "filter-to",
+        "top": 685.95
+      },
+      {
+        "id": "filter-location",
+        "top": 924.95
+      },
+      {
+        "id": "category-7",
+        "top": 1098.73
+      },
+      {
+        "id": "category-4",
+        "top": 1136.97
+      },
+      {
+        "id": "category-5",
+        "top": 1175.2
+      },
+      {
+        "id": "category-1",
+        "top": 1213.44
+      },
+      {
+        "id": "category-2",
+        "top": 1251.67
+      },
+      {
+        "id": "category-6",
+        "top": 1289.91
+      },
+      {
+        "id": "category-3",
+        "top": 1328.14
+      },
+      {
+        "id": "category-8",
+        "top": 1366.38
+      },
+      {
+        "id": "filter-free",
+        "top": 1378.78
+      },
+      {
+        "id": "filter-keyword",
+        "top": 1445.45
+      },
+      {
+        "id": "state",
+        "top": 1575.48
+      },
+      {
+        "id": "state",
+        "top": 1625.72
+      },
+      {
+        "id": "state",
+        "top": 1675.95
+      },
+      {
+        "id": "button button--block",
+        "top": 1727.58
+      },
+      {
+        "id": "button button--outline button--block",
+        "top": 1784.27
+      }
+    ],
+    "formVisibleHeight": 607.15625,
+    "formHeight": 1389.7,
+    "formLabelsVisible": 3,
+    "breadcrumb": {
+      "top": 133.94,
+      "bottom": 156.45,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "12px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "ホームイベントを探す",
+      "insideBanner": true,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 2,
+      "links": 1,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(227, 243, 240)",
+      "selfRatio": 8.3,
+      "linkRatio": 4.51
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 113.94,
+        "height": 2300.44
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 113.94,
+        "height": 0
+      },
+      {
+        "tag": "app-search-page",
+        "cls": "",
+        "top": 113.94,
+        "height": 2300.44
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2478.38,
+        "height": 449.5
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "ハート・ユニティ財団あなたの街のチャリティーイベントナビゲーションを開く☰ホームイベントを探す 管理サイト 言語: En"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "ja",
+    "page": "/events/2",
+    "url": "/events/2",
+    "title": "Coastal Stars Gala Dinner | ハート・ユニティ財団",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 3072,
+    "overflowX": 0,
+    "htmlLang": "ja-JP",
+    "bannerSelector": ".event-hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 160.45,
+      "bottom": 860.34,
+      "height": 699.89,
+      "width": 1920,
+      "paddingTop": "32px",
+      "paddingBottom": "48px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "開催予定 Gala Dinner チケット $185.00 〜 $1,650.00 チケットを入手 Coastal St"
+    },
+    "cardSelector": ".side-column .panel",
+    "card": {
+      "top": 908.34,
+      "bottom": 1347.22,
+      "height": 438.88,
+      "width": 416.94,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "目標と進捗Coastal Youth Trust がこのイベントの目標を達成できるようご協力ください。現在の寄付額 目標"
+    },
+    "control": {
+      "top": 1693.52,
+      "bottom": 1742.2,
+      "height": 48.69,
+      "width": 366.94,
+      "paddingTop": "11.2px",
+      "paddingBottom": "11.2px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(15, 123, 108)",
+      "text": "申し込む"
+    },
+    "formControls": 0,
+    "formControlsVisibleWithoutScroll": 0,
+    "formFirstControlId": "",
+    "controlTops": [],
+    "formVisibleHeight": 0,
+    "formHeight": 395.98,
+    "formLabelsVisible": 0,
+    "breadcrumb": {
+      "top": 137.94,
+      "bottom": 160.45,
+      "height": 22.52,
+      "width": 1132,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "24px",
+      "marginBottom": "0px",
+      "background": "rgba(0, 0, 0, 0)",
+      "text": "ホームイベントを探すCoastal Stars Gala Dinner",
+      "insideBanner": false,
+      "nav": "NAV",
+      "ariaLabel": "Breadcrumb",
+      "olItems": 3,
+      "links": 2,
+      "currentPageMarked": 1,
+      "colour": "rgb(44, 74, 83)",
+      "linkColour": "rgb(15, 123, 108)",
+      "backgroundBehind": "rgb(246, 250, 249)",
+      "selfRatio": 9.03,
+      "linkRatio": 4.9
+    },
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 137.94,
+        "height": 2420.95
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 137.94,
+        "height": 0
+      },
+      {
+        "tag": "app-event-detail-page",
+        "cls": "",
+        "top": 137.94,
+        "height": 2420.95
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 2622.89,
+        "height": 449.5
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "ハート・ユニティ財団あなたの街のチャリティーイベントナビゲーションを開く☰ホームイベントを探す 管理サイト 言語: En"
+    },
+    "errors": []
+  },
+  {
+    "label": "after-langs",
+    "theme": "light",
+    "lang": "ja",
+    "page": "/",
+    "url": "/",
+    "title": "Unity Heart Foundation | Charity Events",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scrollHeight": 3506,
+    "overflowX": 0,
+    "htmlLang": "ja-JP",
+    "bannerSelector": ".hero",
+    "bannerFound": true,
+    "banner": {
+      "top": 113.94,
+      "bottom": 519.81,
+      "height": 405.88,
+      "width": 1920,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(8, 69, 60)",
+      "text": "地域のチャリティーイベントあなたが買った1枚のチケットが、誰かが実感できる支援になります。ハート・ユニティ財団は、ファン"
+    },
+    "cardSelector": ".stat",
+    "card": {
+      "top": 710.02,
+      "bottom": 860.78,
+      "height": 150.77,
+      "width": 271,
+      "paddingTop": "24px",
+      "paddingBottom": "24px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgb(255, 255, 255)",
+      "text": "6掲載中の開催予定イベント"
+    },
+    "control": null,
+    "breadcrumb": null,
+    "stack": [
+      {
+        "tag": "app-site-header",
+        "cls": "",
+        "top": 0,
+        "height": 113.94
+      },
+      {
+        "tag": "main",
+        "cls": "",
+        "top": 113.94,
+        "height": 2878.06
+      },
+      {
+        "tag": "router-outlet",
+        "cls": "",
+        "top": 113.94,
+        "height": 0
+      },
+      {
+        "tag": "app-home-page",
+        "cls": "",
+        "top": 113.94,
+        "height": 2878.06
+      },
+      {
+        "tag": "app-site-footer",
+        "cls": "",
+        "top": 3056,
+        "height": 449.5
+      }
+    ],
+    "header": {
+      "top": 0,
+      "bottom": 113.94,
+      "height": 113.94,
+      "width": 1920,
+      "paddingTop": "0px",
+      "paddingBottom": "0px",
+      "marginTop": "0px",
+      "marginBottom": "0px",
+      "background": "rgba(255, 255, 255, 0.96)",
+      "text": "ハート・ユニティ財団あなたの街のチャリティーイベントナビゲーションを開く☰ホームイベントを探す 管理サイト 言語: En"
+    },
+    "errors": []
+  }
+]

@@ -840,16 +840,44 @@ textarea {
 .site-footer__status.is-warning { color: #f6cf88; }
 .site-footer__status.is-offline { color: #f3a6a1; }
 
-/* Breadcrumb used on the detail and search pages */
+/*
+ * The breadcrumb.
+ *
+ * IT HAS TWO PLACEMENTS AND THEY DO NOT WANT THE SAME SPACING.
+ *   * Inside the page banner - `.page-header` on /search and /register/:id - it
+ *     is the banner's FIRST line, so it must contribute no margin above itself:
+ *     the banner's own padding is the whole gap between the sticky header and
+ *     this line. The 24px top margin below was what made the tinted band read
+ *     as a box with a white strip over it, and the rule after this one replaces
+ *     it with a small gap BELOW the line, before the eyebrow or the title.
+ *   * On the event detail page it still stands alone, directly under the sticky
+ *     header and above the event hero, and it keeps the top margin that holds it
+ *     off the header. That page has no `.page-header` banner to fold the
+ *     breadcrumb into - its band is `.event-hero`, the illustrated hero that
+ *     carries the event's own name, illustration and fact tiles rather than a
+ *     title block - so this is the rule it uses and it is deliberately kept.
+ */
 .breadcrumb {
   font-size: 0.88rem;
-  /* --ink-700 rather than --ink-500: the breadcrumb sits on the tinted page
-     header, where the lighter grey measured 4.3:1. */
+  /* --ink-700 rather than --ink-500: on two of the three pages that show a
+     breadcrumb it sits on the tinted page banner, where the lighter grey
+     measured 4.3:1. */
   color: var(--ink-700);
   margin: var(--space-5) 0 0;
 }
 .breadcrumb ol { display: flex; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
 .breadcrumb li + li::before { content: "/"; margin-right: var(--space-2); color: var(--ink-300); }
+
+/*
+ * The breadcrumb inside the banner: first line, no margin above it, a --space-3
+ * (12px) gap below it. Measured on /register/2 at 1920x1080 with the banner's
+ * --brand-100 behind it, the trail measures 8.30:1 and its links 4.51:1 in the
+ * light theme, 7.99:1 and 5.05:1 in the dark one - the same pair /search has
+ * always shown, both above the 4.5:1 this 14.08px text is held to.
+ */
+.page-header .breadcrumb {
+  margin: 0 0 var(--space-3);
+}
 
 /* ==========================================================================
    6. Home page
@@ -1178,10 +1206,44 @@ textarea {
 /* ==========================================================================
    8. Search page
    ========================================================================== */
+/*
+ * The page banner: the tinted band that carries a public page's title block.
+ *
+ * SHARED BY TWO PAGES, CHANGED ONCE. /search and /register/:id both render
+ * `.page-header` (register.html writes it with a `.container` inside, the way
+ * search.html always has), so the padding below is one decision for both of
+ * them. The admin site does NOT take this padding: it re-declares the same
+ * element as `.page-header.admin-page-header` under `html body.admin-body`
+ * (adminside/src/styles.css), which sets its own background, border and
+ * padding at a higher specificity, so the staff pages are untouched.
+ *
+ * WHY THE PADDING IS 1.25rem AND NOT A --space TOKEN. It was
+ * `var(--space-7) 0 var(--space-6)` - 48px above and 32px below - which floated
+ * three or four short lines of text in 80px of green on a 1080p screen. The
+ * review asked for "about 20px"; the design scale has no 20px step (its
+ * neighbours are --space-4 at 16px and --space-5 at 24px), so the figure is
+ * written literally. 1.25rem is exactly 20px: no rule in this file or in
+ * index.html sets an `html` font-size, so the root stays at the browser's 16px
+ * and a token here would have been an alias for a number nobody else uses.
+ *
+ * MEASURED, at 1920x1080 against the build this rule ships in, both themes and
+ * all four languages. /search's band went from 247.89px to 195.89px tall: the
+ * 24px of breadcrumb margin above its first line is gone and the block ends 4px
+ * higher above and 12px higher below, so the filter card under it starts 52px
+ * further up the page (361.2px -> 309.2px). /register/2's band went from
+ * 227.94px to 222.45px - it gives up the same 40px of padding but takes the
+ * breadcrumb on as its first line (22.52px plus the 12px gap the rule above
+ * sets), so the band itself is only 5.49px shorter while the registration card
+ * below it moves up 116px (403.77px -> 287.77px). That 116px is the 110.52px
+ * separator strip plus the 40px of padding, less the 34.52px the breadcrumb and
+ * its gap now cost inside the band. See the banner block in register.html for
+ * the whole chain, and the `.breadcrumb` rules above for the colours that were
+ * re-measured on this background.
+ */
 .page-header {
   background: var(--brand-100);
   border-bottom: 1px solid var(--line);
-  padding: var(--space-7) 0 var(--space-6);
+  padding: 1.25rem 0;
 }
 .page-header h1 { margin-bottom: var(--space-2); }
 .page-header p { color: var(--ink-700); max-width: 70ch; margin: 0; }

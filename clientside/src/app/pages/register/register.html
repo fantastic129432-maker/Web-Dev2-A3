@@ -6,19 +6,6 @@
      client-side, then POSTs to /api/events/:id/registrations.
      ================================================================== -->
 
-<div class="container">
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <ol>
-      <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
-      <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
-      @if (event(); as current) {
-        <li><a [routerLink]="['/events', current.eventId]">{{ current.eventName }}</a></li>
-      }
-      <li aria-current="page">{{ 'form.title' | t }}</li>
-    </ol>
-  </nav>
-</div>
-
 <div aria-live="polite">
   <!--
     One @switch over the page's view, because exactly one of loading / no-event /
@@ -126,13 +113,62 @@
     @default {
       <!-- The form, with the event summary beside it. -->
       @if (event(); as current) {
-        <div class="container section">
-          <header class="page-header">
+        <!--
+          THE PAGE BANNER, WITH THE BREADCRUMB AS ITS FIRST LINE.
+
+          WHAT THIS REPLACES. The breadcrumb used to be a `.container` of its own
+          above everything else on this page, and this banner then sat inside a
+          `.container.section` whose 64px of top padding followed it: at
+          1920x1080 a visitor met 110.52px of near-white page background (24px of
+          breadcrumb margin-top + the 22.52px breadcrumb line + 64px of section
+          padding) between the sticky header and the top of the green band, so
+          the band carrying the page's own title did not begin until 175.83px
+          down the page. There is no separator strip any more - the breadcrumb is
+          the banner's first child, so the banner starts where the header ends,
+          exactly as it does on /search.
+
+          THE BANNER IS THE SHARED `.page-header`, AND IT IS WRITTEN HERE THE WAY
+          /search WRITES IT. The band is full-bleed and a `.container` inside it
+          holds the text, which is what keeps the banner's content lined up with
+          the cards below. It also repairs the banner's own horizontal padding:
+          inside the old `.container.section` the `.section` shorthand in
+          clientside/src/styles.css won the padding declaration, so the
+          container's 24px of horizontal padding was lost and the eyebrow sat
+          flush against the band's left edge.
+
+          THE ORDER INSIDE THE BANNER IS breadcrumbs -> eyebrow -> title ->
+          subtitle, and the breadcrumb keeps the structure it had: a `nav` with
+          an accessible name, an ordered list, a link to each ancestor and
+          `aria-current="page"` on the last item. Its colours are unchanged
+          (--ink-700 for the trail, --brand-700 for the links), which is the pair
+          the contrast check measures against the banner's --brand-100: 8.30:1
+          and 4.51:1 in the light theme, 7.99:1 and 5.05:1 in the dark one, all
+          above the 4.5:1 this 14.08px text is held to.
+
+          THE BREADCRUMB NOW RENDERS IN THIS BRANCH ONLY. It used to be outside
+          the @switch, so the loading, no-event, problem and confirmation screens
+          showed it too; the banner exists only while the form does, and each of
+          those other screens already carries its own way out (the two buttons
+          under the problem panel, the receipt's two actions).
+        -->
+        <header class="page-header">
+          <div class="container">
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+              <ol>
+                <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
+                <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
+                <li><a [routerLink]="['/events', current.eventId]">{{ current.eventName }}</a></li>
+                <li aria-current="page">{{ 'form.title' | t }}</li>
+              </ol>
+            </nav>
+
             <p class="section__eyebrow">{{ 'form.eyebrow' | t }}</p>
             <h1>{{ 'form.title' | t }}</h1>
             <p class="section__lead">{{ 'form.lead' | t }}</p>
-          </header>
+          </div>
+        </header>
 
+        <div class="container">
           <div class="registration-layout">
             <!-- ==========================================================
                  THE EVENT BEING REGISTERED FOR  (GET /api/events/:id)
