@@ -242,9 +242,20 @@ if (regs.status === 200 && regs.json) {
 
   if (items[0]) {
     const keys = Object.keys(items[0]);
+    // A3 要求公开的报名列表能看出"谁报名了、买了多少、什么时候报的"；
+    // 隐私决定则要求公开投影里一个联系方式都不能有。所以这里断言两件事：
+    // 名字与份数必须在，邮箱与手机号必须不在 —— 只查其一会漏掉另一半。
     record(
-      '报名记录含 A3 字段',
-      keys.includes('attendeeName') && keys.includes('attendeeEmail') && keys.includes('ticketsPurchased'),
+      '报名记录含 A3 字段（姓名 + 掩码名 + 份数 + 报名时间）',
+      keys.includes('attendeeName') &&
+        keys.includes('attendeeDisplayName') &&
+        keys.includes('ticketsPurchased') &&
+        keys.includes('registeredAt'),
+      `字段: ${keys.join(', ')}`
+    );
+    record(
+      '公开投影不含联系方式（邮箱 / 手机号）',
+      !keys.includes('attendeeEmail') && !keys.includes('attendeePhone'),
       `字段: ${keys.join(', ')}`
     );
   }
