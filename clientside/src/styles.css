@@ -847,9 +847,10 @@ textarea {
  *   * Inside the page banner - `.page-header` on /search and /register/:id - it
  *     is the banner's FIRST line, so it must contribute no margin above itself:
  *     the banner's own padding is the whole gap between the sticky header and
- *     this line. The 24px top margin below was what made the tinted band read
- *     as a box with a white strip over it, and the rule after this one replaces
- *     it with a small gap BELOW the line, before the eyebrow or the title.
+ *     this line. The 24px top margin the rule below carries is what made the
+ *     tinted band read as a box with a white strip over it, and the rule after
+ *     it replaces that margin with a small gap BELOW the line, before the
+ *     eyebrow or the title.
  *   * On the event detail page it still stands alone, directly under the sticky
  *     header and above the event hero, and it keeps the top margin that holds it
  *     off the header. That page has no `.page-header` banner to fold the
