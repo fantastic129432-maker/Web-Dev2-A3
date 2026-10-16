@@ -310,9 +310,11 @@ export class EventForm implements OnInit {
     this.form.valueChanges
       .pipe(startWith(this.form.getRawValue()), takeUntilDestroyed(this.destroyRef))
       .subscribe((value) => {
-        // Every route into the start date - typing, the picker, "Clear the form" -
-        // ends here, so the mirror is written from the subscribed value rather than
-        // from a second event listener.
+        // Every route into the start date - typing it, the picker, or the reset
+        // after a successful save - ends here, so the mirror is written from the
+        // subscribed value rather than from a second event listener. (The form no
+        // longer has an on-demand "Clear the form" control; see onReset's note
+        // where that handler used to be.)
         this.form.controls.eventDate.setValue(value.dateStart ?? '', { emitEvent: false });
         this.formValue.set(value);
       });
@@ -550,11 +552,28 @@ export class EventForm implements OnInit {
     this.submitted.emit(toEventInput(this.form));
   }
 
-  /** "Clear the form": back to the values this form was built with. */
-  protected onReset(): void {
-    this.resetTo(this.event());
-    this.showAllErrors.set(false);
-  }
+  /*
+   * "CLEAR THE FORM" IS GONE (review item 7), AND THIS IS WHAT WENT WITH IT.
+   *
+   * The control was a `type="button"` beside the primary action calling
+   * `onReset()`, which called `resetTo(this.event())` - back to the values this
+   * form was built with, with `showAllErrors` cleared. Both the button and that
+   * one-line handler are removed, because a misclick beside Save destroyed
+   * everything typed and the review asked for the control to go rather than to be
+   * made harder to hit.
+   *
+   * THE CAPABILITY IS DELIBERATELY ABSENT: a visitor can no longer reset this form
+   * on demand. What they can still do is leave the page, which discards it (the
+   * form is component state and nothing persists a draft), and the browser's own
+   * field-level undo still works inside a control.
+   *
+   * THE RESET CODE PATH IS NOT DEAD and must not be deleted with the button:
+   * `reset(initial)` below is called by the edit page after a successful save to
+   * put the event the API just returned on screen, and `resetTo()` is the one
+   * implementation of it. Bringing the button back behind a confirmation dialog is
+   * one line in event-form.html plus a call to `onReset`'s old body; the
+   * `form.reset` dictionary key is kept in all four languages for that.
+   */
 
   /**
    * Rebuild the form from a fresh event.

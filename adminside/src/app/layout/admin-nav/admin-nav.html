@@ -5,9 +5,14 @@
   `.admin-nav`, `.admin-nav__list`, `.admin-nav__link` and `.admin-nav__link--active`
   are all defined in the global src/styles.css, so nothing was restyled - and
   admin-nav.css only stops the new host element from adding a box of its own.
+
+  `#navBox` is a measurement handle, not a style hook: the component reads this
+  element's height and publishes it as `--site-header-height` on the document
+  element, which is what the event form's sticky right column offsets itself from.
+  See the class comment for why it is measured rather than written down.
 -->
 @if (showNav()) {
-  <nav class="admin-nav" [attr.aria-label]="'admin.title' | t">
+  <nav #navBox class="admin-nav" [attr.aria-label]="'admin.title' | t">
     <ul class="admin-nav__list">
       @for (item of navItems; track item.path) {
         <li>

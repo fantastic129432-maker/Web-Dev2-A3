@@ -4,13 +4,23 @@
      then renders the shared event form in "create" mode.
      ================================================================== -->
 
-<div class="page-header admin-page-header">
+<!--
+  `admin-page-header--form-column` puts this heading block, and the banner below it,
+  in the same centred 76rem column the form itself is built in (review item 1: the
+  title sat flush with the shell's container while the form started further right -
+  112px further at 1920x1080 and 88px at 1440x900). The rule and its measured
+  before/after table are in src/styles.css, section 6.
+-->
+<div class="page-header admin-page-header admin-page-header--form-column">
   <h1>{{ 'form.newHeading' | t }}</h1>
   <p class="section__lead">{{ 'form.newLead' | t }}</p>
 </div>
 
 @if (banner(); as message) {
-  <admin-feedback-banner [message]="message" />
+  <!-- The same column as the heading and the form: a 400 from the API shows this
+       banner above a form that is still on screen, so a full-band banner here would
+       be the very misalignment item 1 is about. -->
+  <admin-feedback-banner class="admin-form-column" [message]="message" />
 }
 
 @if (loading()) {

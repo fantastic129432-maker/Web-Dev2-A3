@@ -1,8 +1,9 @@
 <!-- ==================================================================
      WEATHER PREVIEW
      The optional Open-Meteo forecast for the venue and date chosen in the
-     event form. It shows loading, a forecast, or a quiet "unavailable"
-     note - never an error, because the form must work without it.
+     event form. It shows a neutral prompt before anything is chosen, a
+     forecast once one exists, a quiet "unavailable" note when the choice
+     cannot have one - never an error, because the form must work without it.
      ================================================================== -->
 
 <section class="panel weather-preview" aria-labelledby="weather-preview-heading">
@@ -14,7 +15,29 @@
        weather-preview.css or in the admin stylesheet matches the heading level. -->
   <h2 id="weather-preview-heading">{{ 'weather.heading' | t }}</h2>
 
-  @if (loading()) {
+  <!--
+    COLD START, AND WHY IT HAS A STATE OF ITS OWN (review item: the card reads
+    like an error before anything has been chosen).
+
+    The card used to open straight into `weather.unavailable` - a two-sentence,
+    grey, italic paragraph about venues without coordinates and the 16-day
+    forecast window - on a form where the venue and the date were both still
+    empty. Nothing was wrong: nobody had asked for a forecast yet. The panel now
+    distinguishes the two cases, and the ORDER of the branches is what does it:
+    `nothingChosen()` is tested FIRST, so the unavailable sentence is only ever
+    reached when a venue and a date exist and the forecast still could not be
+    produced (a venue with no coordinates, a date outside Open-Meteo's window, or
+    a request that failed). `loading` stays where it was, so a real request in
+    flight is still what shows the loading line.
+
+    The prompt is NOT the same element style as the note: see
+    `.weather-preview__note--prompt` in weather-preview.css.
+  -->
+  @if (nothingChosen()) {
+    <p class="weather-preview__note weather-preview__note--prompt">
+      {{ 'weather.chooseVenueAndDate' | t }}
+    </p>
+  } @else if (loading()) {
     <p class="weather-preview__note">{{ 'weather.loading' | t }}</p>
   } @else {
     @if (forecast(); as value) {
@@ -59,7 +82,8 @@
       </div>
     } @else {
       <!-- A bonus feature that is unavailable is NOT an error: the note says so
-           and the form above carries on working. -->
+           and the form above carries on working. Reached only for a venue and a
+           date that ARE chosen - see the branch order above. -->
       <p class="weather-preview__note">{{ 'weather.unavailable' | t }}</p>
     }
   }

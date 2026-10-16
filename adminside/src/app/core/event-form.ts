@@ -363,7 +363,14 @@ export type EventFormGroup = ReturnType<typeof createEventForm>;
 export type EventFormValue = EventFormGroup['value'];
 
 /**
- * Put the form back to the values it was built with ("Clear the form").
+ * Put the form back to the values it was built with.
+ *
+ * ONE CALLER SINCE THE "Clear the form" BUTTON WAS REMOVED (review item 7):
+ * EventForm.reset(), which the edit page calls after a successful save so the form
+ * shows what the API now holds. The path is kept - and kept correct - because it is
+ * also what re-arms the free-event lock and the end-date reveal on the freshly
+ * loaded values; restoring the removed button would be a call to this function
+ * again, behind a confirmation.
  *
  * The tier rows are replaced rather than reset, because they are controls and not
  * values: a fresh row also starts untouched, with no stale error message.

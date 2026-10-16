@@ -31,8 +31,15 @@ import { WeatherService } from '@charity/shared/weather/weather.service';
  *   A venue with no coordinates (the "Online" pseudo-venue), a date beyond
  *   Open-Meteo's 16-day window, a machine with no internet or a slow answer must
  *   not stop an event from being created. WeatherService.forecastFor() therefore
- *   resolves `null` instead of rejecting, and this component renders one of three
- *   states - loading, a forecast, or "not available" - and never an error.
+ *   resolves `null` instead of rejecting, and this component renders one of FOUR
+ *   states - nothing chosen yet, loading, a forecast, or "not available" - and
+ *   never an error.
+ *
+ *   The first of those four is a review item rather than a nicety: before a venue
+ *   and a date exist there is nothing to be unavailable ABOUT, and opening on the
+ *   two-sentence "no forecast is available..." note made a working form look
+ *   broken. `nothingChosen` below is what separates the two, and it is tested
+ *   before `loading` and before the note - see the branch order in the template.
  *
  * Re-fetching: the target arrives as a signal input, and `toObservable` +
  * `switchMap` means a change of venue or date cancels the request in flight and
@@ -60,6 +67,32 @@ export class WeatherPreview {
 
   /** True while a request is in flight. */
   protected readonly loading = signal(false);
+
+  /**
+   * Has the administrator chosen enough for a forecast to be asked for?
+   *
+   * `true` means "nothing chosen yet": no venue, or no date - the two facts
+   * WeatherService needs. It is deliberately NOT "no forecast", which is the
+   * state the long `weather.unavailable` note is about and which can only be
+   * reached once both have been chosen (a venue with no coordinates, or a date
+   * outside the 16-day window).
+   *
+   * WHY IT READS THE TARGET RATHER THAN THE FORECAST. `forecastFor()` answers
+   * null for BOTH cases, so the resolved forecast cannot tell them apart; the
+   * target can, because it carries exactly what the person has picked: the venue
+   * NAME from the dropdown and the start date from the date box. The form's
+   * `weatherTarget()` always builds a target object (with null coordinates and an
+   * empty date before anything is chosen), so a null target is treated as
+   * "nothing chosen" too rather than as a third state.
+   */
+  protected readonly nothingChosen = computed(() => {
+    const value = this.target();
+    if (!value) return true;
+
+    const venue = (value.venueName ?? '').trim();
+    const date = String(value.eventDate ?? value.dateStart ?? '').trim();
+    return venue === '' || date === '';
+  });
 
   /** The summary line: venue, city and the day the forecast is for. */
   protected readonly lead = computed(() => {

@@ -770,6 +770,47 @@ html body.admin-body .admin-page-header p {
 /* --------------------------------------------------------------------------
    6. Event form
    -------------------------------------------------------------------------- */
+/*
+ * THE PAGE HEADING TAKES THE FORM'S OWN COLUMN (review item: "the page title and
+ * the form do not share a left edge").
+ *
+ * `.page-header.admin-page-header` is a child of `.admin-container` (up to 1440px
+ * wide), while `admin-event-form` centres its own 76rem column inside that
+ * container (`:host { width: min(100%, 76rem); margin-inline: auto }` in
+ * shared/event-form/event-form.css), so at a wide window the two start at different
+ * x. Measured on the built "Add a charity event" page before this rule:
+ *
+ *   viewport    title h1 x    form (grid, first heading, #eventName) x    delta
+ *   1920x1080   240px         352px                                       112px
+ *   1440x900     24px         112px                                        88px
+ *   1100x900     24px          24px                                         0px   (the form
+ *                                                                                 is no longer
+ *                                                                                 capped here)
+ *    390x844     12px          12px                                         0px
+ *
+ * So the defect only exists where the 76rem cap is doing something, and the fix is
+ * to give the heading the same cap and the same centring rather than to move the
+ * form: `min(100%, 76rem)` plus `margin-inline: auto` reproduces the form column's
+ * geometry exactly, because both are centred in the same `.admin-container`.
+ * Measured after: 352/352 at 1920, 112/112 at 1440, 24/24 at 1100, 12/12 at 390 -
+ * 0.00px in all four languages and both themes.
+ *
+ * THE NUMBER IS SHARED WITH THE FORM COMPONENT AND MUST NOT DRIFT: 76rem is the
+ * form's width (and 1b of event-form.css explains why that width), so a change
+ * there has to change this line. It is written as the same `min(100%, 76rem)`
+ * expression for that reason.
+ *
+ * THE CLASS IS OPT-IN, and only the create page carries it (event-new.html). The
+ * edit page's heading and panels stay at the container's width on purpose: its
+ * registrations table has a measured 1250px floor (`.data-table--admin`) that a
+ * 1216px column would push into a horizontal scrollbar at 1440px.
+ */
+.admin-page-header--form-column,
+.admin-form-column {
+  width: min(100%, 76rem);
+  margin-inline: auto;
+}
+
 .admin-form__heading {
   margin-top: var(--space-6);
   margin-bottom: var(--space-3);
@@ -827,6 +868,17 @@ html body.admin-body .admin-page-header p {
 .field--inline label { margin: 0; }
 .field--inline .field-message { flex-basis: 100%; }
 
+/*
+ * The form's action block, which is now the PRIMARY ACTION'S HOME rather than a
+ * footer row (review item 6: "Save event" was buried at the bottom of a long form).
+ *
+ * It sits inside the event form's right column, directly under the artwork picker
+ * and inside that column's sticky card, so the one submit button it holds is on
+ * screen at every scroll position instead of only at the end of the form. Its
+ * separator, spacing and wrapping are unchanged - it is the same rule the submit row
+ * always used - and the flex row simply holds one button now: "Clear the form" was
+ * removed (review item 7), so `flex-wrap` and the gap have nothing to wrap.
+ */
 .admin-form__actions {
   display: flex;
   gap: var(--space-3);
@@ -918,10 +970,12 @@ html body.admin-body .admin-page-header p {
   .admin-header__inner,
   .admin-nav__list { width: min(1440px, 100% - 2rem); }
 
-  /* The ticket row's two-column shape at this width is the event-form
-     component's own 900px rule; see the note in section 6. The button it used to
-     place here is a flex item of .ticket-row__actions, so `grid-column` and
-     `justify-self` could not have applied to it. */
+  /* The ticket row's two-column shape is the event-form component's own rule, and
+     it is NOT this breakpoint: it turns at 1263px, where the description track
+     stops having the width the review settled on (see sections 2 and 5 of
+     shared/event-form/event-form.css). This block only narrows the shell's gutter.
+     The button the row used to place here is a flex item of .ticket-row__actions,
+     so `grid-column` and `justify-self` could not have applied to it. */
 
   .admin-header__inner { padding: var(--space-2) 0; }
   .admin-nav__link { padding: 0.7rem var(--space-3); font-size: 0.86rem; }

@@ -108,6 +108,27 @@
   font-style: italic;
 }
 
+/*
+ * THE COLD-START PROMPT IS NOT A NOTE (review item: the card read like an error
+ * before anything had been chosen).
+ *
+ * It shares the note's element and its quiet grey, because it is equally
+ * unalarming, and differs in the two things that made the real note read as a
+ * fault: it is NOT italic (italic is this card's "something went wrong with the
+ * data" voice - both the loading line and the unavailable paragraph use it) and
+ * it takes the darker of the two muted inks, so it reads as an instruction
+ * rather than as small print about a failure.
+ *
+ * --ink-700 rather than a new token or a brand colour: it is the same pair the
+ * form's locked controls use, and on this card (--surface-50) it measures well
+ * above the 4.5:1 that 0.9rem text is held to - the site-wide contrast check
+ * covers this element on the admin form page in both themes.
+ */
+.weather-preview__note--prompt {
+  color: var(--ink-700);
+  font-style: normal;
+}
+
 .weather-preview__attribution {
   margin-top: var(--space-3);
 }

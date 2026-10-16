@@ -2,7 +2,7 @@
      THE EVENT FORM (shared by "Add" and "Update")
      Every field of the write contract with its own message slot, the
      live weather preview, the repeating ticket-tier block and the
-     submit row. It emits a validated payload and never calls the API.
+     primary action. It emits a validated payload and never calls the API.
 
      Every class comes from the admin stylesheet (src/styles.css):
        .admin-form          the form block and its section headings
@@ -13,32 +13,44 @@
                             its text with [textContent] instead of interpolating
                             between two lines (see THE FORM RHYTHM in base.css)
        .ticket-rows / .ticket-row   the repeating ticket-tier block
-       .admin-form__actions the submit row
+       .admin-form__actions the action block, which now holds the one primary
+                            button inside the right column's sticky card
 
      TWO COLUMNS, AND WHAT GOES IN WHICH (review item: in a wide window single-line
      fields span the whole width, which scatters focus; basics on the left, artwork
-     preview, publishing status and the weather preview on the right).
+     preview, publishing status, the weather preview and the primary action on the
+     right).
      The form is one `.admin-form__grid`: the left column (`.admin-form__main`)
      carries the fields a staff member fills in, in reading order, and the right
-     column (`<aside class="admin-form__side">`) carries the three things that
-     DESCRIBE what is being written rather than being written - the publishing
-     status, the artwork and its preview, and the forecast for the venue and date
-     chosen on the left. Nothing was removed to make room and nothing moved into a
-     second screen: every field, every label, every hint and every message slot is
-     the one that was here before, only in a narrower column.
+     column (`<aside class="admin-form__side">`) carries the things that DESCRIBE
+     what is being written rather than being written - the publishing status, the
+     artwork and its preview, the forecast for the venue and date chosen on the
+     left, and the action that commits it. Nothing was removed to make room and
+     nothing moved into a second screen: every field, every label, every hint and
+     every message slot is the one that was here before, only in a narrower column.
+     The right column is wrapped in a rail and follows the scroll (review item 4),
+     which is also what keeps the primary action in it reachable; the rail and its
+     measured overlap proof are documented at the column itself, below.
 
-     THE TICKET BLOCK AND THE SUBMIT ROW ARE DELIBERATELY BELOW BOTH COLUMNS, not
-     inside the left one. `.ticket-row` is a measured five-column row (see section 2
-     of event-form.css) and it needs the full width of the form; putting it inside a
-     column that is itself about two thirds of the form would squeeze the five
-     tracks to about 170/85/85/170/57px and undo that measurement. The width the
-     grid gives back is therefore spent on the fields, which is what the review asked
-     for, and the wide block keeps the width it was measured at.
+     THE TICKET BLOCK IS DELIBERATELY BELOW BOTH COLUMNS, not inside the left one.
+     `.ticket-row` is a measured five-column row (see section 2 of event-form.css)
+     and it needs the full width of the form; putting it inside a column that is
+     itself about two thirds of the form would squeeze the five tracks to about
+     170/85/85/170/57px and undo that measurement. The width the grid gives back is
+     therefore spent on the fields, which is what the review asked for, and the wide
+     block keeps the width it was measured at.
      Measured on the built pages at 1920x1080: the grid is `832px 352px` with a 32px
      gap, the Event name input is 832px (it was 976px in the single column), and the
-     ticket row's tracks are 355.19 / 177.61 / 177.59 / 355.20 / 118.41px. The form
-     holds 24 controls before and after, so no field, label, hint or message slot
-     was lost in the move.
+     ticket row's tracks are 355.19 / 177.61 / 177.59 / 355.20 / 118.41px in a 1216px
+     row - which is the whole of the form's width, and the most this form has to
+     give. Only a 1264px viewport and wider yields that 1216px row (the form is
+     capped at 76rem and the shell adds 3rem of gutter); below it the same five
+     controls are laid out two-by-two, where the description track gets half the row
+     instead of 30% of it - because at 1100px 30% is 306px and at 901px it is
+     252.75px, the "too narrow to read what is typed" the review measured. Both
+     breakpoints and every before/after width are in sections 2 and 5 of
+     event-form.css. The form holds 24 controls before and after, so no field,
+     label, hint or message slot was lost in the move or in the ticket-row change.
 
      novalidate: the browser's own bubbles are switched off deliberately. The form
      has its own messages in the staff member's language, placed next to the field
@@ -194,8 +206,17 @@
         <input id="singleDay" type="checkbox" formControlName="singleDay" aria-describedby="singleDay-hint" />
         <label for="singleDay">{{ 'field.singleDay' | t }}</label>
         <!-- aria-live: switching the box on removes the End date control, and this is
-             what tells a screen reader that it has gone and what that means. -->
-        <p class="field__hint" id="singleDay-hint" aria-live="polite">{{ 'field.singleDayHint' | t }}</p>
+             what tells a screen reader that it has gone and what that means.
+
+             `free-toggle__hint` is what puts the sentence on its OWN LINE under the
+             checkbox and its label rather than beside the label (review item: the
+             helper hints were placed inconsistently - this was the one hint on the
+             form that ran on from the label it belongs to, and at 1440px it started
+             at x=270.44 on the label's own line, so it read as though it belonged to
+             the Start date box below it). Every other hint on this form already sits
+             under its control and before that control's message slot; see section 3
+             of event-form.css for the class and the measurement. -->
+        <p class="field__hint free-toggle__hint" id="singleDay-hint" aria-live="polite">{{ 'field.singleDayHint' | t }}</p>
       </div>
 
       <div class="form-row">
@@ -350,72 +371,127 @@
         </div>
       </div>
 
-      <div class="field field--inline free-toggle">
-        <input
-          id="isFree"
-          type="checkbox"
-          formControlName="isFree"
-          aria-describedby="freeEventHint"
-        />
-        <label for="isFree">{{ 'field.isFree' | t }}</label>
-        <!--
-          The sentence that links the box to the money it governs, and the reason it is
-          its own element with an id: the same text is named by the disabled price and
-          goal inputs through aria-describedby, so a screen reader hears WHY the box it
-          just tabbed into is locked instead of meeting a dead control.
-        -->
-        <p class="field__hint free-toggle__hint" id="freeEventHint" aria-live="polite">
-          {{ 'field.isFreeHint' | t }}
-        </p>
-      </div>
+      <!--
+        "THIS IS A FREE EVENT" IS NOT HERE ANY MORE (review item: the control that
+        locks the ticket prices sat under the fundraising goal, three sections away
+        from the rows it governs).
+
+        It now opens the Ticket types block, directly under that heading and above
+        the rows it locks - see the ticket section below. Its behaviour is
+        untouched: the same `isFree` control, the same `applyFreeState()` in
+        event-form.ts, the same `freeEventHint` sentence (kept in the document
+        wherever the box is, because the goal box and every locked price name it
+        through aria-describedby), and the same single-day/multi-day logic, which
+        this control never touched.
+      -->
     </div>
 
     <!-- ================================================== right column === -->
     <!--
-      THE DESCRIBING COLUMN: how the event is published, what it looks like, and
-      what the weather will be. These three are not part of the sentence a staff
-      member writes from top to bottom - they are the answers to "will this go
-      live", "what will a visitor see" and "what should we tell people to wear" -
-      so they sit beside the fields rather than continuing them, and the eye stops
-      scattering down a 1200px-wide form to find them.
+      THE DESCRIBING COLUMN: how the event is published, what it looks like, what
+      the weather will be, and the primary action. The first three are not part of
+      the sentence a staff member writes from top to bottom - they are the answers
+      to "will this go live", "what will a visitor see" and "what should we tell
+      people to wear" - so they sit beside the fields rather than continuing them,
+      and the eye stops scattering down a 1200px-wide form to find them.
 
       The weather preview was previously a full-width block between the When
       section and the Money section; it reads the venue and the date chosen in the
       left column, which is now directly beside it.
+
+      THIS COLUMN FOLLOWS THE SCROLL, AND IT IS THE RAIL RATHER THAN THE COLUMN
+      THAT MAKES THAT SAFE (review item: the left form is long and this column
+      ended at the weather card, leaving ~850px of empty column below it).
+
+      The shape is the public website's own, copied deliberately:
+      `.side-column__rail` / `.registration-summary__rail` in
+      clientside/src/styles.css. `.admin-form__rail` is a plain block box that
+      holds ONLY the sticky card, and the card can travel no further than its
+      containing block is tall - so the rail's bottom edge is the last position the
+      card may take. That bound is the whole point: this codebase has twice shipped
+      a sticky card whose containing block was the COLUMN, and such a card travels
+      the column's full height and paints over whatever is below it.
+
+      WHY `align-self: stretch` ON THE COLUMN (in event-form.css): a sticky element
+      can only move as far as its containing block is tall, so a content-height
+      column would give the card no travel at all - the same measurement the public
+      sheet records for `.prose { align-self: start }`. Stretching the column to the
+      grid row (which is as tall as the left column) is what turns the ~850px of
+      empty column into the card's travel budget.
+
+      The action row moved in here with the compact markup it always had (review
+      item: "Save event" was buried at the bottom of a 1,700px form, 1,660.69px
+      from the form's top at 1920x1080). It is still the ONE primary action - the
+      same submit button, the same payload, the same `saving()` guard - and because
+      the card it sits in is the sticky one, it is on screen at every scroll
+      position instead of only at the end of the form.
     -->
     <aside class="admin-form__side">
-      <h2 class="admin-form__heading">{{ 'form.sectionPublishing' | t }}</h2>
+      <!-- The rail: the sticky card's containing block, and the only thing in this
+           column besides it. Nothing may be added as a sibling of the card inside
+           the rail without re-doing the overlap measurement in event-form.css. -->
+      <div class="admin-form__rail">
+        <div class="admin-form__sticky">
+          <h2 class="admin-form__heading">{{ 'form.sectionPublishing' | t }}</h2>
 
-      <div class="field">
-        <label for="status">{{ 'field.status' | t }}</label>
-        <select id="status" formControlName="status" aria-describedby="status-hint">
-          @for (status of statuses; track status) {
-            <option [value]="status">{{ ('status.' + status) | t }}</option>
-          }
-        </select>
-        <p class="field__hint" id="status-hint">{{ 'field.statusHint' | t }}</p>
-      </div>
+          <div class="field">
+            <label for="status">{{ 'field.status' | t }}</label>
+            <select id="status" formControlName="status" aria-describedby="status-hint">
+              @for (status of statuses; track status) {
+                <option [value]="status">{{ ('status.' + status) | t }}</option>
+              }
+            </select>
+            <p class="field__hint" id="status-hint">{{ 'field.statusHint' | t }}</p>
+          </div>
 
-      <div class="field">
-        <label for="imageUrl">{{ 'field.imageUrl' | t }}</label>
-        <div class="image-picker">
-          <select id="imageUrl" formControlName="imageUrl">
-            @for (image of images; track image) {
-              <option [value]="image">{{ image }}</option>
-            }
-          </select>
-          <!-- A preview, because a filename says very little about what an event
-               will look like on the public pages. Decorative: the select names it. -->
-          <img class="image-picker__preview" [src]="imagePreview()" alt="" aria-hidden="true" />
+          <div class="field">
+            <label for="imageUrl">{{ 'field.imageUrl' | t }}</label>
+            <div class="image-picker">
+              <select id="imageUrl" formControlName="imageUrl">
+                @for (image of images; track image) {
+                  <option [value]="image">{{ image }}</option>
+                }
+              </select>
+              <!-- A preview, because a filename says very little about what an event
+                   will look like on the public pages. Decorative: the select names it. -->
+              <img class="image-picker__preview" [src]="imagePreview()" alt="" aria-hidden="true" />
+            </div>
+          </div>
+
+          <!-- ============================================================ submit === -->
+          <!--
+            THE PRIMARY ACTION, RAISED (review item 6).
+
+            It is the same `<button type="submit">` the form always had - the same
+            `submitLabelKey()` label, the same `[disabled]="saving()"`, the same
+            single `onSubmit()` with its `if (this.saving()) return;` double-submit
+            guard, and it emits the identical payload through `toEventInput()`. What
+            changed is only WHERE it sits: at the head of the sticky card, so it is
+            reachable while the long form is scrolled, rather than 1,660.69px below
+            the top of the form where only the last scroll position reached it.
+
+            "Clear the form" IS GONE (review item 7). It sat beside this button and
+            one misclick destroyed everything typed. The capability is deliberately
+            absent now: the form has no on-demand reset. Nothing else was removed -
+            the reset CODE PATH is still here and still used, because the edit page
+            calls `reset()` after a save to put the freshly loaded event on screen
+            (see event-form.ts). To bring the button back behind a confirmation it
+            is one line here plus a `confirm-dialog` call; the `form.reset`
+            dictionary key was kept in all four languages for exactly that.
+          -->
+          <div class="admin-form__actions">
+            <button class="button" type="submit" [disabled]="saving()">{{ submitLabelKey() | t }}</button>
+          </div>
+
+          <!--
+            The optional external API: a live Open-Meteo forecast for the venue and date
+            chosen on the left, shown before the event has been saved. It degrades to a
+            quiet prompt before anything is chosen, a quiet "not available" note after
+            that, and never blocks the form - see weather-preview.html.
+          -->
+          <admin-weather-preview [target]="weatherTarget()" />
         </div>
       </div>
-
-      <!--
-        The optional external API: a live Open-Meteo forecast for the venue and date
-        chosen on the left, shown before the event has been saved. It degrades to a
-        quiet "not available" note and never blocks the form.
-      -->
-      <admin-weather-preview [target]="weatherTarget()" />
     </aside>
   </div>
 
@@ -424,6 +500,45 @@
        five-column ticket row's measured width. -->
   <h2 class="admin-form__heading">{{ 'form.sectionTickets' | t }}</h2>
   <p class="field__hint">{{ 'form.sectionTicketsHint' | t }}</p>
+
+  <!--
+    "THIS IS A FREE EVENT", NEXT TO THE BLOCK IT GOVERNS (review item 8).
+
+    It used to sit at the END of the left column, under the fundraising goal, three
+    sections below the price boxes it locks. It opens the ticket block now, directly
+    under the "Ticket types" heading and immediately above the rows it zeroes, which
+    is what the review asked for.
+
+    IT IS OUTSIDE THE `@if (tiersEditable())` BELOW, ON PURPOSE: an event that
+    already has stored tiers shows them read-only, and the box must still be on
+    screen (and still be the element `#freeEventHint` names) for a stored free
+    event to be readable - and for the goal box, which names that hint through
+    aria-describedby, to keep describing itself.
+
+    NOTHING ABOUT ITS BEHAVIOUR CHANGED. It is the same `isFree` control bound to
+    the same form control, and `applyFreeState()` in event-form.ts is the same
+    function: ticking it locks and zeroes the goal and every tier price, clearing it
+    restores the prices it stashed. It has never touched the single-day/multi-day
+    switch or the dates, and toEventInput() still forces a free event's prices to 0.
+  -->
+  <div class="field field--inline free-toggle">
+    <input
+      id="isFree"
+      type="checkbox"
+      formControlName="isFree"
+      aria-describedby="freeEventHint"
+    />
+    <label for="isFree">{{ 'field.isFree' | t }}</label>
+    <!--
+      The sentence that links the box to the money it governs, and the reason it is
+      its own element with an id: the same text is named by the disabled price and
+      goal inputs through aria-describedby, so a screen reader hears WHY the box it
+      just tabbed into is locked instead of meeting a dead control.
+    -->
+    <p class="field__hint free-toggle__hint" id="freeEventHint" aria-live="polite">
+      {{ 'field.isFreeHint' | t }}
+    </p>
+  </div>
 
   @if (tiersEditable()) {
     <!-- Shown only while the price column is locked, so it explains a state the
@@ -530,9 +645,11 @@
     <p class="field__hint">{{ 'form.ticketTypesExistingHint' | t }}</p>
   }
 
-  <!-- ================================================================ submit === -->
-  <div class="admin-form__actions">
-    <button class="button" type="submit" [disabled]="saving()">{{ submitLabelKey() | t }}</button>
-    <button class="button button--outline" type="button" (click)="onReset()">{{ 'form.reset' | t }}</button>
-  </div>
+  <!--
+    NO ACTION ROW HERE ANY MORE. The primary action was raised into the sticky
+    card in the right column (see the submit section there) and "Clear the form"
+    was removed with it (review item 7) - the form no longer resets on demand.
+    Nothing else moved out of the end of the form: the ticket block is still the
+    last thing in it, and the form still ends at the same element it did.
+  -->
 </form>

@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, DestroyRef, DOCUMENT, afterNextRender, inject, input, viewChild, type ElementRef } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
@@ -36,6 +36,25 @@ interface NavItem {
  *   `display: contents`, so the <nav> is laid out exactly where it was before the
  *   markup moved and no CSS rule had to move with it.
  *
+ * IT PUBLISHES ITS OWN HEIGHT, for the same reason the public site's header does.
+ *   `.admin-nav` is pinned at `top: 0`, so it is the band a sticky element below it
+ *   has to clear. The event form's right column follows the scroll with
+ *   `top: calc(var(--site-header-height) + var(--sticky-card-gap))` (see section 1e
+ *   of shared/event-form/event-form.css), and `--site-header-height` is this
+ *   element's measured height - a ResizeObserver writing the property onto the
+ *   document element, which is exactly what `SiteHeaderComponent` does for the
+ *   public header (clientside/src/app/layout/site-header.ts). A ResizeObserver and
+ *   not a window `resize` listener, because the value has to follow a language
+ *   switch or any other reflow of the menu row, and a window resize event does not
+ *   fire for those.
+ *
+ *   THE MENU REALLY DOES CHANGE HEIGHT, which is why this is measured rather than
+ *   written into the stylesheet: 70.73px in all four languages from 601px up, but
+ *   64.39px in English and Chinese at 390px and 115.78px when the Vietnamese and
+ *   Japanese labels wrap the list onto a second row at that width. The stylesheet's
+ *   fallback (base.css, section 1) is the 70.73px English value, used only for the
+ *   frame before the first measurement.
+ *
  * No API endpoint is called by this component.
  */
 @Component({
@@ -45,6 +64,43 @@ interface NavItem {
   templateUrl: './admin-nav.html',
 })
 export class AdminNav {
+  /** The document whose root carries the measured nav height. */
+  private readonly document = inject(DOCUMENT);
+
+  /** This component's lifetime, which is what disconnects the observer. */
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** The `<nav>` itself, so its real height can be measured. */
+  private readonly navBox = viewChild<ElementRef<HTMLElement>>('navBox');
+
+  constructor() {
+    /*
+     * Measured after the first render, because the height is only real once the
+     * element is in the document, and re-measured on every resize of the element
+     * itself. `viewChild` rather than `viewChild.required`: the menu is behind an
+     * `@if`, and a hidden nav has no height to publish - in which case the
+     * stylesheet's fallback stands and no sticky card is being offset from a menu
+     * that is not there.
+     */
+    afterNextRender(() => {
+      const element = this.navBox()?.nativeElement;
+      if (!element) return;
+
+      const publish = () => {
+        const { height } = element.getBoundingClientRect();
+        this.document.documentElement.style.setProperty('--site-header-height', `${height}px`);
+      };
+
+      publish();
+      // Absent only in a browser old enough that the fallback is the better answer.
+      if (typeof ResizeObserver === 'function') {
+        const observer = new ResizeObserver(publish);
+        observer.observe(element);
+        this.destroyRef.onDestroy(() => observer.disconnect());
+      }
+    });
+  }
+
   /**
    * Whether to render the menu.
    *

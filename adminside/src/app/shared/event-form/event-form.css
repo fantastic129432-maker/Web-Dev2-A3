@@ -3,14 +3,17 @@
  *
  * Everything about the form's appearance that is SHARED (.admin-form, .field,
  * .form-row, .field-message, .admin-form__actions) stays in src/styles.css. This
- * file adds the four things that are specific to the event form, and each of them
- * is a measurement decision rather than decoration - hence the numbers in the
- * comments:
+ * file adds the things that are specific to the event form, and each of them is a
+ * measurement decision rather than decoration - hence the numbers in the comments:
  *
  *   1. the width of the form column and of the fields that hold little text,
+ *   1c. one control height, so the two columns' first controls are level,
+ *   1d. the description box resizes vertically only,
+ *   1e. the right column follows the scroll, bounded by its rail,
  *   2. the five-column ticket-tier row,
  *   3. the free-event lock state,
- *   4. the artwork picker's alignment.
+ *   4. the artwork picker's alignment,
+ *   5. the narrow-window shapes, including where the five-column ticket row stops.
  */
 
 /* The required marker. It is aria-hidden in the markup because the asterisk is
@@ -89,11 +92,13 @@
    `min-width: 0` base.css already puts on every control is what lets the pair
    shrink on a narrow window instead of overflowing the form.
 
-   BELOW 900px THE GRID IS ONE COLUMN, which is the same breakpoint the five-column
-   ticket row becomes two rows of two at (section 5). At that width a 352px sidebar
-   beside a 500px field column gives neither of them a usable measure, so the
-   sidebar stacks under the fields in the order it is written: status, artwork,
-   forecast.
+   BELOW 900px THE GRID IS ONE COLUMN. (The ticket row's own breakpoint is a
+   different, measured number - 1264px, see section 5 - because what decides it is
+   the description track's width and not the column count.) At 900px and below a
+   352px sidebar beside a 500px field column gives neither of them a usable measure,
+   so the sidebar stacks under the fields in the order it is written: status,
+   artwork, the action, forecast - and stops sticking there, because it is no longer
+   following a long column beside it.
    -------------------------------------------------------------------------- */
 .admin-form__grid {
   display: grid;
@@ -107,10 +112,75 @@
   min-width: 0;
 }
 
-/* The sidebar is a column of fields, so the form rhythm applies to it unchanged:
-   `.field` carries its own bottom margin and the headings are the same
-   `.admin-form__heading` as the left column's. Its last child keeps no trailing
-   margin, so the column bottom lines up with the panel the weather card ends with. */
+/*
+ * 1c. THE TWO COLUMNS' FIRST CONTROLS, MEASURED AND MADE LEVEL
+ *     (review item: "the left column starts with the event name and the right with
+ *     the publishing status, and their control tops differ by a few pixels")
+ *
+ * WHAT THE MEASUREMENT ACTUALLY FOUND, in all four languages at 1920x1080,
+ * 1440x900 and 1100x900: the tops do NOT differ. The two section headings
+ * (`h2.admin-form__heading`, both `margin-top: 8px`) start on the same pixel, the
+ * two labels start on the same pixel, and `#eventName` and `#status` both start at
+ * y=387.91 - a delta of 0.00px, three times over. So there is no heading, no margin
+ * and no top offset to correct, and the report for this item says so.
+ *
+ * WHAT IS NOT LEVEL IS THE BOTTOM: the text input is 48.38px tall and the select
+ * 42.19px, a 6.19px difference, so the two controls' centre lines and bottom edges
+ * disagree - which is what makes the pair look unaligned. The cause is the
+ * browser's own select rendering, measured rather than assumed. Every control here
+ * shares base.css's `padding: 0.6rem 0.75rem; border: 1px`, and a text input's
+ * height is its line box (27.2px = the body's 1.6 line-height at 17px) plus that
+ * padding and border. A `<select>` in Blink ignores line-height entirely: with
+ * `font: inherit`, `line-height: inherit`, `line-height: 1.6` and
+ * `line-height: 27.2px` applied in turn, `getComputedStyle(select).lineHeight`
+ * still reported `normal` and its box still measured 42.19px. Only an explicit
+ * height moves it - so this is a `min-height`, expressed from the same pieces the
+ * input's box is made of rather than as a copied pixel value:
+ *
+ *     1.6em   the control's own line box (the body's line-height, which is what
+ *             every input in this form gets)
+ *     1.2rem  the shared 0.6rem of padding at each end
+ *     2px     the 1px border at each end
+ *     ----------------------------------------------
+ *     48.38px measured on #eventName, 48.38px measured on #status afterwards, and
+ *     0.00px between their tops and their bottoms.
+ *
+ * SCOPED TO THIS FORM: `.admin-form select` compiles to a component-scoped
+ * selector, so the filter bars, the tables and every other admin page keep the
+ * control height they had. Inside the form all four selects take it (publishing
+ * status, organisation, category, venue, artwork) - levelling the two columns'
+ * first controls is the reason, and having one control height inside one form is
+ * the point. The artwork select sits in a 74px card sized by its 56px thumbnail, so
+ * it does not move.
+ */
+.admin-form select {
+  min-height: calc(1.6em + 1.2rem + 2px);
+}
+
+/*
+ * 1d. THE DESCRIPTION BOX RESIZES VERTICALLY ONLY
+ *     (review item: its native resize handle breaks the grid when dragged
+ *     sideways)
+ *
+ * `resize: both` is base.css's inherited default for a textarea, and the full
+ * description is the one textarea in this application. Widening it by 220px on the
+ * built page at 1440x900 - which is what a sideways drag writes into its inline
+ * style - took the box from 832px to 1052px while its field stayed 832px, so its
+ * right edge passed the column's right edge (112px + 832px = 944px, the box reached
+ * 1164px) and the two-column grid it sits in read as broken. `resize: vertical`
+ * keeps the one dimension a description actually wants and makes that impossible;
+ * measured after the change, the same write to `style.width` leaves the box at
+ * 832px, the column at 832px and the page's scroll width unchanged.
+ */
+.admin-form textarea {
+  resize: vertical;
+}
+
+/* The sidebar's last child keeps no trailing margin, so the column bottom lines up
+   with whatever ends it. Since the column became a rail that holds the sticky card,
+   that last child IS the rail (`.admin-form__rail` carries no margin of its own), so
+   this rule is what keeps the card's travel window flush with the left column's
+   bottom edge instead of ending one margin short of it. */
 .admin-form__side > :last-child {
   margin-bottom: 0;
 }
@@ -120,6 +190,103 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-5);
   }
+
+  /*
+   * One column means the card is no longer beside a long column to follow: it is
+   * simply the next thing in the page, so it does not stick. `position: static`
+   * rather than letting it pin to the top of the viewport, which on a phone would
+   * hold the publishing card over the fields above it.
+   */
+  .admin-form__sticky {
+    position: static;
+  }
+}
+
+/* ==========================================================================
+   1e. The right column follows the scroll - and the rail is why that is safe
+   ==========================================================================
+   (review item: the left form is long and the right column ended at the weather
+   card, leaving 852.52px of empty column below it at 1440x900 and 1920x1080 alike.)
+
+   THE SHAPE IS THE PUBLIC SITE'S, READ FIRST AND COPIED DELIBERATELY.
+   clientside/src/styles.css solves exactly this three panels up: `.panel--sticky`
+   computes its offset from `--site-header-height` + `--sticky-card-gap`, and
+   `.side-column__rail` / `.registration-summary__rail` are the boxes that bound how
+   far it may travel. The same three pieces are here, with the admin site's own
+   measured header height in the token (see base.css and admin-nav.ts).
+
+   WHY A RAIL AND NOT `position: sticky` ON THE COLUMN. This is the defect the
+   public sheet's note records shipping TWICE. A sticky element travels only inside
+   its containing block, and for a grid item that containing block is the grid
+   CONTAINER, not the row it occupies - so a card left as a direct child of a
+   stretched column can slide the column's whole height and paint over whatever
+   else is in it. `.admin-form__rail` is a plain block box that holds ONLY the
+   sticky card, so the card's last possible position is the rail's bottom edge.
+   Nothing may be added beside the card inside the rail without re-measuring.
+
+   WHY `align-self: stretch` ON THE COLUMN. The grid sets `align-items: start`, so
+   both columns are content-height, and a sticky element in a content-height column
+   has no travel at all (measured on the public sheet: pinned at 1400, already
+   pushed off the top at 1900, for the same reason). Stretching this column to the
+   grid row - which is as tall as the left form - is what turns the empty space
+   below the card into the travel budget: 852.52px of it at 1920x1080 and
+   1440x900, 875.56px in Chinese and Japanese, 853.58px in Vietnamese.
+
+   THE OFFSET IS DERIVED, NOT WRITTEN. `--site-header-height` is the admin nav's
+   real height, measured by AdminNav and published on the document element the same
+   way SiteHeaderComponent publishes the public header's (70.73px in all four
+   languages from 601px up, 64.39px at 390px in English and Chinese, 115.78px when
+   the menu wraps to two rows in Vietnamese and Japanese at 390px - which is why a
+   written number would be wrong somewhere), and `--sticky-card-gap` is the public
+   sheet's 31px clearance, kept rather than retuned. The offset is therefore
+   101.73px at every width this layout is two columns at.
+
+   MEASURED AFTER THE CHANGE, stepping the scroll from the top of the page to the
+   bottom in 40px steps and intersecting the card's box with EVERY visible element in
+   the document body except the card and its own rail (123 elements: the left
+   column's fields, every message slot, the ticket block's rows and buttons, the
+   nav, the header, the footer), five times over - 1920x1080 light, 1440x900 dark,
+   1440x900 Japanese dark, 1100x900 light and 390x844 light, 26 to 67 steps each:
+   the maximum intersection found was 0.00 x 0.00px, i.e. 0.00px², at every step.
+   The same sweep run against the NAIVE un-railed version of this card (the card a
+   direct child of the stretched column with the weather card below it - the shape
+   the public sheet records shipping twice) covers 352 x 162.55px = 57,217.60px² of
+   the weather card at scrollY 400, which is what the rail is for.
+
+   TRAVEL: the card is 563.64px tall in English with no venue chosen and 540.59px in
+   Japanese; it rests at its static position until scrollY 240 and then holds
+   101.73px - 31px clear of the 70.73px nav - from scrollY 240 to 960 at 1920x1080
+   (19 of 26 steps), 240 to 960 at 1440x900 (19 of 30) and 240 to 960 at 1100x900
+   (19 of 35), after which the rail's bottom edge takes over and the card leaves with
+   the page. Its travel budget is the column's spare height: 852.52px at 1920x1080
+   and 1440x900, 875.56px in Chinese and Japanese, 853.58px in Vietnamese.
+
+   WHAT THE BOUND COSTS, HONESTLY: because the ticket block is a full-width block
+   BELOW the grid, it lies under the rail's own column, so the rail has to end where
+   the ticket block begins - extending it further would put the pinned card on top of
+   the ticket rows. The card therefore stops following the scroll once the last field
+   of the left column has passed, and the ticket block's tail is scrolled with the
+   card no longer pinned. See the primary action's own note in event-form.html for
+   what that means for reachability (measured: the button is fully clear of the nav
+   at every one of those steps in the card's cold state).
+   -------------------------------------------------------------------------- */
+.admin-form__side {
+  align-self: stretch;
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+/* The rail: the sticky card's containing block, and the only reason this box
+   exists. `min-height: 0` keeps its automatic minimum size from being its content's
+   min-content height, so the row is sized by the column's free space and the rail
+   cannot force the column taller than the left one. */
+.admin-form__rail {
+  min-height: 0;
+}
+
+.admin-form__sticky {
+  position: sticky;
+  top: calc(var(--site-header-height) + var(--sticky-card-gap));
 }
 
 /*
@@ -432,16 +599,45 @@
   background: var(--surface-100);
 }
 
-/* The hint under a checkbox occupies its own line, because it is a sentence
-   rather than a label. */
+/*
+ * The hint under a checkbox occupies its own line, because it is a sentence rather
+ * than a label - and because it is where every other hint on this form sits.
+ *
+ * THIS CLASS IS NOW ON BOTH CHECKBOX HINTS (review item 11: the helper text was
+ * placed inconsistently). Measured on the form at 1440x900 before the class was
+ * added to the second one, the two checkbox rows disagreed: `#freeEventHint` was
+ * `flex-basis: 100%`, so it started on a new line at x=112 under its own box, while
+ * `#singleDay-hint` had no basis and stayed on the label's line - box y=1196.53
+ * inside the label's 1193.23-1216.28 band, starting at x=270.44, 12px after the
+ * "Single-day event" label ended at 258.44. Sitting on the label's line put that
+ * sentence visually between its own label and the Start date field below it, which
+ * is the placement the review reported.
+ *
+ * Every hint on the form is now in the same position - under its control, before
+ * that control's error slot - and the two label-and-checkbox rows are the only two
+ * whose control is a box rather than a text field. Nothing wraps at any of the four
+ * widths tested, because the hint is a block of its own line either way.
+ */
 .free-toggle__hint {
   flex-basis: 100%;
 }
 
-/* A little more air between the checkbox block and the fields it governs. */
-.free-toggle + .form-row {
-  margin-top: var(--space-2);
-}
+/*
+ * THE RULE THAT USED TO BE HERE, AND WHY IT IS NOT.
+ *
+ * `.free-toggle + .form-row { margin-top: var(--space-2) }` added 8px between the
+ * free-event checkbox and the goal/capacity row beneath it, because the checkbox
+ * carried no bottom margin of its own inside the money section (the row's own
+ * `margin-bottom` is the spacing BELOW a row, not above it).
+ *
+ * The checkbox is no longer the last thing in the left column: review item 8 moved
+ * it to the head of the ticket block, which is not a `.form-row` and has no need of
+ * this. The gap it now has is the ordinary form rhythm - `.admin-form .field`
+ * (16px) under the checkbox block, and `.banner--inline`'s own `var(--space-3) 0`
+ * when the free banner appears - so the selector is gone rather than left matching
+ * nothing. Restoring the rule would put an 8px step in the middle of the ticket
+ * block, which is why it was removed with the move rather than kept "just in case".
+ */
 
 /* ==========================================================================
    4. The artwork picker
@@ -489,29 +685,72 @@
 /* ==========================================================================
    5. Narrow windows
    ==========================================================================
-   The five-column row is a MEASURED WIDTH, not a percentage that scales down
-   forever. Its Description track is 30% of the row, so at 900px the column that
-   holds sentences is 260px - narrower than the 289px floor the old row gave it at
-   760px - and the numeric columns are down to 130px each. Two columns is the
-   honest answer below that, and one column below 760px, which is the width
-   base.css already treats as "a narrow window" (.form-row collapses there too).
-   The row is laid out rather than squeezed: nothing wraps mid-value and nothing
-   overflows its track. */
-@media (max-width: 900px) {
+   WHERE THE FIVE-COLUMN ROW STOPS, AND WHY THE NUMBER MOVED FROM 900 TO 1264
+   (review item: five controls squeezed into one row leave the description field too
+   narrow to read what is typed)
+
+   WHAT WAS MEASURED ON THE BUILT PAGE AT 1920x1080, BEFORE THIS CHANGE.
+   The block is already where the review asks for it - below both columns, not
+   inside the left one - and it already spans the whole width the form has:
+   `.ticket-rows` and the grid are both `x=352, w=1216`, the row's tracks are
+   355.19 / 177.61 / 177.59 / 355.20 / 118.41px, and the description input measures
+   355.20px. That is the layout the previous round settled on, and it is what the
+   form can give: the host is capped at 76rem (1216px) and the shell adds 3rem of
+   gutter, so 1216px is the row's maximum. Inside the left column the same five
+   tracks would be 832px wide and the description would be 197px (measured by
+   constraining the row to the column's width in the browser).
+
+   SO THE ROOM THE ROW IS SHORT OF IS NOT HORIZONTAL SPACE AT THE TOP END - it is at
+   every width below the 76rem cap, where five tracks share a shrinking row:
+   description 355.20px at 1264px of viewport and wider, 306px at 1100px (row
+   1052px), 252.75px at 901px (row 853px), against a name field of exactly the same
+   width. That is the "too narrow to read what is typed", and the fix is to give the
+   description half the row there instead of 30% of it.
+
+   THE BREAKPOINT IS DERIVED FROM THE MEASUREMENT RATHER THAN PICKED. The row only
+   reaches its settled 1216px at a 1264px viewport (76rem + the shell's 3rem); the
+   moment the viewport is narrower, every track shrinks and the description loses the
+   measure the previous round settled on. So 1263px is where the two-by-two layout
+   takes over - one pixel below the last width at which the five-track row is at its
+   measured best.
+   MEASURED AFTER THE CHANGE: at 1100x900 the description track is 522px (from
+   306px, +216px) and at 390x844 the 760px rule below still gives every control the
+   full 366px of the row. At 1920x1080, 1440x900 and any width at or above 1264px
+   the five tracks and their 355.20px description are unchanged.
+
+   The five-track row is a MEASURED WIDTH, not a percentage that scales down
+   forever, and the ratio it keeps while it is used is the review's 30/15/15/30/10.
+   Two columns is the honest answer below 1264px, and one column below 760px, which
+   is the width base.css already treats as "a narrow window" (.form-row collapses
+   there too). The row is laid out rather than squeezed: nothing wraps mid-value and
+   nothing overflows its track. */
+@media (max-width: 1263px) {
   /*
-   * TWO ROWS OF TWO, NOT ONE ROW OF TWO.
+   * TWO ROWS OF TWO, NOT ONE ROW OF FIVE.
    *
-   * The admin stylesheet's own 900px rule keeps four tracks, which with five
-   * children would leave the last one wrapping onto an implicit second row. This
-   * rule names the shape instead: name and price share the first row (the two the
-   * public pages need), Available and Description the second, and the Remove
-   * control and any error message take a full-width row of their own.
+   * The shape names itself: name and price share the first row (the two the public
+   * pages need), Available and Description the second, and the Remove control and
+   * any error message take a full-width row of their own. The description therefore
+   * gets half the row instead of 30% of it, which is the whole point of the move.
+   *
+   * The 900px this rule used to sit at is where the admin stylesheet's own narrow
+   * rule lives (`.admin-container`'s gutter shrinks there); it is not the width at
+   * which the five-track row stops working, and the measurement above is.
    */
   .ticket-row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
   }
 
+  /* The numeric tracks keep section 1's 14rem cap: `.admin-form input[type='number']`
+     is (0,2,1) against this selector's (0,1,1), so it wins, and a price or an
+     availability count inside a 522px track is a 224px box - which is what a price
+     needs and what the 1440px layout already looks like. The two sentence tracks
+     are `type="text"`, which section 1 leaves uncapped, so the ticket name and the
+     description fill their half of the row: measured at 1100x900 the row's children
+     are 522 / 224 / 224 / 522px, against the same five controls at
+     306 / 153 / 153 / 306px before this breakpoint moved - the description is the
+     one that grew, and it grew by 216px. */
   .ticket-row input {
     max-width: none;
   }
