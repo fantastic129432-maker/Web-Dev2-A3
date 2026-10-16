@@ -2089,14 +2089,23 @@ bundle does not contain the search form, the registration form or the
 registrations table, and each one is fetched the first time its route is
 visited. It also means none of these components is referenced from anywhere
 else, so the bundler can prove the split is real.
-WHY `title` IS TRANSLATION KEYS RATHER THAN TEXT
-A route's `title` is evaluated once, when the router activates it, and has no
-access to the TranslationService at definition time. A hard-coded English
-string here would therefore stay English after the visitor switched language.
-The key is carried in `data` instead and each page component resolves it
-through `Title` + `TranslationService` when it runs - see
-`useDocumentTitle()` in `shared/page-title.ts`. `title:` is kept as well in
-the documented Angular form so the intent of each route is readable here.
+WHY `title` IS A TRANSLATION KEY IN `data` AND NOT THE ROUTER'S OWN `title:`
+This table used to carry both: a `data.titleKey` AND a hard-coded English
+`title:` string. The English one won. `DefaultTitleStrategy.updateTitle()` is
+called by the router AFTER the activated components have been constructed
+(it runs once `ActivateRoutes` has finished, immediately after NavigationEnd),
+so the page's own `useDocumentTitle().set()` happened first and was then
+overwritten. Measured on the built development bundle: with
+`title: 'Search charity events | Unity Heart Foundation'` on this route,
+/search rendered that English title on a page whose `<html lang>` was
+`zh-CN`, while /events/2 was correctly Chinese - its page sets the title a
+second time from the API's answer, after the router has had its turn. The
+strings were therefore English chrome in all four languages, written in
+TypeScript where neither the template check nor the dictionary checks could
+see them. Every route now carries ONLY the key in `data`, each page component
+resolves it through `Title` + `TranslationService` when it runs - see
+`useDocumentTitle()` in `shared/page-title.ts` - and no route sets a static
+`title:`, which is what adminside/src/app/app.routes.ts has always done.
 WHY THERE IS NO ROUTE FOR 'register' WITHOUT AN ID
 Registration is per event, exactly as the legacy page treated it: the event
 id travels in the URL. `**` therefore catches a bare /register and shows the
@@ -2342,25 +2351,38 @@ situation ("Registration closed") without inviting the click.
 #### class `HomePage`
 
 The home page.
-ENDPOINTS USED (four, all read-only)
+ENDPOINTS USED (three, all read-only)
 `GET /api/events/upcoming`  the event grid and the hero's "next events" panel
 `GET /api/stats`            the four headline impact figures
-`GET /api/organization`     the featured organisation's mission statement
 (the footer independently calls `GET /api/health`)
+WHY `GET /api/organization` IS NOT CALLED HERE
+It used to be, for the About section's lead sentence, which read
+`organization()?.mission || ('about.mission' | t)`. That made the API's
+`mission` field win whenever the request succeeded, so the sentence stayed
+English on the Chinese, Vietnamese and Japanese pages - the API's content
+layer is English by design (database/02_seed.sql carries the wording), and
+the owner has declined a content-localization pipeline. The lead sentence is
+the SITE'S OWN copy rather than an organisation's record, so it is the
+dictionary's `about.mission` in all four languages now, and the endpoint is
+no longer needed on this page at all. `ApiService.getOrganization()` and
+`GET /api/organization` are left in place: the API contract, its test and its
+documentation still cover the field, and the public site simply no longer
+renders it. Removing the call also removed the page's only silent failure -
+there is no section left that degrades to English.
 HOW THE DATA IS LOADED, AND WHY THIS SHAPE
 Each section is loaded separately and fails on its own. That is a deliberate
 carry-over from the legacy js/home.js: a failing /api/stats must not blank out
-the event listing, and an unreachable /api/organization must leave the static
-mission sentence on the page rather than an error. The impact figures ARE the
-"nice to have" of this page, so they are the ones that degrade to a note.
+the event listing. The impact figures ARE the "nice to have" of this page, so
+they are the ones that degrade to a note; the About section is static copy and
+cannot degrade at all.
 The event grid is ONE request for the whole visit: `toSignal` over a single
 `getUpcomingEvents` call. It used to be driven by `toObservable(sort)` piped
 into `switchMap`, because the page carried a sort dropdown of its own; that
 control has been removed (browsing is this page's job, sorting is the search
 page's), so there is nothing left to re-issue the request and no in-flight
 request to cancel - `HOME_LISTING_QUERY` is the only order this page asks for.
-`takeUntilDestroyed` still ends the two one-off requests below when the visitor
-navigates away.
+`takeUntilDestroyed` still ends the one-off stats request below when the
+visitor navigates away.
 WHY THE HERO PANEL REUSES THE SAME RESPONSE
 "Next events at a glance" shows the first four of the very events already
 fetched for the grid. A second request for the same rows would be wasteful and
@@ -2392,8 +2414,6 @@ which is what makes the footer link land here. It is also why this page's two
 own fragment links (`#upcoming-events` and `#contact`) need no help: their
 targets, the listing section and the footer, are in the document before either
 link is clicked.
-`GET /api/organization` is still fetched here for the mission sentence, which
-is the only thing on this page it feeds.
 
 ### `clientside/src/app/pages/not-found/not-found.ts`
 

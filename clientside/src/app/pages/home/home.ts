@@ -9,7 +9,7 @@ import { APP_CONFIG } from '@charity/shared/config/app-config';
 import { TranslationService } from '@charity/shared/i18n/translation.service';
 import { TranslatePipe } from '@charity/shared/i18n/translate.pipe';
 import type { Event, EventQuery } from '@charity/shared/models/event.model';
-import type { EventStats, Organization } from '@charity/shared/models/reference.model';
+import type { EventStats } from '@charity/shared/models/reference.model';
 import { formatCurrency, formatShortDate, formatTime } from '@charity/shared/util/format';
 
 import { EventCardComponent } from '../../shared/event-card';
@@ -59,18 +59,32 @@ interface EventsState {
 /**
  * The home page.
  *
- * ENDPOINTS USED (four, all read-only)
+ * ENDPOINTS USED (three, all read-only)
  *   `GET /api/events/upcoming`  the event grid and the hero's "next events" panel
  *   `GET /api/stats`            the four headline impact figures
- *   `GET /api/organization`     the featured organisation's mission statement
  *   (the footer independently calls `GET /api/health`)
+ *
+ * WHY `GET /api/organization` IS NOT CALLED HERE
+ *   It used to be, for the About section's lead sentence, which read
+ *   `organization()?.mission || ('about.mission' | t)`. That made the API's
+ *   `mission` field win whenever the request succeeded, so the sentence stayed
+ *   English on the Chinese, Vietnamese and Japanese pages - the API's content
+ *   layer is English by design (database/02_seed.sql carries the wording), and
+ *   the owner has declined a content-localization pipeline. The lead sentence is
+ *   the SITE'S OWN copy rather than an organisation's record, so it is the
+ *   dictionary's `about.mission` in all four languages now, and the endpoint is
+ *   no longer needed on this page at all. `ApiService.getOrganization()` and
+ *   `GET /api/organization` are left in place: the API contract, its test and its
+ *   documentation still cover the field, and the public site simply no longer
+ *   renders it. Removing the call also removed the page's only silent failure -
+ *   there is no section left that degrades to English.
  *
  * HOW THE DATA IS LOADED, AND WHY THIS SHAPE
  *   Each section is loaded separately and fails on its own. That is a deliberate
  *   carry-over from the legacy js/home.js: a failing /api/stats must not blank out
- *   the event listing, and an unreachable /api/organization must leave the static
- *   mission sentence on the page rather than an error. The impact figures ARE the
- *   "nice to have" of this page, so they are the ones that degrade to a note.
+ *   the event listing. The impact figures ARE the "nice to have" of this page, so
+ *   they are the ones that degrade to a note; the About section is static copy and
+ *   cannot degrade at all.
  *
  *   The event grid is ONE request for the whole visit: `toSignal` over a single
  *   `getUpcomingEvents` call. It used to be driven by `toObservable(sort)` piped
@@ -78,8 +92,8 @@ interface EventsState {
  *   control has been removed (browsing is this page's job, sorting is the search
  *   page's), so there is nothing left to re-issue the request and no in-flight
  *   request to cancel - `HOME_LISTING_QUERY` is the only order this page asks for.
- *   `takeUntilDestroyed` still ends the two one-off requests below when the visitor
- *   navigates away.
+ *   `takeUntilDestroyed` still ends the one-off stats request below when the
+ *   visitor navigates away.
  *
  * WHY THE HERO PANEL REUSES THE SAME RESPONSE
  *   "Next events at a glance" shows the first four of the very events already
@@ -115,8 +129,6 @@ interface EventsState {
  *   own fragment links (`#upcoming-events` and `#contact`) need no help: their
  *   targets, the listing section and the footer, are in the document before either
  *   link is clicked.
- *   `GET /api/organization` is still fetched here for the mission sentence, which
- *   is the only thing on this page it feeds.
  */
 @Component({
   selector: 'app-home-page',
@@ -131,10 +143,10 @@ export class HomePage {
    * The component's lifetime, passed explicitly to `takeUntilDestroyed()`.
    *
    * `takeUntilDestroyed()` with no argument only works inside an injection
-   * context, i.e. in a field initialiser or the constructor. The one-off requests
-   * below are issued from private methods, so the reference is injected once and
-   * handed over - which also makes the subscription's lifetime obvious at the
-   * call site.
+   * context, i.e. in a field initialiser or the constructor. The one-off stats
+   * request below is issued from a private method, so the reference is injected
+   * once and handed over - which also makes the subscription's lifetime obvious at
+   * the call site.
    */
   private readonly destroyRef = inject(DestroyRef);
 
@@ -165,14 +177,8 @@ export class HomePage {
   );
 
   /**
-   * The organisation's mission, or null while it is unknown.
-   *
-   * On failure this stays null and the template keeps the static `about.mission`
-   * sentence, so the About section is never empty.
+   * The headline figures, or null when /api/stats could not be reached.
    */
-  protected readonly organization = signal<Organization | null>(null);
-
-  /** The headline figures, or null when /api/stats could not be reached. */
   protected readonly stats = signal<EventStats | null>(null);
 
   /** True once /api/stats has definitely failed, so a note can replace the cards. */
@@ -224,25 +230,7 @@ export class HomePage {
 
   constructor() {
     this.title.set();
-    this.loadOrganization();
     this.loadStats();
-  }
-
-  /**
-   * `GET /api/organization` - the featured organisation's mission.
-   */
-  private loadOrganization(): void {
-    this.api
-      .getOrganization()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (organization) => this.organization.set(organization),
-        // The static mission in the template stays visible, so the About section
-        // is still complete for the visitor if this call fails. Reported in the
-        // console only, because there is nothing useful to do about it.
-        error: (error: unknown) =>
-          console.warn('Organisation details could not be loaded:', this.messageFor(error)),
-      });
   }
 
   /** `GET /api/stats` - the four headline figures. */

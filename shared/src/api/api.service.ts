@@ -242,6 +242,20 @@ export class ApiService {
    * HttpErrorResponse covers an HTTP error status; a status of 0 means the
    * request never reached the server (offline, DNS failure, CORS rejection).
    * TimeoutError comes from the rxjs timeout above.
+   *
+   * WHY TWO OF THESE CARRY AN EMPTY MESSAGE
+   *   `ApiError.message` is the slot the API's own wording goes in, and
+   *   `friendlyMessage()` shows it for a 404 and a 409 because a 404 names the
+   *   missing event and a 409 explains what blocks the delete. When there is no
+   *   API wording to carry, an EMPTY message is passed instead of an English
+   *   literal: `friendlyMessage()` reads `this.message || t('error.notFound')`, so
+   *   an empty message resolves to the translated sentence for the status, while
+   *   "Request failed (404)." would have been English chrome under a Chinese
+   *   banner. The status and the URL are still on the error, which is what a bug
+   *   report needs. The two messages that ARE carried - the timeout and the
+   *   unreachable-server diagnostics below - are developer text that
+   *   `friendlyMessage()` replaces with a dictionary key on every path that can
+   *   reach them.
    */
   private normalise(error: unknown, url: string): ApiError {
     if (error instanceof ApiError) return error;
@@ -260,7 +274,9 @@ export class ApiService {
         return ApiError.fromEnvelope(body, error.status, url);
       }
 
-      return new ApiError(`Request failed (${error.status}).`, { status: error.status, url });
+      // No envelope to read a message from: see the note above on why this is
+      // empty rather than an English sentence.
+      return new ApiError('', { status: error.status, url });
     }
 
     return new ApiError('An unexpected error occurred.', { status: 0, url });

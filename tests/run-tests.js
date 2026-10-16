@@ -597,7 +597,7 @@ async function testApi() {
     assert.ok(body.data.every((location) => location.eventCount > 0));
   });
 
-  await test('GET /api/organization and /api/stats power the home page', async () => {
+  await test('GET /api/organization serves the organisation and /api/stats powers the home page', async () => {
     const organisation = await api('/organization');
     assert.equal(organisation.status, 200);
     assert.ok(organisation.body.data.name);

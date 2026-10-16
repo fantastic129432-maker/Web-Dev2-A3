@@ -1182,7 +1182,12 @@ admin form uses `/api/admin/reference-data` instead, for the reason in 13.3.
 
 ## 16. `/api/organization` and `/api/stats`
 
-Supporting endpoints for the home page.
+`GET /api/stats` powers the home page's four headline figures. `GET /api/organization`
+serves the organisation record itself (name, mission, contact details, location) to any
+consumer of the API; the public website's About sentence is its own copy from the
+dictionary rather than this `mission` field, because the field is content and the API
+serves its content in English - see the note in
+`clientside/src/app/pages/home/home.ts`. The field and the endpoint are unchanged.
 
 **`GET /api/organization`**
 

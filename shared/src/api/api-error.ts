@@ -46,7 +46,11 @@ export class ApiError extends Error {
   /**
    * Build an error from an HTTP failure, a timeout or a client-side fault.
    *
-   * @param message - The message to carry, normally the API's own wording.
+   * @param message - The message to carry, normally the API's own wording. An EMPTY
+   *   string is passed when the server sent no wording: unlike an English fallback,
+   *   it lets `friendlyMessage()` resolve the status to a dictionary key, so a 404
+   *   or a 409 is still explained in the active language. May be omitted, in which
+   *   case the error reads as a client-side fault with status 0.
    * @param options - The status, the `details` payload, the URL and the timeout flag. May
    *   be omitted, in which case the error reads as a client-side fault with status 0.
    */
@@ -200,13 +204,19 @@ export class ApiError extends Error {
    * Used by ApiService for an error status and for the contract violation of a
    * 200 that carries `success: false`.
    *
+   * An envelope with no `message` yields an EMPTY message rather than an English
+   * fallback such as "Request failed (404).": `friendlyMessage()` shows
+   * `this.message` for a 404 and a 409, so an empty one resolves to the
+   * translated sentence for the status instead of printing English under a
+   * Chinese banner. The status and the URL still identify the failure.
+   *
    * @param body - The decoded `{ success: false, error: { ... } }` response.
    * @param status - The HTTP status the response arrived with.
    * @param url - The full URL that was requested, which makes a bug report actionable.
    * @returns A new error carrying the envelope's message, details and status.
    */
   static fromEnvelope(body: ApiErrorBody, status: number, url: string): ApiError {
-    return new ApiError(body.error?.message || `Request failed (${status}).`, {
+    return new ApiError(body.error?.message ?? '', {
       status,
       details: body.error?.details ?? null,
       url,

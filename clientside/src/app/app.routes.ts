@@ -18,14 +18,23 @@ import { Routes } from '@angular/router';
  *   visited. It also means none of these components is referenced from anywhere
  *   else, so the bundler can prove the split is real.
  *
- * WHY `title` IS TRANSLATION KEYS RATHER THAN TEXT
- *   A route's `title` is evaluated once, when the router activates it, and has no
- *   access to the TranslationService at definition time. A hard-coded English
- *   string here would therefore stay English after the visitor switched language.
- *   The key is carried in `data` instead and each page component resolves it
- *   through `Title` + `TranslationService` when it runs - see
- *   `useDocumentTitle()` in `shared/page-title.ts`. `title:` is kept as well in
- *   the documented Angular form so the intent of each route is readable here.
+ * WHY `title` IS A TRANSLATION KEY IN `data` AND NOT THE ROUTER'S OWN `title:`
+ *   This table used to carry both: a `data.titleKey` AND a hard-coded English
+ *   `title:` string. The English one won. `DefaultTitleStrategy.updateTitle()` is
+ *   called by the router AFTER the activated components have been constructed
+ *   (it runs once `ActivateRoutes` has finished, immediately after NavigationEnd),
+ *   so the page's own `useDocumentTitle().set()` happened first and was then
+ *   overwritten. Measured on the built development bundle: with
+ *   `title: 'Search charity events | Unity Heart Foundation'` on this route,
+ *   /search rendered that English title on a page whose `<html lang>` was
+ *   `zh-CN`, while /events/2 was correctly Chinese - its page sets the title a
+ *   second time from the API's answer, after the router has had its turn. The
+ *   strings were therefore English chrome in all four languages, written in
+ *   TypeScript where neither the template check nor the dictionary checks could
+ *   see them. Every route now carries ONLY the key in `data`, each page component
+ *   resolves it through `Title` + `TranslationService` when it runs - see
+ *   `useDocumentTitle()` in `shared/page-title.ts` - and no route sets a static
+ *   `title:`, which is what adminside/src/app/app.routes.ts has always done.
  *
  * WHY THERE IS NO ROUTE FOR 'register' WITHOUT AN ID
  *   Registration is per event, exactly as the legacy page treated it: the event
@@ -35,34 +44,29 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    title: 'Unity Heart Foundation | Charity Events',
     data: { titleKey: 'nav.siteName' },
     loadComponent: () => import('./pages/home/home').then((m) => m.HomePage),
   },
   {
     path: 'search',
-    title: 'Search charity events | Unity Heart Foundation',
     data: { titleKey: 'search.title' },
     loadComponent: () => import('./pages/search/search').then((m) => m.SearchPage),
   },
   {
     path: 'events/:id',
-    title: 'Event details | Unity Heart Foundation',
     data: { titleKey: 'event.breadcrumb' },
     loadComponent: () =>
       import('./pages/event-detail/event-detail').then((m) => m.EventDetailPage),
   },
   {
     path: 'register/:id',
-    // The tab title is resolved through `data.titleKey` ('form.title'), not
-    // through this string - see the comment at the top of this file.
-    title: 'Register for an event | Unity Heart Foundation',
+    // The tab title is resolved through `data.titleKey` ('form.title') - see the
+    // comment at the top of this file for why no `title:` string is set here.
     data: { titleKey: 'form.title' },
     loadComponent: () => import('./pages/register/register').then((m) => m.RegisterPage),
   },
   {
     path: '**',
-    title: 'Page not found | Unity Heart Foundation',
     data: { titleKey: 'notFound.title' },
     loadComponent: () => import('./pages/not-found/not-found').then((m) => m.NotFoundPage),
   },

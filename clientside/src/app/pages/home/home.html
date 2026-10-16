@@ -183,10 +183,25 @@
 
 <!-- ------------------------------------------------------------------
      ABOUT
-     The mission sentence comes from GET /api/organization when that
-     call succeeds, and falls back to the translated static sentence
-     when it does not - which is why the heading and the bullet list are
-     never at risk from a failed request.
+     THE LEAD SENTENCE IS THE SITE'S OWN COPY, so it is resolved from the
+     dictionary like every other sentence on this page and follows the
+     language switcher into all four languages.
+
+     IT DOES NOT COME FROM GET /api/organization ANY MORE, and that is the
+     fix rather than an omission. It used to read
+     `organization()?.mission || ('about.mission' | t)`, so the API's
+     `mission` field won whenever the request succeeded and the translated
+     value appeared only when it failed: a Chinese page rendered the
+     English sentence under a Chinese heading in every language but
+     English. That field is CONTENT - the API's organisation record, which
+     is English by design and which the owner has declined to localise -
+     while this sentence is site copy, so it belongs here in the
+     dictionary in all four languages. The endpoint and the field are
+     unchanged for the API's own consumers; only this page's dependency on
+     the English value is gone. See the class comment in home.ts.
+
+     Nothing in this section can now be left in English by a failed
+     request, because nothing in it is requested.
 
      The two columns are deliberately NOT drawn as white cards. The left one is
      a heading and four long bullets, the right one a heading, a paragraph and a
@@ -206,7 +221,7 @@
       <span class="section__eyebrow">{{ 'about.eyebrow' | t }}</span>
       <h2 id="about-heading">{{ 'about.heading' | t }}</h2>
       <p class="section__lead">
-        {{ organization()?.mission || ('about.mission' | t) }}
+        {{ 'about.mission' | t }}
       </p>
     </div>
 

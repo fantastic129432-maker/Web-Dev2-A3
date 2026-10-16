@@ -1,33 +1,63 @@
 /**
  * tools/check-translations.mjs
  * ---------------------------------------------------------------------------
- * Four checks that a language switcher can only be as good as:
+ * Six checks that a language switcher can only be as good as. Four of them run
+ * twice, once per dictionary, which is why the run prints twelve results:
  *
- *   1. COMPLETENESS - the four dictionaries of a website define exactly the same
+ *   1. PRESENCE - all four language blocks are there at all. A block that went
+ *      missing would otherwise show English for every key it should answer.
+ *
+ *   2. SAME KEYS - the four dictionaries of a website define exactly the same
  *      keys. A missing key silently falls back to English, so without this check
  *      a half-translated label is invisible until a marker switches language.
  *
- *   2. USAGE - every key a template or component asks for actually exists. A typo
+ *   3. USAGE - every key a template or component asks for actually exists. A typo
  *      in `t('nav.hom')` renders "nav.hom" on the page. That is easy to introduce
  *      during a migration and impossible to spot by reading 300 keys.
  *
- *   3. LITERALS - no user-facing word is written into a template at all. Checks 1
- *      and 2 are both statements about KEYS, and a template that asks for no key
- *      satisfies both while staying English in every language: `<h2>About this
- *      event</h2>` and `aria-label="Breadcrumb"` are invisible to them. The scan
- *      itself lives in tools/check-template-literals.mjs, next to the exemption
- *      list it needs; this file runs it so the four are counted and reported as
- *      one suite.
- *
  *   4. WORDS INSIDE A VALUE - no English word is left inside a Chinese,
- *      Vietnamese or Japanese string. Checks 1 to 3 are statements about keys or
- *      about templates, so `"home.statUpcoming": "已发布的 upcoming 活动"` passed
- *      every one of them: the key exists in all four languages, the template asks
- *      for it, and the value is in the dictionary where it belongs. Only reading
- *      the VALUE sees the English word in the middle of the Chinese sentence. The
- *      scan and its allow-list live further down this file; a word that has to
- *      stay in Latin letters is listed there by name with its reason, and an
- *      entry that stops matching fails, so the list cannot rot.
+ *      Vietnamese or Japanese string. Checks 1 to 3 are statements about keys, so
+ *      `"home.statUpcoming": "已发布的 upcoming 活动"` passed every one of them:
+ *      the key exists in all four languages, the template asks for it, and the
+ *      value is in the dictionary where it belongs. Only reading the VALUE sees
+ *      the English word in the middle of the Chinese sentence. The scan and its
+ *      allow-list live further down this file; a word that has to stay in Latin
+ *      letters is listed there by name with its reason, and an entry that stops
+ *      matching fails, so the list cannot rot.
+ *
+ *   5. LITERALS IN TEMPLATES - two rules about what a template may render. First,
+ *      no user-facing word is written into it: a template that asks for no key
+ *      satisfies checks 1 to 3 while staying English in every language
+ *      (`<h2>About this event</h2>`, `aria-label="Breadcrumb"`). Second, no
+ *      dictionary key may be offered as the FALLBACK for a value that can win -
+ *      `{{ organization()?.mission || ('about.mission' | t) }}`. The second rule
+ *      is the one that reads the reported defect back: every word in that
+ *      expression is a key, so every other check passed it, while the API's
+ *      English content took the screen whenever the request succeeded and the
+ *      translated sentence was left for the failure case. Both scans live in
+ *      tools/check-template-literals.mjs, next to the lists they need.
+ *
+ *   6. LITERALS IN TYPESCRIPT - no user-facing English word is written into a
+ *      `.ts` file either. This is the gap that let the same defect through twice:
+ *      a sentence in a component, a service or a route definition is in no
+ *      template and in no dictionary, so checks 1 to 5 all pass while the page
+ *      shows English. It is the check that found the public site's route titles
+ *      (`title: 'Search charity events | Unity Heart Foundation'`, applied by the
+ *      router AFTER the page had set the translated one) and the two English
+ *      ApiError fallbacks that could reach a 404 banner. The scan, its allow-list
+ *      and its stated limits live in tools/check-ts-literals.mjs.
+ *
+ * WHAT NO CHECK HERE CAN SEE, AND WHY IT IS WRITTEN DOWN
+ *   The API's content layer is English by design: organisation names and missions,
+ *   event names, venues, cities, article text, and the API's own error wording all
+ *   arrive in English, so a sentence that comes over HTTP is not a missing
+ *   dictionary key. Check 6 therefore fails on the CODE that binds such a field to
+ *   a page - it found `organization()?.mission || ('about.mission' | t)` on the
+ *   home page, where the API's English `mission` won whenever the request
+ *   succeeded - and the fix is to stop rendering a translated-looking slot from a
+ *   content field rather than to translate the database. There is no mechanical
+ *   check for a field that SHOULD have been site copy; that judgement is a
+ *   person's, and this comment is where it is recorded.
  *
  * The dictionaries moved to TypeScript
  * (shared/src/i18n/client-translations.ts and admin-translations.ts) when the
@@ -49,6 +79,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runTemplateLiteralCheck } from './check-template-literals.mjs';
+import { runTsLiteralCheck } from './check-ts-literals.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -662,6 +693,13 @@ checkWordsInsideTranslations({
 // applications' templates at once, and because a literal in either one is the
 // same defect.
 runTemplateLiteralCheck(check);
+
+// The sixth check: the words themselves, in TypeScript - the gap that let the
+// same defect through twice, because a sentence written into a component, a
+// service or a route definition is in no template and in no dictionary. A sibling
+// file for the same reason as the template one: it needs its own allow-list, and
+// its own account of what it cannot see.
+runTsLiteralCheck(check);
 
 /* ===================================================================== */
 

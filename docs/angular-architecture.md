@@ -529,7 +529,7 @@ migration tool rather than part of the build.
 ### How the dictionaries are kept honest
 
 `tools/check-translations.mjs` (`npm run check:translations`) parses the
-TypeScript dictionaries and enforces five things:
+TypeScript dictionaries and enforces six things:
 
 1. all four languages are present;
 2. every language defines the same keys (a missing key silently falls back to
@@ -556,7 +556,9 @@ TypeScript dictionaries and enforces five things:
    matching fails so the list cannot rot. Its own limits (a word that exists in
    both languages, a transliteration, a name the project decides to keep) are
    written down in that file rather than left implied;
-5. **no user-facing word is written into a template at all.** Checks 1 to 3 are
+5. **no user-facing word is written into a template at all, and no dictionary key
+   is offered as the fallback for a value that can win.** The first half: checks
+   1 to 3 are
    statements about KEYS, and a template that asks for no key satisfies every one
    of them while staying English in all four languages. The scan lives in
    `tools/check-template-literals.mjs`, which is run by this command; it reads
@@ -564,9 +566,36 @@ TypeScript dictionaries and enforces five things:
    `placeholder`, and a button's `value`) of every `.html` file in both
    applications, and fails on anything not on its short, hand-written list of
    intentional literals (an email address, an organisation's name, `km/h`, and
-   the two app shells' pre-boot text). Its own limits - a key that looks like
-   English, a proper noun, a literal built inside an interpolation - are written
-   down in that file rather than left implied.
+   the two app shells' pre-boot text). The second half is the rule that reads the
+   reported defect back: an interpolation or binding that offers a dictionary key
+   as the alternative to a value that can win -
+   `{{ organization()?.mission || ('about.mission' | t) }}` - fails, because the
+   translated sentence is then only the failure path and the API's English
+   content takes the screen. Rendering a content field on its OWN is not
+   reported; only letting it beat a key. Its own limits - a key that looks like
+   English, a proper noun, a literal built inside an interpolation, and a
+   dictionary key that wins for a reason (which has its own allow-list, empty
+   today) - are written down in that file rather than left implied;
+6. **no user-facing word is written into TypeScript either.** This is the gap
+   that let one defect through two earlier sweeps, so it is worth stating
+   exactly: a sentence written into a component, a service or a route definition
+   is in no template and in no dictionary, which means checks 1 to 5 all pass
+   while the page renders English in every language. `tools/check-ts-literals.mjs`
+   (run by the same command) reads every `.ts` file under `clientside/src`,
+   `adminside/src` and `shared/src` for two shapes - a quoted or template literal
+   containing two or more words separated by a space (the shape a sentence
+   takes), and any literal handed to a place a person reads from
+   (`textContent`, `innerHTML`, `document.title`, `alert`, an `aria-label` set
+   with `setAttribute`) - and fails on anything not on its own allow-list. That
+   list is a decision record by name with a reason too: CSS class strings
+   computed from an event state, the two CSS selectors built in code, the
+   developer diagnostics behind `ApiError.friendlyMessage()`, the console
+   warnings, the pre-paint theme script and its media query, and a language's
+   name in its own language. An entry that stops matching fails. Its limits are
+   stated in the file: a string built at runtime, a sentence assembled from
+   interpolated fragments, a value that is legitimately English, a one-word
+   literal handed to a helper the file does not know, and text the API serves as
+   content rather than as site copy.
 
 It also checks the cross-cutting property directly: that
 `translation.service.ts` still reads `APP_CONFIG.storageKeys.language`, so the

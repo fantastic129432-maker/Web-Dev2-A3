@@ -482,7 +482,7 @@ Every script lives in the root `package.json`. They fall into four groups.
 | --- | --- | --- |
 | `npm run check:angular` | `node tools/check-angular-architecture.mjs` | Any break of the required architecture - see section 10 |
 | `npm run check:shared` | `tsc -p tsconfig.shared.json` | A type error in `shared/` that neither application happens to import yet |
-| `npm run check:translations` | `node tools/check-translations.mjs` | Four dictionaries with different key sets, a template asking for a key that does not exist, a user-facing word written into a template instead of resolved from a dictionary, or an English word left inside a Chinese, Vietnamese or Japanese value instead of being translated (the words that must stay in Latin letters are allow-listed by name, each with its reason) |
+| `npm run check:translations` | `node tools/check-translations.mjs` | Four dictionaries with different key sets, a template asking for a key that does not exist, a user-facing word written into a template **or into a `.ts` file** instead of resolved from a dictionary, a dictionary key offered as the fallback for a value that can win (`{{ apiField || ('a.key' \| t) }}` - how the English mission reached the Chinese home page), or an English word left inside a Chinese, Vietnamese or Japanese value instead of being translated (the words that must stay in Latin letters are allow-listed by name, each with its reason) |
 | `npm run check:refs` | `node tools/audit-references.mjs` | Documentation that names a file, tool or npm script that does not exist |
 | `npm run check:secrets` | `node tools/check-no-secrets.mjs` | A real credential in a tracked file |
 | `npm run check:encoding` | `node tools/find-encoding-damage.mjs` | Text mangled by an encoding round trip |
@@ -741,7 +741,7 @@ compilation changed how the API is written, not what it answers.
 | GET | `/api/admin/reference-data` | Organisations, categories and venues for the admin forms |
 | GET | `/api/categories` | Category filter options |
 | GET | `/api/locations` | Location filter options |
-| GET | `/api/organization` | Organisation shown on the home page |
+| GET | `/api/organization` | The organisation record the API serves (name, mission, contact details). Its `mission` is content, served in English like every other data row, so the public site's own About sentence comes from the dictionary instead - see the note in `clientside/src/app/pages/home/home.ts` |
 | GET | `/api/stats` | Headline numbers, including registrations and tickets sold |
 
 **Write (A3)**
@@ -843,7 +843,7 @@ translations.
 Check them with:
 
 ```bash
-npm run check:translations       # four dictionaries, same keys, no missing key
+npm run check:translations       # four dictionaries, same keys, no missing key, no English literal in a template or in TypeScript
 npm run check:contrast           # WCAG AA in both themes (sites must be running)
 ```
 

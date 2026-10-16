@@ -350,7 +350,7 @@ Run everything from the project root.
       `.html` template and a doc comment per component, no cross-application
       imports, both applications importing `shared/`, the early-theme script in
       both `index.html` files, and a TypeScript-only API that compiles to `dist/`
-- [ ] `npm run check:translations` prints `11 checks passed`, with **298** keys in
+- [ ] `npm run check:translations` prints `12 checks passed`, with **298** keys in
       each of the four client languages and **250** in each of the four admin
       languages, and every key the templates ask for present. The tenth check
       reads the VALUES rather than the keys: it fails when a Chinese, Vietnamese
@@ -364,9 +364,26 @@ Run everything from the project root.
       names `Lismore` and `New South Wales` and the example city `Lis`, the
       example name `Nguyễn Văn An`, the Vietnamese word `do` and the Vietnamese
       loanwords `web`, `email`, `menu` and `gala`. The eleventh check is
-      `tools/check-template-literals.mjs`: it fails when a user-facing word is
-      written into a template instead of resolved from a dictionary, which the
-      key-based checks cannot see
+      `tools/check-template-literals.mjs`, and it makes two statements about a
+      template: no user-facing word may be written into one instead of resolved
+      from a dictionary (which the key-based checks cannot see), and no dictionary
+      key may be offered as the **fallback** for a value that can win -
+      `{{ organization()?.mission || ('about.mission' | t) }}`, the exact
+      expression that rendered the API's English mission under the Chinese "Who we
+      are" heading while every other check passed it. The twelfth check is
+      `tools/check-ts-literals.mjs`, the sibling that closes the same hole in
+      **TypeScript**: a sentence written into a component, a service or a route
+      definition is in no template and in no dictionary, so all eleven checks
+      above passed while the Chinese home page rendered the API's English
+      `mission` and every public page carried an English route title. It has its
+      own allow-list, by name with a reason (CSS class strings and selectors
+      computed in code, the developer diagnostics behind `ApiError.friendlyMessage`,
+      the console warnings, the pre-paint theme script and its media query, and a
+      language's name in its own language), an entry that stops matching fails,
+      and its limits are stated in the file: a string built at runtime, a sentence
+      assembled from fragments, a value that is legitimately English, a
+      single-word literal handed to an unlisted helper, and text the API serves
+      as content
 - [ ] `npm run check:shared` type-checks `shared/` on its own with no errors
 - [ ] `npm run check:refs`, `npm run check:secrets` and `npm run check:encoding`
       are clean
@@ -643,7 +660,7 @@ script can assert is asserted now:
 
 ```bash
 npm run check:angular        # 16 checks, including "no page loads a script from a CDN"
-npm run check:translations   # the four languages of both dictionaries
+npm run check:translations   # the four languages of both dictionaries, and no English literal left in a template or in TypeScript
 npm test                     # the API contract, endpoint by endpoint
 ```
 

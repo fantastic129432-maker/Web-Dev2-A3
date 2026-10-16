@@ -20,7 +20,7 @@
  *   which reads the values themselves.
  *
  * WHAT IT CHECKS
- *   Every `*.html` file under `clientside/src` and `adminside/src`, for two
+ *   Every `*.html` file under `clientside/src` and `adminside/src`, for THREE
  *   kinds of user-facing literal:
  *
  *     * TEXT - the words between two tags, after `{{ interpolations }}` and
@@ -32,11 +32,22 @@
  *       `value` on `<input type="submit|button|reset">` (the button's visible
  *       caption). Interpolated/bound attributes (`[attr.aria-label]=`, `{{ }}`)
  *       are resolved at runtime and are not literals.
+ *     * A DICTIONARY KEY USED AS A FALLBACK - an interpolation or binding that
+ *       offers translated text as the alternative to a value that can win:
+ *       `{{ organization()?.mission || ('about.mission' | t) }}`. Every word in
+ *       it is a dictionary key, so the two rules above pass it; the page still
+ *       shows English, because the API's `mission` is content and wins whenever
+ *       the request succeeds, and the translated sentence is left as dead code
+ *       for the failure case. That is the exact shape of the defect this project
+ *       shipped twice: the lead sentence on the Chinese home page. Rendering an
+ *       API value on its own is content and is NOT reported - only offering
+ *       translated text as its fallback is, because it means the slot was meant
+ *       to be site copy.
  *
- *   A candidate FAILS unless it is listed in INTENTIONAL_LITERALS below, so the
- *   normal way to add a word to a page is a dictionary key in all four
- *   languages - which the key checks and the value check then hold to their own
- *   rules.
+ *   A candidate FAILS unless it is listed in INTENTIONAL_LITERALS (or, for the
+ *   third rule, INTENTIONAL_MIXED_FALLBACKS) below, so the normal way to add a
+ *   word to a page is a dictionary key in all four languages - which the key
+ *   checks and the value check then hold to their own rules.
  *
  * WHAT IT CANNOT CHECK (its own limits, stated on purpose)
  *   * A VALUE IN THE WRONG LANGUAGE. This check sees the key a template asks
@@ -69,7 +80,19 @@
  *     as are `content=` on a `<meta>`, `id`, `class`, `href`, `name`, every
  *     `data-*`, and anything not mentioned here.
  *   * A KEY BUILT IN TYPESCRIPT. `t(dynamicKey)` is invisible to the existing
- *     usage check as well; only string literals can be seen statically.
+ *     usage check as well; only string literals can be seen statically. The
+ *     mixed-fallback rule below has the same blind spot: an expression assembled
+ *     in the component and merely PRINTED here (`{{ missionOrFallback() }}`)
+ *     leaves this file nothing to read, so a defect moved into a helper method
+ *     still has to be caught by reading the component.
+ *   * A DICTIONARY KEY THAT WINS FOR A REASON. The third rule reports the SHAPE
+ *     (`value || ('key' | t)`), not the intent. A slot that genuinely wants to
+ *     show the API's own wording when it is there and a translated sentence when
+ *     it is not - the honest use of this shape - therefore has to be recorded in
+ *     INTENTIONAL_MIXED_FALLBACKS with its reason, which is what that list is
+ *     for. A field that is content and is rendered ON ITS OWN is not reported at
+ *     all: this rule is about translated text losing, not about English content
+ *     being English.
  *   * THE ARCHIVED VANILLA FRONTEND. `legacy/clientside/*.html` still contains
  *     `aria-label="Breadcrumb"`, and it is deliberately left alone: it is the
  *     migration record, it is not built, and it is not served by either
@@ -165,6 +188,18 @@ const INTENTIONAL_LITERALS = [
       'A unit symbol, printed beside a number as "25 km/h". It is the same symbol in all four languages (the dictionaries translate the LABEL, weather.wind, not the unit), exactly like the degree sign and the percent sign beside it.',
   },
 ];
+
+/**
+ * The mixed fallbacks that are deliberate.
+ *
+ * Same contract as INTENTIONAL_LITERALS above: `file` and `value` (the
+ * interpolation as the scan reads it, single-spaced) name the decision, `reason`
+ * records it, and an entry that stops matching FAILS. There are no entries today,
+ * because the shape this rule forbids is not used anywhere in either application
+ * - the list exists so that the first honest use of it is a recorded decision
+ * rather than a hole in the rule.
+ */
+const INTENTIONAL_MIXED_FALLBACKS = [];
 
 /* ------------------------------------------------------------------ scanning */
 
@@ -297,12 +332,111 @@ function findAttributeLiterals(source) {
 }
 
 /**
+ * A dictionary lookup inside an expression: the pipe (`'key' | t`) or a call to
+ * the service's own method (`t('key')`, `i18n.t('key')`).
+ */
+const DICTIONARY_LOOKUP = /\|\s*t\b|[^\w.]t\s*\(\s*['"][A-Za-z0-9_.]+['"]/;
+
+/**
+ * Split an expression on `||` / `??` at its TOP LEVEL only.
+ *
+ * The nesting matters, and getting it wrong made this rule's first run report
+ * three innocent lines: `{{ 'event.goalLead' | t: { organisation: x || '' } }}`
+ * is a dictionary lookup whose PLACEHOLDER value defaults to an empty string, and
+ * splitting it blindly produced a "side" with no lookup in it. A `||` or `??`
+ * inside `(...)`, `[...]`, `{...}` or a string literal is part of a value being
+ * passed, not a choice between two renderings, so only depth-0 operators split.
+ *
+ * @param expression - The interpolation or binding body.
+ * @returns The top-level alternatives, or the whole expression when there is no
+ *   top-level `||` / `??`.
+ */
+function splitTopLevel(expression) {
+  const parts = [];
+  let current = '';
+  let depth = 0;
+  let quote = '';
+
+  for (let index = 0; index < expression.length; index += 1) {
+    const character = expression[index];
+
+    if (quote) {
+      current += character;
+      if (character === quote && expression[index - 1] !== '\\') quote = '';
+      continue;
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      quote = character;
+      current += character;
+      continue;
+    }
+    if ('([{'.includes(character)) depth += 1;
+    if (')]}'.includes(character)) depth -= 1;
+
+    const pair = expression.slice(index, index + 2);
+    if (depth === 0 && (pair === '||' || pair === '??')) {
+      parts.push(current);
+      current = '';
+      index += 1;
+      continue;
+    }
+    current += character;
+  }
+
+  parts.push(current);
+  return parts;
+}
+
+/**
+ * The interpolations and bindings that offer a dictionary key as the fallback for
+ * a value that can win.
+ *
+ * Both `{{ ... }}` interpolations and `[attr]="..."` bindings are read, because
+ * both resolve at runtime and both can carry this shape. The expression is split
+ * on its top-level `||` and `??`, and if ANY side has no dictionary lookup while
+ * another side has one, the interface can show the untranslated value: the
+ * translated text is then only the failure path, which is how a Chinese page came
+ * to render `organization()?.mission || ('about.mission' | t)` in English.
+ *
+ * @returns Findings with the 1-based line, the `mixed fallback` kind, the
+ *   single-spaced expression and the side that is not translated.
+ */
+function findMixedFallbacks(source) {
+  const findings = [];
+  const regions = [];
+
+  for (const match of source.matchAll(/\{\{([\s\S]*?)\}\}/g)) {
+    regions.push({ body: match[1], index: match.index });
+  }
+  // A bound attribute: [title]="..." / [attr.aria-label]="..." - never a literal.
+  for (const match of source.matchAll(/\[[a-zA-Z.-]+\]\s*=\s*"([^"]*)"/g)) {
+    regions.push({ body: match[1], index: match.index });
+  }
+
+  for (const region of regions) {
+    if (!DICTIONARY_LOOKUP.test(region.body)) continue;
+    const sides = splitTopLevel(region.body);
+    if (sides.length < 2) continue;
+    const untranslated = sides.filter((side) => !DICTIONARY_LOOKUP.test(side));
+    if (untranslated.length === 0) continue;
+
+    findings.push({
+      kind: 'mixed fallback',
+      value: region.body.replace(/\s+/g, ' ').trim(),
+      line: lineAt(source, region.index),
+    });
+  }
+
+  return findings;
+}
+
+/**
  * Every user-facing literal in the two applications' templates.
  *
  * @returns The findings, each with the file (relative, POSIX separators), the
  *   1-based line, the kind of literal and the text itself, plus the entries of
- *   INTENTIONAL_LITERALS that were actually used - so a stale one can be
- *   reported rather than silently kept.
+ *   INTENTIONAL_LITERALS and INTENTIONAL_MIXED_FALLBACKS that were actually used
+ *   - so a stale one can be reported rather than silently kept.
  */
 export function collectTemplateLiterals() {
   const findings = [];
@@ -317,20 +451,33 @@ export function collectTemplateLiterals() {
         .replace(/<style[\s\S]*?<\/style>/gi, blankKeepingLines);
 
       const relative = path.relative(ROOT, file).split(path.sep).join('/');
-      for (const finding of [...findTextLiterals(source), ...findAttributeLiterals(source)]) {
+      for (const finding of [
+        ...findTextLiterals(source),
+        ...findAttributeLiterals(source),
+        ...findMixedFallbacks(source),
+      ]) {
         findings.push({ file: relative, ...finding });
       }
     }
   }
 
   const used = new Set();
+  const usedFallbacks = new Set();
   const unexpected = [];
 
   for (const finding of findings) {
     const exemption = INTENTIONAL_LITERALS.find(
       (entry) => entry.file === finding.file && entry.value === finding.value
     );
-    if (exemption) used.add(exemption);
+    if (exemption) {
+      used.add(exemption);
+      continue;
+    }
+
+    const fallback = INTENTIONAL_MIXED_FALLBACKS.find(
+      (entry) => entry.file === finding.file && entry.value === finding.value
+    );
+    if (fallback) usedFallbacks.add(fallback);
     else unexpected.push(finding);
   }
 
@@ -338,7 +485,9 @@ export function collectTemplateLiterals() {
     findings,
     unexpected,
     used: INTENTIONAL_LITERALS.filter((entry) => used.has(entry)),
+    usedFallbacks: INTENTIONAL_MIXED_FALLBACKS.filter((entry) => usedFallbacks.has(entry)),
     unused: INTENTIONAL_LITERALS.filter((entry) => !used.has(entry)),
+    unusedFallbacks: INTENTIONAL_MIXED_FALLBACKS.filter((entry) => !usedFallbacks.has(entry)),
   };
 }
 
@@ -354,7 +503,7 @@ export function collectTemplateLiterals() {
  * @param check - The caller's recording function.
  */
 export function runTemplateLiteralCheck(check) {
-  const { unexpected, used, unused } = collectTemplateLiterals();
+  const { unexpected, used, usedFallbacks, unused, unusedFallbacks } = collectTemplateLiterals();
 
   console.log('');
   console.log('Template literals');
@@ -366,21 +515,29 @@ export function runTemplateLiteralCheck(check) {
   for (const entry of unused) {
     console.log(`          STALE EXEMPTION  ${entry.file}  "${entry.value}"`);
   }
+  for (const entry of unusedFallbacks) {
+    console.log(`          STALE MIXED-FALLBACK EXEMPTION  ${entry.file}  "${entry.value}"`);
+  }
 
   console.log(`          ${used.length} intentional literal(s), each exempted by name:`);
   for (const entry of used) {
     console.log(`            ${entry.file}  "${entry.value}"`);
     console.log(`              why: ${entry.reason}`);
   }
+  for (const entry of usedFallbacks) {
+    console.log(`            ${entry.file}  "${entry.value}"  [mixed fallback]`);
+    console.log(`              why: ${entry.reason}`);
+  }
 
+  const totalUnused = unused.length + unusedFallbacks.length;
   const detail =
-    unexpected.length === 0 && unused.length === 0
-      ? `${used.length} intentional literal(s) exempted by name (listed above); nothing unexplained`
-      : `${unexpected.length} unexplained literal(s), ${unused.length} stale exemption(s) - see the lines above`;
+    unexpected.length === 0 && totalUnused === 0
+      ? `${used.length + usedFallbacks.length} intentional literal(s) exempted by name (listed above); nothing unexplained, and no dictionary key is left as the fallback for a value that can win`
+      : `${unexpected.length} unexplained literal(s), ${totalUnused} stale exemption(s) - see the lines above`;
 
   check(
-    'no user-facing literal is written into a template instead of a dictionary key',
-    unexpected.length === 0 && unused.length === 0,
+    'no user-facing literal is written into a template, and no dictionary key is offered as the fallback for a value that can win',
+    unexpected.length === 0 && totalUnused === 0,
     detail
   );
 }
