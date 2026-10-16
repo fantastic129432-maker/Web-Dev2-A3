@@ -12,7 +12,6 @@ import type { AppEnvironment } from '@charity/shared/config/environment.model';
  * working if the site is ever moved to a different host or subfolder.
  */
 export const environment: AppEnvironment = {
-  production: true,
   apiBaseUrl: 'https://24832481.it.scu.edu.au/charity-events-api/api',
   otherSiteUrl: '/admin/',
 };

@@ -9,7 +9,6 @@ import type { AppEnvironment } from '@charity/shared/config/environment.model';
  * root.
  */
 export const environment: AppEnvironment = {
-  production: true,
   apiBaseUrl: 'https://24832481.it.scu.edu.au/charity-events-api/api',
   otherSiteUrl: '/',
 };

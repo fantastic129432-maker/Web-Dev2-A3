@@ -41,16 +41,18 @@ const EXPOSED_HEADERS = [
 ];
 
 /**
- * The rate limiter is a RequestHandler that can also be stopped.
+ * The rate limiter is a RequestHandler, and nothing more than one.
  *
- * `stop()` exists because the limiter owns an interval: without it the pruning
- * timer would keep a test runner or a shutting-down process alive, and there
- * would be no way to silence it between cases.
+ * It used to declare a `stop()` that cleared its pruning interval, on the
+ * reasoning that an interval would keep a test runner or a shutting-down
+ * process alive with no way to silence it between cases. That reasoning was
+ * solved at the source instead: the interval is `unref()`'d (see
+ * `createRateLimiter` below), so it never holds the process open and there is
+ * nothing left to stop. No test, tool or caller in the repository ever used
+ * the method, so it was removed here rather than left as a promise the type
+ * made and the implementation could drop at any time.
  */
-export interface RateLimiter extends RequestHandler {
-  /** Cancel the pruning interval so the process can exit. */
-  stop(): void;
-}
+export interface RateLimiter extends RequestHandler {}
 
 /**
  * Set the security headers that suit a JSON API.
@@ -140,7 +142,7 @@ export function createCors(): RequestHandler {
  * error middleware as every other failure. A `RATE_LIMIT_MAX` of zero or less
  * disables the limiter entirely, which the test suite and local demos rely on.
  *
- * @returns The limiter itself, carrying a `stop()` that cancels its pruning timer.
+ * @returns The limiter itself, ready to mount on the app with `app.use()`.
  */
 export function createRateLimiter(): RateLimiter {
   /** One fixed window per client IP. */
@@ -151,9 +153,15 @@ export function createRateLimiter(): RateLimiter {
   /**
    * Drop expired windows on a timer so the map cannot grow forever.
    *
-   * `unref()` lets the process exit even while this interval is pending.
+   * `unref()` lets the process exit even while this interval is pending, and
+   * that single call is what makes the timer safe to leave running: it cannot
+   * keep a test runner or a shutting-down process alive, so there is no need
+   * to silence it between cases. An earlier revision also exposed a `stop()`
+   * that cleared this interval; once the interval was unreferenced the method
+   * had nothing to do and no caller, so it was removed. The reasoning lives
+   * here, at the timer that does the work.
    */
-  const cleanup = setInterval(() => {
+  setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of hits) {
       if (entry.resetAt <= now) hits.delete(key);
@@ -196,6 +204,5 @@ export function createRateLimiter(): RateLimiter {
     return next();
   } as RateLimiter;
 
-  rateLimiter.stop = () => clearInterval(cleanup);
   return rateLimiter;
 }

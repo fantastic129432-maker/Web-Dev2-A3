@@ -456,8 +456,8 @@ _Your answer_
 >   `NgModule`s, real `.html` template files because the brief asks for HTML,
 >   `strictTemplates` and strict TypeScript, and lazy-loaded routes so a page
 >   still downloads only its own code.
-> * **The i18n design**: four languages, two dictionaries (306 client keys and
->   253 admin keys when this was written - `npm run check:translations` prints
+> * **The i18n design**: four languages, two dictionaries (290 client keys and
+>   249 admin keys when this was written - `npm run check:translations` prints
 >   the current counts), the language held in a signal so every template that reads
 >   a translation re-renders by itself, one shared `localStorage` key so the
 >   choice follows a visitor between the two sites, and the completeness checks

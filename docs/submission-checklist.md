@@ -331,7 +331,7 @@ and the catch-all 404.
 
 Run everything from the project root.
 
-- [ ] `npm test` prints `116 passed, 0 failed`
+- [ ] `npm test` prints `131 passed, 0 failed`
 - [ ] That run covers the HTTP contract against the real Express API **and** the
       jsdom regression suite over the archived vanilla frontend under `legacy/`;
       the printout is read from the run itself, not from this document
@@ -340,15 +340,15 @@ Run everything from the project root.
       MySQL repositories behave like the offline ones, and the run that catches a
       missing grant)
 - [ ] `npm run build:local` has been run, then `npm run test:e2e` prints
-      `33 end-to-end checks passed` - headless browser checks over **both** Angular
+      `40 end-to-end checks passed` - headless browser checks over **both** Angular
       applications against the compiled API
 - [ ] `npm run check:angular` prints `16 checks passed` - the architecture guard:
       Angular v22, two applications, standalone components, zoneless, a real
       `.html` template and a doc comment per component, no cross-application
       imports, both applications importing `shared/`, the early-theme script in
       both `index.html` files, and a TypeScript-only API that compiles to `dist/`
-- [ ] `npm run check:translations` prints `7 checks passed`, with **306** keys in
-      each of the four client languages and **253** in each of the four admin
+- [ ] `npm run check:translations` prints `9 checks passed`, with **290** keys in
+      each of the four client languages and **249** in each of the four admin
       languages, and every key the templates ask for present
 - [ ] `npm run check:shared` type-checks `shared/` on its own with no errors
 - [ ] `npm run check:refs`, `npm run check:secrets` and `npm run check:encoding`

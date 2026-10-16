@@ -4,7 +4,7 @@
  * Checks that everything the documentation tells a reader to run or consult
  * actually exists.
  *
- * This matters because tools/ was trimmed from 26 files to 12, and a command in
+ * This matters because tools/ was trimmed from 26 files to 20, and a command in
  * the README that points at a deleted script is worse than no command at all.
  *
  * It verifies:

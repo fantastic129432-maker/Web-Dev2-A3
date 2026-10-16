@@ -933,10 +933,15 @@ the client receives only the message, so internal details are not leaked.
 
 #### interface `RateLimiter`
 
-The rate limiter is a RequestHandler that can also be stopped.
-`stop()` exists because the limiter owns an interval: without it the pruning
-timer would keep a test runner or a shutting-down process alive, and there
-would be no way to silence it between cases.
+The rate limiter is a RequestHandler, and nothing more than one.
+It used to declare a `stop()` that cleared its pruning interval, on the
+reasoning that an interval would keep a test runner or a shutting-down
+process alive with no way to silence it between cases. That reasoning was
+solved at the source instead: the interval is `unref()`'d (see
+`createRateLimiter` below), so it never holds the process open and there is
+nothing left to stop. No test, tool or caller in the repository ever used
+the method, so it was removed here rather than left as a promise the type
+made and the implementation could drop at any time.
 
 #### function `securityHeaders`
 
@@ -974,7 +979,7 @@ would let a caller forge `X-Forwarded-For` and never be limited. Over the
 limit the failure is raised as an `HttpError`, so it leaves through the same
 error middleware as every other failure. A `RATE_LIMIT_MAX` of zero or less
 disables the limiter entirely, which the test suite and local demos rely on.
-- `@returns The limiter itself, carrying a `stop()` that cancels its pruning timer.`
+- `@returns The limiter itself, ready to mount on the app with `app.use()`.`
 
 ### `api/src/repositories/local-data.ts`
 

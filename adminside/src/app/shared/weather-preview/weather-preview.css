@@ -90,8 +90,8 @@
  *
  * Recolouring --accent-600 itself was rejected: it is shared with the wet card's
  * border in both applications, so darkening it would repaint them as well. The
- * token this rule now reads is untouched - it is also the secondary button's
- * fill - and only this one paragraph changes colour.
+ * token this rule now reads is untouched - it is also the public site's amber
+ * chip fill - and only this one paragraph changes colour.
  */
 .weather-preview__wet-note {
   margin: var(--space-3) 0 0;

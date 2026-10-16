@@ -126,11 +126,13 @@
       The copyright and the assessment notice share ONE BLOCK and ONE LINE, so
       they read as the page's legal footnote on the left of the bar while the live
       API indicator stays on the right. The block is what keeps them together
-      whatever the viewport does to the row; the LINE is
-      `.site-footer__legal { display: block }` plus `.site-footer__legal p {
-      display: inline }` in clientside/src/styles.css, which is what puts the
-      notice after the copyright's full stop instead of under the copyright - see
-      the note on `.site-footer__legal` there for the measurement. The notice
+      whatever the viewport does to the row; the LINE is the two paragraphs
+      flowing as inline text (`.site-footer__legal p { display: inline }` in
+      clientside/src/styles.css), which is the only display declaration the pair
+      needs - the wrapper is a flex item of `.site-footer__bottom`, so it is laid
+      out as a block-level box without any `display: block` of its own. That puts
+      the notice after the copyright's full stop instead of under the copyright -
+      see the note on `.site-footer__legal` there for the measurement. The notice
       keeps the two dictionary keys it had as a column heading and a paragraph
       ("Student project: Built for PROG2002 ..."), joined on one line, so no string
       was lost and no new one was written.

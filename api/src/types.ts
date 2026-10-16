@@ -7,7 +7,7 @@
  *   The whole point of src/repositories/index.ts is that the MySQL repository
  *   and the offline (DATA_SOURCE=local) repository are interchangeable: the
  *   same route, the same controller and the same service run against either
- *   one, and the automated test suite proves it by running the identical 116
+ *   one, and the automated test suite proves it by running the identical 131
  *   checks against both. `Repository` below is that promise written down, so the
  *   compiler now enforces the interface that used to be a convention between two
  *   hand-written JavaScript files.

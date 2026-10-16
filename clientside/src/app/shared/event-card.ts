@@ -152,7 +152,14 @@ export class EventCardComponent {
    */
   protected readonly stateLabelKey = computed(() => stateKey(this.event().eventState));
 
-  /** The category name, or a neutral "Charity event" when none is joined in. */
+  /**
+   * The joined category name, or an empty string when none is joined in.
+   *
+   * An empty string is the honest value: the template branches on it and renders
+   * the neutral 'state.charityEvent' label, so the fallback text stays in the
+   * dictionary with the other strings, in all four languages, instead of being
+   * written into this component.
+   */
   protected readonly categoryName = computed(() => this.event().categoryName ?? '');
 
   /** The event's route, e.g. /events/2. */

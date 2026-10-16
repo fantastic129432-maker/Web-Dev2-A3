@@ -524,7 +524,7 @@ stops it coming back.
 
 **Show:** a terminal running `npm test`, then `npm run test:e2e`.
 
-> "The project has four layers of automated checks. `npm test` runs **116** checks:
+> "The project has four layers of automated checks. `npm test` runs **131** checks:
 > the HTTP contract against the real Express API endpoint by endpoint, plus a jsdom
 > regression suite that loads the **archived** Assessment 2 frontend, which is kept
 > under `legacy/` as the behavioural reference for the pages I rewrote.

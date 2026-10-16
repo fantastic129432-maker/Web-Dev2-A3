@@ -78,8 +78,8 @@ in English.)
 | `shared/src/theme/theme.service.ts` | Reads and stores the theme, resolves "system", writes `<html data-theme>`; also exports `EARLY_THEME_SNIPPET`, the inline `<head>` script |
 | `shared/src/i18n/translation.service.ts` | Reads and stores the language, holds it in a signal, exposes `t()` and `set()`, keeps `<html lang>` honest |
 | `shared/src/i18n/languages.ts` | `LANGUAGE_CODES`, `SUPPORTED_LANGUAGES` (code, label, `nativeLabel`, `htmlLang`), `DEFAULT_LANGUAGE` |
-| `shared/src/i18n/client-translations.ts` | The public site's dictionary: 306 keys in each of the four languages |
-| `shared/src/i18n/admin-translations.ts` | The admin site's dictionary: 253 keys in each of the four languages |
+| `shared/src/i18n/client-translations.ts` | The public site's dictionary: 290 keys in each of the four languages |
+| `shared/src/i18n/admin-translations.ts` | The admin site's dictionary: 249 keys in each of the four languages |
 | `shared/src/i18n/translate.pipe.ts` | The `t` pipe, so a template writes `{{ 'key' \| t }}` |
 | `shared/src/config/app-config.ts` | The three `storageKeys`, including the one language key both sites share |
 | `clientside/src/app/layout/settings-bar.ts` | Builds both controls for the public header |
@@ -190,8 +190,8 @@ glare against a dark card. Both `clientside/src/styles.css` and
 ### Automated
 
 ```bash
-npm test                        # 116 checks: the API contract, plus the jsdom suite
-npm run test:e2e                # 33 checks in a real browser, over both Angular apps
+npm test                        # 131 checks: the API contract, plus the jsdom suite
+npm run test:e2e                # 40 checks in a real browser, over both Angular apps
 npm run check:translations      # each dictionary: four languages, identical keys, every key used
 npm run check:angular           # 16 checks, including the early-theme script in both index.html files
 npm run check:contrast          # WCAG AA on every route in both themes (both sites must be running)
@@ -235,8 +235,8 @@ a second, separate admin website, and the theme and language features remain
 worth being clear about:
 
 1. **The two websites have separate dictionaries on purpose.** The public site
-   translates with `shared/src/i18n/client-translations.ts` (306 keys) and the
-   admin site with `shared/src/i18n/admin-translations.ts` (253 keys); both offer
+   translates with `shared/src/i18n/client-translations.ts` (290 keys) and the
+   admin site with `shared/src/i18n/admin-translations.ts` (249 keys); both offer
    all four languages. They are separate because a visitor's journey and a staff
    member's work share very little wording, not because one of the sites is
    English-only - that was the vanilla arrangement, where the admin pages had

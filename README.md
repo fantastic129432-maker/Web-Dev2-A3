@@ -23,8 +23,8 @@ The project has five parts, exactly as the assessment briefs define them:
 > name real page components, and `tsc -p clientside/tsconfig.app.json --noEmit`
 > compiles cleanly.
 >
-> The migration is complete and verified: `npm test` passes **116 checks**, the
-> end-to-end browser suite passes **33 checks**, and the architecture guard passes
+> The migration is complete and verified: `npm test` passes **131 checks**, the
+> end-to-end browser suite passes **40 checks**, and the architecture guard passes
 > **16 checks**. Two integration gaps found while verifying are worth knowing
 > about, because both were real and both are now fixed - they are recorded in
 > section 10 so the reasoning is not lost:
@@ -373,7 +373,7 @@ The same pattern covers the dictionaries: `TranslationService` injects
 `APP_DICTIONARIES`, so one service serves the public site's dictionary and the
 admin site's dictionary without knowing which is which. Check the current sizes
 with `npm run check:translations`, which prints the key count per language for
-both dictionaries (306 client keys and 253 admin keys when this was written -
+both dictionaries (290 client keys and 249 admin keys when this was written -
 the counts move while pages are still being added).
 
 ---
@@ -427,7 +427,7 @@ script serves the built output and expects it to point at
 `http://localhost:3000/api`, which is what the development environment file
 does.
 
-The end-to-end suite passes in full: **33 checks**, driven through headless
+The end-to-end suite passes in full: **40 checks**, driven through headless
 Microsoft Edge against the compiled API. It starts the API and both static
 servers itself, then asserts what a person would actually see - the organisation
 and event cards on the home page, the filter form built from `/api/locations`, a
@@ -808,7 +808,7 @@ choice follows the visitor between pages **and between the two websites**.
   `shared/src/theme/theme.service.ts`, and `npm run check:angular` fails if
   either page loses it.
 * **Language** - English, 中文, Tiếng Việt and 日本語. The two dictionaries hold
-  **306 client-side keys** and **253 admin-side keys** (the counts at the time of
+  **290 client-side keys** and **249 admin-side keys** (the counts at the time of
   writing - `npm run check:translations` prints the current figures), and the four
   languages of each dictionary define exactly the same keys, which that same
   checker enforces. The active language is an Angular
@@ -852,7 +852,7 @@ serves two Angular applications from one API:
 | URL (deployed) | `https://<host>/` | `https://<host>/admin/` |
 | Audience | visitors: browse, search, register | staff: create, update and delete events |
 | Data | reads `vw_public_events`, so suspended events never appear | reads `vw_all_events`, so every status is listed |
-| Language | four languages (306 keys) | four languages (253 keys) |
+| Language | four languages (290 keys) | four languages (249 keys) |
 | Code shared | all of `shared/`, the design tokens, the API layer | the same, plus its own layout and strings |
 
 Why two applications rather than a hidden page on the public one? Because the two

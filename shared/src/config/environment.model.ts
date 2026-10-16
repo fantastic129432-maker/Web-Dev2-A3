@@ -14,9 +14,6 @@
 
 /** The settings every Angular environment file in this workspace must declare. */
 export interface AppEnvironment {
-  /** True for a production build. Lets the UI hide developer-only hints. */
-  readonly production: boolean;
-
   /**
    * The REST API root, WITHOUT a trailing slash.
    *

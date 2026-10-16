@@ -513,8 +513,10 @@ html body.admin-body .admin-page-header p {
  */
 .data-table tfoot .cell-stack__secondary { color: var(--ink-700); }
 
-/* The publishing status and the derived time state, side by side in one cell. */
-.cell-badges { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
+/* The publishing status and the derived time state, side by side in one cell.
+   Whether the group may wrap is decided below, on
+   `.data-table--admin .cell-badges`, where the measurement is recorded. */
+.cell-badges { display: inline-flex; gap: var(--space-1); }
 
 /*
  * A stacked numeric cell states its own alignment.
@@ -541,13 +543,15 @@ html body.admin-body .admin-page-header p {
 /*
  * The status column holds its two badges on ONE line.
  *
- * The badge group wraps by default, so the moment the two tags did not fit -
- * SUSPENDED is longer than ACTIVE or UPCOMING, and the Japanese and Chinese
- * labels are wider again - the second tag moved to a new line, made that row
- * taller than its neighbours and left the column ragged. Refusing to wrap lets
- * the table's own layout give the column the width the badges need, and
- * `.badge` refuses to break INSIDE a tag, which matters for CJK text where a
- * line may break between any two characters.
+ * `nowrap` is the flex default, so this declaration would change nothing if it
+ * were deleted - it is written out because the intent IS the rule: the badge
+ * group must never split. When the two tags did not fit on one line the second
+ * one moved to a new line, made that row taller than its neighbours and left the
+ * column ragged; SUSPENDED is longer than ACTIVE or UPCOMING, and the Japanese
+ * and Chinese labels are wider again. Holding the line lets the table's own
+ * layout give the column the width the badges need, and `.badge` refuses to
+ * break INSIDE a tag, which matters for CJK text where a line may break between
+ * any two characters.
  */
 .data-table--admin .cell-badges { flex-wrap: nowrap; }
 .data-table--admin .cell-badges .badge { white-space: nowrap; }
@@ -628,12 +632,15 @@ html body.admin-body .admin-page-header p {
  * THIS RULE HAD NO EFFECT ON THE EVENT LIST, WHICH IS THE DEFECT THE HIERARCHY
  * ROUND FOUND. The registrations page applied the class; the event list's Delete
  * button carried `button--danger row-action` WITHOUT it (event-list.html), so the
- * rule above never matched there and the pointer got `.button--danger:hover`
- * instead - a SOLID --danger fill on every row's bin icon, which is the wall of
- * red this comment says the row action avoids. Measured on the running list:
- * hovering that button repainted it rgb(179, 38, 30) in the light theme, while the
- * same control on the registrations page repainted to rgb(253, 236, 234). The
- * class is now on both, so the two lists answer the pointer the same way.
+ * rule above never matched there and the pointer got the SOLID `--danger` hover
+ * fill that `button--danger` painted then instead - a red block on every row's bin
+ * icon, which is the wall of red this comment says the row action avoids. Measured
+ * on the running list: hovering that button repainted it rgb(179, 38, 30) in the
+ * light theme, while the same control on the registrations page repainted to
+ * rgb(253, 236, 234). The class is now on both, so the two lists answer the pointer
+ * the same way - and `button--danger` itself no longer paints a hover fill at all,
+ * because the confirmation dialog is the only filled destructive control left and
+ * it supplies its own (see the rule further down).
  */
 .row-action--delete:hover,
 .row-action--delete:focus-visible {
@@ -663,14 +670,6 @@ html body.admin-body .admin-page-header p {
   background: var(--surface-0);
   color: var(--danger);
   border-color: var(--danger);
-}
-.button--danger:hover:not([disabled]) {
-  background: var(--danger);
-  /* --on-brand, not #fff: the token means "text on a filled brand-strength
-     control" and is defined as white in BOTH themes, so it reads correctly
-     whichever theme is active and states the intent. A bare #fff would be
-     invisible to the theme system even though it happens to work here. */
-  color: var(--on-brand);
 }
 .button--danger[disabled] { opacity: 0.55; cursor: not-allowed; }
 
@@ -706,12 +705,23 @@ html body.admin-body .admin-page-header p {
 }
 
 /* Only the confirmation dialog needs a filled destructive button, because
-   there the destructive choice should be the obvious one. */
+   there the destructive choice should be the obvious one - and it is the only
+   NON-DISABLED `.button--danger` the admin app has: the event list's remaining
+   one is the disabled "Deletion blocked" control, which is a state rather than an
+   invitation. Its hover is the brightness lift below rather than a second fill,
+   because the fill is already `--danger` at rest.
+
+   WHY `--on-brand` AND NOT #fff: the token means "text on a filled
+   brand-strength control" and is defined as white in BOTH themes, so it reads
+   correctly whichever theme is active and states the intent. A bare #fff would be
+   invisible to the theme system even though it happens to work here. */
 .confirm-panel .button--danger {
   background: var(--danger);
   color: var(--on-brand);
   border-color: var(--danger);
 }
+/* The hover change this control gets instead of a hover fill: it brightens the
+   fill it already has, so the pointer still sees a response. */
 .confirm-panel .button--danger:hover { filter: brightness(1.08); }
 
 /* --------------------------------------------------------------------------
@@ -778,13 +788,15 @@ html body.admin-body .admin-page-header p {
  * label started 32px below the control where every other field on the form is
  * 16px from the one above it.
  *
- * The rule is written HERE rather than in base.css because base.css's own
- * `.form-row > .field { margin-bottom: 0 }` is a (0,2,0) selector and this
- * `.admin-form .field` is the same weight, so base.css loses on source order -
- * the same trap the `.ticket-rows` note further down describes. This selector is
- * one class heavier, which is why it wins. That was found by measuring rather
- * than by reading: the first version of this fix sat in base.css and the row was
- * still 97.42px tall.
+ * The rule is written HERE and not in base.css because the selector it has to
+ * beat is `.admin-form .field` (the rule above): an equal-weight `.form-row >
+ * .field` copy in base.css - which is where the `.form-row` itself is declared -
+ * loses on source order, because the `@import` at the top of this file puts the
+ * design-system layer first. This selector is one class heavier, which is why it
+ * wins, and it is the ONLY rule that cancels a row field's margin. That was found
+ * by measuring rather than by reading: the first version of this fix sat in
+ * base.css and the row was still 97.42px tall - the same trap the `.ticket-rows`
+ * note further down describes.
  *
  * THE EFFECT IS DELIBERATE AND IS THE RHYTHM, NOT A SIDE EFFECT: every gap on
  * this form between one control and the next field's label is now `--space-4`

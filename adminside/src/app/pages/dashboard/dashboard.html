@@ -64,7 +64,7 @@
     <section class="admin-overview__column" aria-labelledby="attention-heading">
       <h2 class="admin-overview__heading" id="attention-heading">{{ 'dash.attention' | t }}</h2>
 
-      <div class="panel admin-attention">
+      <div class="panel">
         @if (attention().length === 0) {
           <p class="admin-attention__clear">{{ 'dash.attentionClear' | t }}</p>
         } @else {
@@ -134,7 +134,7 @@
     <section class="admin-overview__column" aria-labelledby="health-heading">
       <h2 class="admin-overview__heading" id="health-heading">{{ 'health.heading' | t }}</h2>
 
-      <div class="panel admin-health">
+      <div class="panel">
         @if (health() || healthUnreachable()) {
           <!-- The status line: a shape (the dot) AND a sentence, so the state is
                never carried by colour alone. `connected === false` is the only
@@ -148,7 +148,7 @@
                spell "API" in all four dictionaries too. -->
           <p [class]="'health-status health-status--' + healthStatus().state">
             <span class="health-status__dot" aria-hidden="true"></span>
-            <span class="health-status__label">{{ healthStatus().labelKey | t }}</span>
+            <span>{{ healthStatus().labelKey | t }}</span>
           </p>
 
           @if (healthUnreachable()) {

@@ -2,15 +2,15 @@
  * The list page's own styling needs one rule. The filter bar (.admin-filters),
  * the table (.data-table--admin), the row action group (.row-actions) and the
  * feedback banner all live in the admin stylesheet (src/styles.css).
+ *
+ * The totals row's first cell spans the five columns a sum would be meaningless
+ * for, so it must read as a label rather than as data. It already does: base.css
+ * sets `text-align: left` on every `.data-table th` and `.data-table td`, and the
+ * totals header cell carries no alignment class of its own, so this page needs no
+ * rule for it - the shared rule is the one that places it.
  */
 :host {
   display: block;
-}
-
-/* The totals row's first cell spans the five columns that a sum would be
-   meaningless for, so it must read as a label rather than as data. */
-.data-table tfoot th {
-  text-align: left;
 }
 
 /*

@@ -32,9 +32,17 @@
    written the way it is - is kept as it was, because those reasons still hold.
 
    Maintenance rule: a change to a design token belongs in BOTH
-   clientside/src/styles.css and here. tools/check-angular-architecture.mjs
-   enforces the Angular architecture, not this duplication, so the comment above
-   is the contract.
+   clientside/src/styles.css and here WHEN BOTH APPLICATIONS READ IT. The two
+   files are not padded to the same list. `--container`, for example, is the
+   public sheet's alone: every width in the admin app is set by its own layout
+   (`.admin-container` and `.admin-header__inner` use `min(1440px, 100% - 3rem)`),
+   so no admin rule reads it. A token that no rule in either application reads is
+   not declared here at all rather than mirrored, which is why this file declares
+   no `--radius-lg` (clientside/src/styles.css's radius note records why 20px is
+   no longer a step) and no `--accent-100`. A change to a token both applications
+   read still belongs in both files. tools/check-angular-architecture.mjs enforces
+   the Angular architecture, not this duplication, so this comment is the
+   contract.
    ========================================================================== */
 
 /* ==========================================================================
@@ -48,14 +56,19 @@
   --brand-100: #e3f3f0;
   --accent-600: #d97a1a;
   --accent-500: #f0a04b;
-  --accent-100: #fdf1e3;
 
-  /* Foreground for text placed on a bright accent fill (the filled buttons,
-     the category chip, the upcoming badge). Defined per theme on purpose: a
-     token that flips cannot be paired with another token that also flips. */
+  /* Foreground for text placed on a bright accent fill (the filled buttons, the
+     ACTIVE badge). Defined per theme on purpose: a token that flips cannot be
+     paired with another token that also flips. The upcoming badge is deliberately
+     not on this list: it is neutral and takes the base `.badge` pair below, which
+     carries its own foreground. */
   --on-brand: #ffffff;
 
-  /* Fill for the amber chip and the secondary button. */
+  /* The warm amber, deepened. The admin app reads it as the wet-weather note's
+     ink (weather-preview.css measures 5.08:1 on the light card and 7.74:1 on the
+     dark one); the public sheet reads the same token as the amber chip's fill.
+     Amber is too light to carry white text at 4.5:1, so the light theme darkens
+     it and the dark theme brightens it and pairs it with dark ink instead. */
   --chip-bg: #a85a0c;
 
   --ink-900: #10242b;
@@ -77,7 +90,6 @@
 
   --radius-sm: 6px;
   --radius: 12px;
-  --radius-lg: 20px;
   --shadow-sm: 0 1px 2px rgba(16, 36, 43, 0.08), 0 1px 3px rgba(16, 36, 43, 0.06);
   --shadow: 0 6px 18px rgba(16, 36, 43, 0.1);
   --shadow-lg: 0 18px 40px rgba(16, 36, 43, 0.16);
@@ -92,8 +104,6 @@
   --space-8: 4rem;
 
   --font-body: Arial, "Helvetica Neue", Helvetica, sans-serif;
-
-  --container: 1180px;
 }
 
 /* ==========================================================================
@@ -112,7 +122,6 @@
   --brand-100: #123b36;
   --accent-600: #e08a2e;
   --accent-500: #f0a04b;
-  --accent-100: #3a2a16;
 
   /* On a bright teal or amber fill, deep ink reads; white does not. */
   --on-brand: #06201d;
@@ -328,19 +337,25 @@ textarea {
 /*
  * UPCOMING IS NEUTRAL; THE BRAND FILL BELONGS TO ACTIVE.
  *
- * This rule is the admin copy of the one in clientside/src/styles.css, which
- * carries the full before/after measurement; the short version is that
- * `statusClass()` in pages/event-list/event-list.ts used to dress an ACTIVE event
- * in this very class, so "published" and "not yet started" were one colour
- * (#0f7b6c on both). ACTIVE now claims the brand fill above and UPCOMING takes
- * the base `.badge` pair, which follows both themes without an override:
- * measured on the rendered badge, 8.59:1 light and 9.97:1 dark.
+ * There is no `badge--upcoming` rule here, and there is nothing for one to say.
+ * `stateClass()` in pages/event-list/event-list.ts emits `badge badge--upcoming`,
+ * so the badge always carries the base `.badge` pair declared above, and a
+ * modifier rule repeating those two declarations could not change a computed
+ * value. Taking the base pair is the deliberate choice: it follows both themes
+ * with no [data-theme] rule of its own, which is what a neutral "not yet started"
+ * state wants - measured on the rendered badge, 8.59:1 light and 9.97:1 dark.
+ * (clientside/src/styles.css carries the same note above its base `.badge` rule,
+ * with the full before/after measurement.)
+ *
+ * WHAT IT RECORDS. `statusClass()` in pages/event-list/event-list.ts used to
+ * dress an ACTIVE event in `badge--upcoming`, so "published" and "not yet
+ * started" were one colour (#0f7b6c on both, 5.16:1 with the white ink). ACTIVE
+ * now claims the brand fill above and UPCOMING takes the base pair.
  *
  * Measured on the events table in both themes, both tags, all four languages: the
  * state badge is the second of the two in the cell (.cell-badges), so the two
  * now differ by fill as well as by word.
  */
-.badge--upcoming { background: var(--surface-100); color: var(--ink-700); }
 .badge--ongoing  { background: var(--success-bg); color: var(--success); }
 
 /*
@@ -484,6 +499,15 @@ textarea[aria-invalid='true'] {
  * where it is counted once: a row's border box is 16px shorter and the thing
  * after it starts at the same y, so this rule on its own moves nothing
  * (measured on every row of the event form).
+ *
+ * WHERE THE FIELD'S OWN MARGIN IS ACTUALLY CANCELLED. Not in this layer. The
+ * only `.form-row`s the admin app renders are inside the event form, and
+ * `.admin-form .form-row > .field` in adminside/src/styles.css is what zeroes the
+ * field margin there; it is written in that file because a copy here would be
+ * (0,2,0) against `.admin-form .field`'s (0,2,0) and, with the `@import` at the
+ * top of styles.css putting this layer first, would lose. The filter bars never
+ * carry `.form-row` - their fields are cancelled by `.admin-filters .field` - so
+ * nothing outside the event form needs the line either.
  */
 .form-row {
   display: grid;
@@ -491,11 +515,6 @@ textarea[aria-invalid='true'] {
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
-/* Weaker than `.admin-form .field`, which is the same weight and comes later in
-   styles.css - the event form therefore repeats this line one class heavier in
-   its own section, where the reason is written out. This copy is what keeps a
-   row outside `.admin-form` (the filter bars) on the same rule. */
-.form-row > .field { margin-bottom: 0; }
 
 /* ==========================================================================
    6. Panel

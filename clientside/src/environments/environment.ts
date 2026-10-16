@@ -11,7 +11,6 @@ import type { AppEnvironment } from '@charity/shared/config/environment.model';
  * A production build replaces this file with environment.production.ts.
  */
 export const environment: AppEnvironment = {
-  production: false,
   apiBaseUrl: 'http://localhost:3000/api',
   otherSiteUrl: 'http://localhost:4300/',
 };

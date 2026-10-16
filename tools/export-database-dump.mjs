@@ -22,8 +22,8 @@
  * consults; generating the dump from them means the three files cannot drift.
  * An earlier revision of this project kept a hand-maintained dump as well, and
  * it silently still described the Assessment 2 schema - six tables and no
- * registrations - while the API expected eight. That is the failure this tool
- * exists to prevent.
+ * registrations - while the API expected seven (those six plus
+ * event_registrations). That is the failure this tool exists to prevent.
  *
  * ## Usage
  *

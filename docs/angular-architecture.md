@@ -232,8 +232,8 @@ npm run check:shared        # tsc -p tsconfig.shared.json --noEmit over shared/s
 
 ### Why the dictionaries stay separate
 
-`client-translations.ts` holds **306 keys** and `admin-translations.ts` holds
-**253** (the counts at the time of writing, printed by
+`client-translations.ts` holds **290 keys** and `admin-translations.ts` holds
+**249** (the counts at the time of writing, printed by
 `npm run check:translations`), and they are deliberately not merged. The public
 dictionary is about a visitor's journey (browsing, searching, registering); the
 admin one is about staff work (editing events, reading registrations). Very few
@@ -438,8 +438,8 @@ the client for a malformed request, which this is not.
 ## 6. Signal-based i18n
 
 The interface is offered in four languages: **English (`en`), Chinese (`zh`),
-Vietnamese (`vi`) and Japanese (`ja`)**. The public site has **306** keys, the
-admin site **253** (the counts at the time of writing - `npm run
+Vietnamese (`vi`) and Japanese (`ja`)**. The public site has **290** keys, the
+admin site **249** (the counts at the time of writing - `npm run
 check:translations` prints the current figures), and the four languages of each
 dictionary define exactly the same key set.
 
@@ -447,8 +447,8 @@ dictionary define exactly the same key set.
 
 ```
   shared/src/i18n/languages.ts            LANGUAGE_CODES, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
-  shared/src/i18n/client-translations.ts  CLIENT_DICTIONARIES: 306 keys x 4 languages
-  shared/src/i18n/admin-translations.ts   ADMIN_DICTIONARIES:  253 keys x 4 languages
+  shared/src/i18n/client-translations.ts  CLIENT_DICTIONARIES: 290 keys x 4 languages
+  shared/src/i18n/admin-translations.ts   ADMIN_DICTIONARIES:  249 keys x 4 languages
   shared/src/i18n/language.model.ts       LanguageInfo, Dictionary, Dictionaries
   shared/src/i18n/translation.service.ts  TranslationService + the APP_DICTIONARIES token
   shared/src/i18n/translate.pipe.ts       {{ 'nav.home' | t }}
@@ -917,7 +917,7 @@ through `puppeteer-core`, and asserts on **what a person would actually see**:
 It needs `npm run build:local` first, because it serves the built applications -
 which is the point: it tests the artefact, not the dev server.
 
-**It now passes in full: 33 checks.** The run starts the API and both static
+**It now passes in full: 40 checks.** The run starts the API and both static
 servers itself and then asserts what a person would see - the organisation and
 event cards, the filter form built from `/api/locations`, a real search
 submission, the registrations table, the Open-Meteo panel with a real
@@ -1030,7 +1030,7 @@ made rather than inherited.
 | **Making the forecast a hard dependency of the event page.** | It is a bonus feature. `forecastFor()` returns `null` instead of rejecting so the page renders whether or not Open-Meteo answers - see [section 8](#8-the-weather-integration-and-its-graceful-degradation) |
 | **Running the API from TypeScript via `ts-node`/`tsx`.** | The cPanel cannot execute TypeScript and a loader would mean shipping a development dependency into the deployment. Compiling to `api/dist` is the portability that works everywhere |
 | **Deleting `legacy/`.** | It is the behavioural reference for the Angular pages and the DOM regression suite `tests/run-tests.js` still runs against it. See [section 10](#10-testing-strategy) |
-| **Translating the event data as well as the interface.** | It would need translated columns or a translation table - a content management feature well beyond the assessment. The interface is translated (306 client keys + 253 admin keys); event names, descriptions and venues come from the database in English, and the header says so while another language is active |
+| **Translating the event data as well as the interface.** | It would need translated columns or a translation table - a content management feature well beyond the assessment. The interface is translated (290 client keys + 249 admin keys); event names, descriptions and venues come from the database in English, and the header says so while another language is active |
 | **`?lang=` only, with no stored preference.** | A choice that does not survive a reload is not a settings control. The stored key is shared between the two sites on purpose, so the choice follows the visitor |
 | **A theme applied only after Angular bootstraps.** | Produces a white flash for a dark-mode visitor, which is exactly the defect `EARLY_THEME_SNIPPET` and the two inline `<head>` scripts exist to prevent |
 

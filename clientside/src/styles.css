@@ -29,14 +29,19 @@
   --accent-600: #d97a1a;
   --accent-500: #f0a04b;
 
-  /* Foreground for text placed on a bright accent fill (the filled buttons,
-     the category chip, the upcoming badge). Defined per theme on purpose: a
-     token that flips cannot be paired with another token that also flips. */
+  /* Foreground for text placed on a bright accent fill (the filled buttons, the
+     category chip). Defined per theme on purpose: a token that flips cannot be
+     paired with another token that also flips. The upcoming badge is deliberately
+     not on this list: it is neutral and takes the base `.badge` pair below, which
+     carries its own foreground. */
   --on-brand: #ffffff;
 
-  /* Fill for the amber chip and the secondary button. Amber is too light to
-     carry white text at 4.5:1, so the light theme darkens the fill and the dark
-     theme brightens it and uses dark ink instead. */
+  /* Fill for the amber chip. Amber is too light to carry white text at 4.5:1, so
+     the light theme darkens the fill and the dark theme brightens it and uses
+     dark ink instead. The chip labels it with --on-brand and never with a written
+     #fff, for the reason the primary button records: this fill flips with the
+     theme, so its label has to flip with it, and a bare #fff would be invisible to
+     the theme system even where it happens to work. */
   --chip-bg: #a85a0c;
 
   --ink-900: #10242b;
@@ -573,13 +578,6 @@ textarea {
 
 .button:active { transform: translateY(0); }
 
-.button--secondary {
-  background: var(--chip-bg);
-  /* Same reasoning as the primary button. */
-  color: var(--on-brand);
-}
-.button--secondary:hover { background: var(--ink-700); color: var(--surface-0); }
-
 .button--ghost {
   background: transparent;
   color: var(--brand-700);
@@ -636,6 +634,42 @@ textarea {
   transform: none;
 }
 
+/*
+ * UPCOMING TAKES THIS BASE PAIR, AND THE BRAND FILL BELONGS TO ACTIVE (review
+ * item: ACTIVE and UPCOMING sit close together in hue - give UPCOMING a neutral
+ * treatment, light grey ground and dark grey text, and reserve the brand green
+ * for ACTIVE).
+ *
+ * NO MODIFIER RULE PAINTS THE UPCOMING BADGE. `badgeClass` in
+ * clientside/src/app/shared/event-card.ts and `stateClass()` in the admin's
+ * pages/event-list/event-list.ts both emit `badge badge--upcoming`, so the badge
+ * always carries this pair as well, and a modifier rule repeating the two
+ * declarations could never change a computed value - which is why this stylesheet
+ * declares no `badge--upcoming` rule. The pair is chosen rather than a written
+ * grey so it follows both themes with no [data-theme] rule of its own: measured
+ * on the rendered badge, #2c4a53 on #eef5f3 is 8.59:1 in the light theme and
+ * #c5d3d2 on #1c2725 is 9.97:1 in the dark one, against 5.16:1 for the fill it
+ * replaces.
+ *
+ * WHAT WAS ACTUALLY THERE. That rule painted UPCOMING with the brand teal, and
+ * the admin's event list painted its ACTIVE publishing status with the SAME class
+ * (`statusClass()` in adminside/src/app/pages/event-list/event-list.ts returned
+ * 'badge badge--upcoming' for 'active'), so in the events table a published event
+ * and an event that has not started yet were literally one colour: measured
+ * #0f7b6c on both, 5.16:1 with the white ink. The review called them "close in
+ * hue"; they were identical, which is the same complaint one step further on.
+ *
+ * SO THE TEAL MOVED TO .badge--active - declared in the admin stylesheet, because
+ * a publishing status is only rendered there. (The old comment here explained that
+ * --brand-100/--brand-900 could not be paired because both flip, which is still
+ * why this pair is a BACKGROUND token with a foreground token from a different
+ * family.)
+ *
+ * CANCELLED GOT A COLOUR OF ITS OWN AT THE SAME TIME. It was the only status left
+ * on the base pair, so withdrawing the brand fill from UPCOMING would have made
+ * "not yet started" and "called off" the same grey - the defect this fix answers,
+ * one state along. See .badge--cancelled in adminside/src/styles.css.
+ */
 .badge {
   display: inline-block;
   padding: 0.2rem 0.65rem;
@@ -648,35 +682,6 @@ textarea {
   color: var(--ink-700);
 }
 
-/*
- * UPCOMING IS NEUTRAL; THE BRAND FILL BELONGS TO ACTIVE (review item: ACTIVE and
- * UPCOMING sit close together in hue - give UPCOMING a neutral treatment, light
- * grey ground and dark grey text, and reserve the brand green for ACTIVE).
- *
- * WHAT WAS ACTUALLY THERE. This rule painted UPCOMING with the brand teal, and
- * the admin's event list painted its ACTIVE publishing status with the SAME class
- * (`statusClass()` in adminside/src/app/pages/event-list/event-list.ts returned
- * 'badge badge--upcoming' for 'active'), so in the events table a published event
- * and an event that has not started yet were literally one colour: measured
- * #0f7b6c on both, 5.16:1 with the white ink. The review called them "close in
- * hue"; they were identical, which is the same complaint one step further on.
- *
- * SO THE TEAL MOVED TO .badge--active - declared in the admin stylesheet, because
- * a publishing status is only rendered there - and UPCOMING takes the base
- * `.badge` pair. That pair is used rather than a written grey so it follows both
- * themes with no [data-theme] rule of its own: measured on the rendered badge,
- * #2c4a53 on #eef5f3 is 8.59:1 in the light theme and #c5d3d2 on #1c2725 is
- * 9.97:1 in the dark one, against 5.16:1 for the fill it replaces. (The old
- * comment here explained that --brand-100/--brand-900 could not be paired because
- * both flip, which is still why the pair above is a BACKGROUND token with a
- * foreground token from a different family.)
- *
- * CANCELLED GOT A COLOUR OF ITS OWN AT THE SAME TIME. It was the only status left
- * on the base `.badge` pair, so withdrawing the brand fill from UPCOMING would
- * have made "not yet started" and "called off" the same grey - the defect this
- * rule fixes, one state along. See .badge--cancelled in adminside/src/styles.css.
- */
-.badge--upcoming { background: var(--surface-100); color: var(--ink-700); }
 .badge--ongoing  { background: var(--success-bg); color: var(--success); }
 /* --ink-900, not --ink-500. This is 12px bold text, which WCAG measures as
    normal text and therefore holds to 4.5:1; the muted ink measured 4.27:1 on
@@ -1587,12 +1592,14 @@ textarea {
   position: absolute;
   top: var(--space-3);
   left: var(--space-3);
-  /* NOT elevation (review item D2). This card is display-only and flat, but the
-     badge is a 12px label painted on top of arbitrary artwork, and its shadow is
-     what separates it from whatever the illustration happens to be at that
-     corner. Removing it would put the label's contrast at the mercy of the
-     image, which is a legibility problem rather than a consistency one, so it is
-     the one deliberate exception to the rule and it is documented here. */
+  /* NOT elevation (review item D2). The card as a whole is flat at rest - one
+     border, one surface, and the elevation it does get belongs to the hover state
+     (`.event-card:has(...)` below) - but the badge is a 12px label painted on top
+     of arbitrary artwork, and its shadow is what separates it from whatever the
+     illustration happens to be at that corner. Removing it would put the label's
+     contrast at the mercy of the image, which is a legibility problem rather than
+     a consistency one, so it is the one deliberate exception to the rule and it is
+     documented here. */
   box-shadow: var(--shadow-sm);
 }
 
@@ -2786,6 +2793,15 @@ textarea:focus { border-color: var(--brand-500); }
 
 /* ==========================================================================
    11. Loading / empty / error states
+   --------------------------------------------------------------------------
+   Every surface in this section is painted from the theme tokens rather than
+   from a written-out white, which is what keeps a loading state from flashing
+   white in the dark theme. The shimmer placeholder that used to sit below the
+   spinner followed the same rule at its MID STOP: the gradient ran
+   --surface-100 -> --surface-0 -> --surface-100, and the middle stop was the base
+   surface token rather than #fff, so the animation brightened to the panel colour
+   the real content lands on instead of flashing white under it. Any replacement
+   placeholder should keep that stop a token.
    ========================================================================== */
 .state {
   grid-column: 1 / -1;
@@ -2829,24 +2845,6 @@ textarea:focus { border-color: var(--brand-500); }
   .spinner { animation-duration: 2s; }
   .event-card, .button, .progress__fill { transition: none; }
   html { scroll-behavior: auto; }
-}
-
-.skeleton {
-  /* The mid stop is a token so the shimmer does not flash white in dark mode. */
-  background: linear-gradient(
-    90deg,
-    var(--surface-100) 25%,
-    var(--surface-0) 50%,
-    var(--surface-100) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.4s infinite;
-  border-radius: var(--radius-sm);
-  min-height: 1rem;
-}
-@keyframes shimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
 }
 
 /* ==========================================================================

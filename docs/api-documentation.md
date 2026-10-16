@@ -144,7 +144,7 @@ the first step of the demo video, and now as proof that the A3 table exists.
       "connected": true,
       "database": "charityevents_db",
       "serverVersion": "8.0.36",
-      "tableCount": 13,
+      "tableCount": 12,
       "registrationTable": true,
       "host": "localhost:3306",
       "user": "charity_app"
@@ -1304,16 +1304,18 @@ pm.test('the Location header points at the new event', () => {
 node tests/run-tests.js
 ```
 
-The suite starts its own API instance, then runs four groups of checks: the two
+The suite starts its own API instance, then runs five groups of checks: the two
 **A2 groups** (HTTP and DOM) are the original **64 checks** - two of them were
 necessarily updated for A3, because A2 asserted that `POST /api/events` was not
 routed and that Register opened an "under construction" dialog, and neither is
-true any more - and the two A3 groups add the write endpoints above plus DOM
-checks for the new pages. The A3 group exercises **both halves of the delete
-rule**: an event with registrations is refused with a 409, then the
-registrations are removed and the same event is deleted successfully. Checking
-it from both sides is what proves the block is caused by the registrations
-rather than by something else.
+true any more - the two A3 groups add the write endpoints above plus DOM
+checks for the new pages, and a fifth group (PART E) exercises repository
+functions directly, for the two things an HTTP response cannot show: the
+offline "today" and the SQL text MySQL builds. The A3 group exercises **both
+halves of the delete rule**: an event with registrations is refused with a 409,
+then the registrations are removed and the same event is deleted successfully.
+Checking it from both sides is what proves the block is caused by the
+registrations rather than by something else.
 
 ```bash
 set TEST_DATA_SOURCE=mysql && node tests/run-tests.js

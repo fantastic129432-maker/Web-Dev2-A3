@@ -490,7 +490,7 @@
               } @else if (forecastSettled()) {
                 <!-- The request finished without a forecast: say so, instead of
                      showing a loading indicator that never resolves. -->
-                <p class="weather__unavailable">{{ 'weather.unavailable' | t }}</p>
+                <p>{{ 'weather.unavailable' | t }}</p>
               } @else {
                 <p class="weather__loading">{{ 'weather.loading' | t }}</p>
               }

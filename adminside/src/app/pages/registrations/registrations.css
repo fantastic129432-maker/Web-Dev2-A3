@@ -29,11 +29,11 @@
  * wraps, where it would otherwise leave a gap).
  *
  * The current page is the one control painted at full strength - the design system's
- * filled-button pair, --brand-700 with --on-brand, which is the pair the UPCOMING
- * badge and every primary button already use and which the contrast check measures
- * on those. The other numbers keep the outlined treatment they inherit, so the
- * position in the set is readable from the shape of the row and not from colour
- * alone: `aria-current="page"` carries the same fact to assistive technology.
+ * filled-button pair, --brand-700 with --on-brand, which is the pair every primary
+ * button already uses and which the contrast check measures on those. The other
+ * numbers keep the outlined treatment they inherit, so the position in the set is
+ * readable from the shape of the row and not from colour alone:
+ * `aria-current="page"` carries the same fact to assistive technology.
  */
 .admin-pager {
   display: flex;

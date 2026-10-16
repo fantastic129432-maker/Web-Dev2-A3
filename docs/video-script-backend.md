@@ -485,7 +485,7 @@ request, and `api/src/routes/apiRoutes.ts` → `registrationController` →
 
 > "I extended the automated test suite, and there are four layers.
 
-> `npm test` runs **116** checks: the HTTP contract against the real Express API,
+> `npm test` runs **131** checks: the HTTP contract against the real Express API,
 > endpoint by endpoint, plus a jsdom regression suite that loads the **archived**
 > Assessment 2 frontend — kept under `legacy/` as the behavioural reference for the
 > pages that were rewritten. It starts its own API instance on a free port, so it
