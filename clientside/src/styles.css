@@ -1434,8 +1434,11 @@ textarea {
  * Chinese - and the columns are shorter than the padded version too, because the
  * extra 48px of width means less wrapping.
  *
- * Only the box is removed: the heading, the list spacing and the ink colours still
- * come from `.info-card`, and `.grid--two` still holds the two columns on one row.
+ * Only the box is removed: the heading, the ink colours and the list's own inset
+ * still come from `.info-card` and the global `ul` rule - the inset is MOVED so
+ * that the marker hangs in it instead of the text being indented into it, which
+ * is the note directly below this one - and `.grid--two` still holds the two
+ * columns on one row.
  */
 .info-card--plain {
   background: none;
@@ -1443,6 +1446,95 @@ textarea {
   border-radius: 0;
   padding: 0;
   box-shadow: none;
+}
+
+/*
+ * THE MARKER HANGS IN THE GUTTER; THE ITEM TEXT STANDS ON THE COLUMN'S EDGE.
+ *
+ * WHAT WAS WRONG, measured in headless Edge on the built page, 1440px wide: the
+ * global `ul` rule above indents a list by 1.15rem, so in this section the
+ * heading's left edge and the <ul>'s left edge were both at x=154 while the first
+ * line of every list item started at x=172.39 - the browser indents the item text
+ * to make room for its marker. The right-hand column of the same grid is a heading
+ * and paragraphs whose text starts at x=732, which is that column's own edge. Two
+ * columns meant to read as one block therefore had left reference lines 18.4px
+ * apart: nothing about the typography was wrong, but an indent that is invisible
+ * inside a padded card becomes "carved in" once `.info-card--plain` above removes
+ * the box, and it left the left column looking pushed in beside a clean rectangle.
+ *
+ * THE FIX IS ONE NEGATIVE MARGIN. The list keeps the 1.15rem inset it has always
+ * had - that inset is still the gutter the marker is drawn in - and the whole list
+ * is moved 1.15rem left, so the item text, and not the padding, starts on the
+ * column's edge: x=154 with the heading at 1440px, x=16 with it at a 390px phone
+ * width. That also gives the item text the full width of the column (554px at
+ * 1440px, the same measure the right column's paragraphs have), which is what
+ * makes the left column read as the same rectangle rather than a pushed-in one.
+ *
+ * WHAT THAT DOES TO THE WRAPPING, measured in all four languages at 1024, 1440,
+ * 1920 and 390px in both themes: nothing at all, except English at 1024px, where
+ * the bullets are already within a line of the column's width and two of the four
+ * now fit on one line each (items measured 2/2/2/2 lines before this rule and
+ * 2/1/1/2 after). That is the only case where the left column's height moves, and
+ * it moves TOWARDS the right column rather than away from it: at 1024px in English
+ * the two columns' last text lines were 62.37px apart - two lines - and are now
+ * 8px apart, the same 8px they measure at 1440 and 1920px in every language.
+ * Nothing else moved in the 30 other measured combinations: the item line counts,
+ * the two columns' end lines and the right column's own text edges are all exactly
+ * what they were. The notes above about the two columns ending level therefore
+ * still hold, and the one gap this rule closes is English at 1024px.
+ *
+ * WHY THE DISC IS REDRAWN AS ::before. `list-style-position: outside` alone cannot
+ * do this here. Measured, the browser's own marker sits a fixed distance left of
+ * the item text and ignores the inset: with the inset at 0, 4, 8, 18.4 and 40px
+ * the disc painted at x = text-17 .. text-13 every time. So the moment the text
+ * stands on the column's edge the disc has to fit the container's own gutter, and
+ * it does not: at a 390px phone width `padding-inline` is 16px and the disc was
+ * measured flush against x=0 - the hang is a pixel wider than the whole gutter,
+ * and there is nothing left between the glyph and the edge of the screen. That is
+ * the collision and the clipping risk the requirement rules out, so the disc is
+ * drawn by the ::before below instead: the same glyph (U+2022 in the item's own
+ * font, in the item's `--ink-700`, so it flips with the theme exactly as the text
+ * does), right-aligned inside the 1.15rem gutter with a 0.4em gap, which measured
+ * 8px from the text and 5px from the viewport edge at 390px and 12..16px at
+ * 1024px. The list is still a <ul> of <li>s to a screen reader; only the UA's
+ * marker box is switched off.
+ *
+ * MEASURED AFTER (headless Edge, built page, both themes, English, Chinese,
+ * Vietnamese and Japanese, at 1024, 1440, 1920 and 390px wide): heading, <ul> and
+ * item text all on one line at the column's edge - 154/154/154 at 1440px and
+ * 16/16/16 at 390px; the disc's painted pixels at x=142..146 and x=5..8, on the
+ * first line's vertical centre, painted in the item's own ink in both themes; the
+ * wrapped lines of an item starting under its first line's text (measured with a
+ * deliberately long item at every width); no horizontal scrollbar and no change to
+ * the right column's own edges at any width. The list's border box now starts
+ * 1.15rem left of the column, which paints nothing, clips nothing and scrolls
+ * nothing: it is the marker's gutter, and the disc inside it stays on screen.
+ */
+.info-card--plain > ul {
+  /* The inset stays and the whole list moves: see the note above. */
+  margin-left: -1.15rem;
+  /* The disc is the ::before below, so the UA's own marker is switched off. */
+  list-style: none;
+}
+.info-card--plain > ul > li {
+  /* The marker is positioned against the ITEM, not against the line, so it stays
+     on the first line of an item that wraps, and against the item's padding box,
+     which is what `left: -1.15rem` on the marker below measures from. */
+  position: relative;
+}
+.info-card--plain > ul > li::before {
+  content: "\2022";
+  position: absolute;
+  /* The whole 1.15rem gutter, pulled back into it: the marker's box ends exactly
+     where the item text begins, and the box is the same width as the gutter, so a
+     long word in the text cannot reach the disc. */
+  left: -1.15rem;
+  box-sizing: border-box;
+  width: 1.15rem;
+  /* The gap between the disc and the text - and the reason the disc still clears
+     the container at a phone width, where the gutter is only 16px. */
+  padding-right: 0.4em;
+  text-align: right;
 }
 
 .contact-list { list-style: none; padding: 0; }
