@@ -58,9 +58,18 @@
      every page, so the line states the size of the WHOLE matched set while the table
      shows ten of it: "Showing 10 of 250" is true on page one AND on page eleven, which
      is why the only thing that reports the POSITION is the pager's live status line
-     under the table. Both numbers come from the one response the page is rendering. -->
+     under the table. Both numbers come from the one response the page is rendering.
+
+     THE NOUN FOLLOWS `total`, so a filter matching exactly one row reads "Showing 1 of
+     1 registration" rather than "…of 1 registrations". The dictionary carries a
+     singular key beside the plural one, the same way the delete dialog carries
+     deleteReleasesOne beside deleteReleasesMany, because the shared placeholder
+     substitution has no plural form to reach for; see countLabelKey() in the page
+     class for why the switch reads `total()` and not the row count. Chinese,
+     Vietnamese and Japanese do not inflect, so their two keys hold identical text -
+     which is what keeps the four dictionaries in lockstep. -->
 <p class="admin-count" role="status">
-  {{ 'registrations.count' | t: { count: registrations().length, total: total() } }}
+  {{ countLabelKey() | t: { count: registrations().length, total: total() } }}
 </p>
 
 @if (loading()) {
@@ -181,10 +190,16 @@
         The wording was "Tickets", which named only half of what the row totals -
         the count AND the ticket-sales money. It is now a summary label, translated
         as `registrations.totalSummary`.
+
+        THE NOUN FOLLOWS THE ROW COUNT, not `total`: the label totals the rows of this
+        page, so a page holding exactly one row reads "Total for 1 registration"
+        rather than "Total for all 1 registrations" (measured on the seeded data at
+        /registrations?eventId=8, and again on the last page of a set whose size is
+        not a multiple of ten). See totalSummaryKey() in the page class.
       -->
       <tfoot>
         <tr>
-          <th scope="row" colspan="3">{{ 'registrations.totalSummary' | t: { total: registrations().length } }}</th>
+          <th scope="row" colspan="3">{{ totalSummaryKey() | t: { total: registrations().length } }}</th>
           <td class="is-numeric">{{ totalTickets() }}</td>
           <td class="is-numeric">{{ formatCurrency(totalValue()) }}</td>
           <td colspan="2"></td>
@@ -217,6 +232,13 @@
     bare digit is not announced on its own. The status line repeats that position as a
     live region, which is the announcement a page change otherwise would not produce:
     the "Showing X of Y" line above reads identically on two pages of the same filter.
+
+    THE NUMBERED BUTTONS ARE A BOUNDED WINDOW (see pageItems() in the page class), so
+    a matched set of a few thousand rows renders seven controls rather than five
+    hundred. A gap is an ellipsis in a `<li>` of its own - `aria-hidden`, because it
+    carries no information a screen reader can act on: the first and last page numbers
+    are always real buttons, and the status line states the position in words. It is
+    rendered as a non-button so it cannot be focused or clicked.
   -->
   <nav class="admin-pager" [attr.aria-label]="'registrations.pagination' | t">
     <button
@@ -229,18 +251,22 @@
     </button>
 
     <ul class="admin-pager__pages">
-      @for (page of pageNumbers(); track page) {
+      @for (item of pageItems(); track item.key) {
         <li>
-          <button
-            class="button button--small button--outline admin-pager__page"
-            type="button"
-            [class.admin-pager__page--current]="page === currentPage()"
-            [attr.aria-current]="page === currentPage() ? 'page' : null"
-            [attr.aria-label]="'registrations.pageOf' | t: { page: page, pages: pageCount() }"
-            (click)="goToPage(page)"
-          >
-            {{ page }}
-          </button>
+          @if (item.page === null) {
+            <span class="admin-pager__gap" aria-hidden="true">&hellip;</span>
+          } @else {
+            <button
+              class="button button--small button--outline admin-pager__page"
+              type="button"
+              [class.admin-pager__page--current]="item.page === currentPage()"
+              [attr.aria-current]="item.page === currentPage() ? 'page' : null"
+              [attr.aria-label]="'registrations.pageOf' | t: { page: item.page, pages: pageCount() }"
+              (click)="goToPage(item.page)"
+            >
+              {{ item.page }}
+            </button>
+          }
         </li>
       }
     </ul>

@@ -3,10 +3,17 @@
  *
  * `display: contents` keeps the <nav> below in exactly the place the archived admin
  * markup had it - a direct child of the block that renders the header band - so the
- * sticky positioning of `.admin-nav` (src/styles.css) is resolved against the same
- * containing block as before, and the print rule that hides `.admin-nav` leaves
- * nothing behind. An extra block wrapper would be invisible here too, but this makes
- * the menu's box position a guarantee rather than something that happens to be true.
+ * menu's own rules and the print rule that hides `.admin-nav` leave nothing behind.
+ * An extra block wrapper would be invisible here too, but this makes the menu's box
+ * position a guarantee rather than something that happens to be true.
+ *
+ * THE CONTAINING BLOCK OF A STICKY ELEMENT IS ITS PARENT'S BOX, so the parent above
+ * this one matters too: `admin-header.css` gives ITS host `display: contents` for the
+ * same reason, which is what leaves `.admin-nav` with the shell's content box to
+ * travel in. With either host left as a block, `.admin-nav` would be confined to that
+ * host's own height - it and the host share a bottom edge - and `top: 0` would never
+ * pin anything. Measured before the fix, on /events: both boxes at 134.13px at rest
+ * and both at -336.61px after a 400px scroll.
  *
  * Nothing about the menu's appearance is redeclared: the colours, the spacing, the
  * sticky behaviour and the active-link underline all come from the global

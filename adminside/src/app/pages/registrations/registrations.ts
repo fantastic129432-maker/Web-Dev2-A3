@@ -29,6 +29,51 @@ import { FeedbackBanner } from '../../shared/feedback-banner/feedback-banner';
 const PAGE_SIZE = 10;
 
 /**
+ * Above this many pages the pager is windowed instead of rendered in full.
+ *
+ * Seven is the widest a window can be - first, last, the current page and its two
+ * neighbours on either side, plus the two possible gaps - so below it there is
+ * nothing to elide and the full list is the honest rendering. See pageItems().
+ */
+const PAGE_WINDOW_THRESHOLD = 7;
+
+/**
+ * One entry of the pager: a page number, or a gap standing for the pages between
+ * two runs of numbers.
+ *
+ * `key` is what the template's `@for` tracks, because a page entry and a gap entry
+ * are different things and only the page entries carry a number; `page` is null
+ * exactly when the entry is a gap.
+ */
+interface PageItem {
+  /** A stable identity for `track`, unique within one rendering of the list. */
+  readonly key: string;
+  /** The one-based page number, or null for a gap. */
+  readonly page: number | null;
+}
+
+/**
+ * Build a page entry.
+ *
+ * @param page - The one-based page number the button will offer.
+ * @returns The entry the template renders as a numbered button.
+ */
+function pageItem(page: number): PageItem {
+  return { key: `page-${page}`, page };
+}
+
+/**
+ * Build a gap entry, standing for the pages that are not listed.
+ *
+ * @param side - Which end of the window the gap sits at, so the two gaps of one
+ *   rendering keep distinct track keys.
+ * @returns The entry the template renders as an ellipsis.
+ */
+function gapItem(side: 'start' | 'end'): PageItem {
+  return { key: `gap-${side}`, page: null };
+}
+
+/**
  * The page listing every registration recorded in the system, newest purchase
  * first.
  *
@@ -184,19 +229,48 @@ export class Registrations {
   /**
    * Every page number, for the numbered buttons.
    *
-   * Rendered in full rather than windowed with ellipses. That was already true when
-   * the page sliced a fixed hundred rows in the browser; now that the page count
-   * follows the API's total it is a deliberate trade rather than a free one, because
-   * a filter matching a few thousand rows would render a long, wrapped row of
-   * buttons. It is kept because the buttons wrap, the "Page {page} of {pages}" status
-   * beside them still names the position, and a windowing rule would have to invent
-   * ellipsis markup and a second way to say the same thing - while the seeded set
-   * (20 rows) and the filter this page exists for (one event) both stay inside two
-   * buttons.
+   * WINDOWED, BECAUSE `pageCount()` FOLLOWS THE API'S TOTAL AND HAS NO CEILING.
+   *   The buttons used to be `Array.from({ length: pageCount() })` - one per page of
+   *   the whole matched set - which was defensible while the page sliced a fixed
+   *   hundred rows in the browser and produced at most ten buttons. Now that the
+   *   count is the API's, a filter matching a few thousand registrations produces a
+   *   few hundred buttons: measured against this build with a response whose
+   *   `meta.total` was 5000, the pager rendered 500 numbered buttons wrapped over 18
+   *   rows and 754px of height below the table, which buries the footer and makes the
+   *   row of numbers unreadable. The earlier note here accepted that as a deliberate
+   *   trade because "the buttons wrap"; wrapping is what made it 754px tall.
+   *
+   *   So the list is bounded to at most seven entries: the first page, the last
+   *   page, the page before and after the current one, the current page, and a gap
+   *   wherever those runs are separated. The first and last pages are always
+   *   present, so every match stays reachable - which is the property the full list
+   *   was kept for - and `registrations.pageOf` on each button plus the status line
+   *   still name the position, so shrinking the list costs a reader nothing.
+   *
+   *   A BELOW-THRESHOLD SET IS STILL RENDERED IN FULL: with seven pages or fewer
+   *   there is nothing to elide, so the seeded data (20 rows: two pages) renders
+   *   exactly the two buttons it always did and no ellipsis appears anywhere.
    */
-  protected readonly pageNumbers = computed(() =>
-    Array.from({ length: this.pageCount() }, (_, index) => index + 1)
-  );
+  protected readonly pageItems = computed<readonly PageItem[]>(() => {
+    const total = this.pageCount();
+    const current = this.currentPage();
+
+    if (total <= PAGE_WINDOW_THRESHOLD) {
+      return Array.from({ length: total }, (_, index) => pageItem(index + 1));
+    }
+
+    // The run of numbers around the current page, kept inside the first and last.
+    const left = Math.max(2, current - 1);
+    const right = Math.min(total - 1, current + 1);
+
+    const items: PageItem[] = [pageItem(1)];
+    if (left > 2) items.push(gapItem('start'));
+    for (let page = left; page <= right; page += 1) items.push(pageItem(page));
+    if (right < total - 1) items.push(gapItem('end'));
+    items.push(pageItem(total));
+
+    return items;
+  });
 
   /** Exposed to the template: the same two formatters every other page uses. */
   protected readonly formatCurrency = formatCurrency;
@@ -441,6 +515,42 @@ export class Registrations {
   }
 
   /* ------------------------------------------------------------- display ---- */
+
+  /**
+   * The dictionary key for the "Showing X of Y" line, singular when there is one.
+   *
+   * THE NOUN BELONGS TO `total`, WHICH IS WHY THE SWITCH READS `total()`: the
+   * sentence is "Showing {count} of {total} registrations", and it is the size of
+   * the matched set that the plural noun counts. Page two of a 21-row result shows
+   * "Showing 1 of 21 registrations" - correct as it stands - while a filter that
+   * matches exactly one row showed "Showing 1 of 1 registrations", which is the
+   * defect the second key exists for. Measured on the seeded data:
+   * /registrations?eventId=8 renders one row and read "Showing 1 of 1 registrations".
+   *
+   * @returns The key for the singular sentence when one row matched, the plural key otherwise.
+   */
+  protected countLabelKey(): string {
+    return this.total() === 1 ? 'registrations.countOne' : 'registrations.count';
+  }
+
+  /**
+   * The dictionary key for the totals row's label, singular when it totals one row.
+   *
+   * THIS SWITCH READS THE ROWS IT TOTALS, NOT `total()`, and the difference is the
+   * whole point: the label describes the rows of the page on screen, which is the
+   * same count totalTickets() and totalValue() sum. The last page of a set whose
+   * size is not a multiple of PAGE_SIZE holds one row while `total()` is much
+   * larger, and "Total for all 1 registrations" was wrong there too. Measured on the
+   * seeded data: /registrations?eventId=8 renders one filtered row, and page three
+   * of a 21-row set renders one too.
+   *
+   * @returns The key for the singular label when the page holds one row, the plural key otherwise.
+   */
+  protected totalSummaryKey(): string {
+    return this.registrations().length === 1
+      ? 'registrations.totalSummaryOne'
+      : 'registrations.totalSummary';
+  }
 
   /**
    * Total tickets across the rows of the page on screen, for the table's footer.

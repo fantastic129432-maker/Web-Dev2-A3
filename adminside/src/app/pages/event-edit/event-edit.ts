@@ -148,8 +148,23 @@ export class EventEdit {
 
   /* ----------------------------------------------------------------- save ---- */
 
-  /** PUT the changed fields and report the outcome. */
+  /**
+   * PUT the changed fields and report the outcome.
+   *
+   * THE GUARD IS HERE RATHER THAN ONLY IN THE FORM, for the reason recorded on
+   * `EventNew.create()`: `saving` reaches `EventForm` as an input binding, so it is
+   * still false inside this same JavaScript task, and two clicks dispatched together
+   * both got through - measured with the PUT paused at the network layer, two
+   * `PUT /api/events/2` requests left the browser. This signal is set synchronously
+   * below, so the second call returns instead. A real pointer cannot click twice in
+   * one task; a script or a coalesced click can, and the second request is a second
+   * write of the same payload.
+   *
+   * @param input - The validated payload the form emitted.
+   */
   protected save(input: EventInput): void {
+    if (this.saving()) return;
+
     const original = this.event();
     const changes = changedFields(input, original);
     const changed = Object.keys(changes);

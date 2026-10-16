@@ -198,8 +198,8 @@ This one endpoint serves **both** the home page and the search page.
 | `isFree` | `true` \| `false` | - | Only free events, or only paid events |
 | `organizationId` | id | - | Restrict to one organisation |
 | `includePast` | `true` \| `false` | `false` | Convenience alias for `state=all` |
-| `audience` | `public` \| `admin` | `public` | **A3.** `admin` switches the query from `vw_public_events` to `vw_all_events`, so suspended and cancelled events are included. Any other value falls back to `public` |
-| `publishStatus` | `active` \| `suspended` \| `cancelled` \| `all` | `all` | **A3.** Filters on the stored publishing status. It only has an effect when `audience=admin`, because the public view has already fixed the status to `active`. Any other value falls back to `all` |
+| `audience` | `public` \| `admin` | `public` | **A3.** `admin` switches the query from `vw_public_events` to `vw_all_events`, so suspended and cancelled events are included. Any other value is a **400** naming `public, admin` |
+| `publishStatus` | `active` \| `suspended` \| `cancelled` \| `all` | `all` | **A3.** Filters on the stored publishing status. It only has an effect when `audience=admin`, because the public view has already fixed the status to `active`. Any other value is a **400** naming the four accepted words |
 | `sort` | `date` \| `name` \| `goal` \| `progress` \| `category` \| `city` | `date` | Whitelisted sort keys only |
 | `direction` | `asc` \| `desc` | `asc` | Sort direction |
 | `limit` | 1-100 | 20 | Page size |
@@ -208,7 +208,11 @@ This one endpoint serves **both** the home page and the search page.
 
 `audience` and `publishStatus` are new in A3, and both are written so that an
 existing A2 caller cannot change behaviour by accident: `audience` defaults to
-`public`, which is the view A2 always used.
+`public`, which is the view A2 always used, and `publishStatus` defaults to
+`all`. Because each of them selects which rows come back, an unrecognised value
+is refused with a 400 naming the accepted words rather than being replaced by
+the default: a dropped switch answers `200` with a different set of rows, which
+a caller cannot tell apart from a correct answer.
 
 ### Example - the home page (current and upcoming only)
 

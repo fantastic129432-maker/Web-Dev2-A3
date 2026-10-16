@@ -132,15 +132,51 @@ export class EventList {
   constructor() {
     usePageTitle('events.heading');
 
-    // A link from another page may preselect a filter through the query string.
-    const query = this.route.snapshot.queryParamMap;
-    this.filters.setValue({
-      publishStatus: query.get('publishStatus') ?? 'all',
-      state: query.get('state') ?? 'all',
-      keyword: query.get('keyword') ?? '',
-    });
+    /*
+     * THE ADDRESS BAR IS FOLLOWED FOR AS LONG AS THE PAGE IS OPEN, not read once.
+     *
+     * The filters live in the URL so a filtered view can be refreshed or shared, and
+     * this page also WRITES that URL whenever Apply or Clear runs. Reading it once, in
+     * the constructor, therefore left the page describing a URL that had moved on: the
+     * router reuses this component when only the query string changes, so a link from
+     * anywhere to /events - or the menu's own "Events" entry, clicked while a filter
+     * was applied - changed the address to /events and left the form and the list on
+     * the previous filter. Measured: /events?publishStatus=suspended&keyword=gala
+     * rendered zero rows with Status = suspended; clicking the menu's Events link put
+     * "/events" in the address bar and left Status = suspended, Keyword = gala and the
+     * same zero rows on screen. A refresh then showed every event, which is the one
+     * thing a URL the page claims to be showing must not do.
+     *
+     * The subscription below re-applies the URL whenever it differs from the form, and
+     * does nothing when it does not - that second half is what keeps this page's OWN
+     * writes from re-triggering a load: syncUrl() runs after the form has already been
+     * set, so the echo of our own navigation matches and stops there. The `first` flag
+     * exists because the router's queryParamMap emits the current URL immediately: the
+     * opening load must happen even when the URL carries no filter at all, which is
+     * exactly the case where "nothing changed" is also true.
+     */
+    let first = true;
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const next = {
+          publishStatus: params.get('publishStatus') ?? 'all',
+          state: params.get('state') ?? 'all',
+          keyword: params.get('keyword') ?? '',
+        };
 
-    this.load();
+        const current = this.filters.getRawValue();
+        const changed =
+          next.publishStatus !== current.publishStatus ||
+          next.state !== current.state ||
+          next.keyword !== current.keyword;
+
+        if (!first && !changed) return;
+        first = false;
+
+        if (changed) this.filters.setValue(next);
+        this.load();
+      });
   }
 
   /* ---------------------------------------------------------------- load ---- */

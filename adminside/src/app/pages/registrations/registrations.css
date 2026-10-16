@@ -59,6 +59,30 @@
   padding-right: 0.6rem;
 }
 
+/*
+ * The ellipsis standing for the pages a windowed pager does not list.
+ *
+ * It occupies the same box as a page button so the numbers around it keep the row's
+ * rhythm instead of closing up around the gap - `min-width` and the horizontal
+ * padding are the button's own, and `line-height: 1` with the same font size keeps
+ * its height from pushing the row taller. It is deliberately NOT a button: there is
+ * nothing to press, so it is neither focusable nor hoverable, and the template marks
+ * it `aria-hidden` because "page 1 and page 5000 are reachable" is already said by
+ * the two real buttons beside it and by the status line.
+ *
+ * --ink-700 on --surface-50 is the pair the admin tables' own text uses; the
+ * site-wide contrast check holds this 1rem punctuation mark well above the 4.5:1 its
+ * size requires.
+ */
+.admin-pager__gap {
+  display: block;
+  min-width: 2.4rem;
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+  text-align: center;
+  color: var(--ink-700);
+}
+
 /* Qualified with the list, not just the modifier: the dark theme repaints every
    `.button--outline` from `[data-theme='dark'] .button--outline`, which has the same
    specificity as a single class, and a page style that only won on source order

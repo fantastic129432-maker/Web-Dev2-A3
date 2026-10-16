@@ -339,9 +339,13 @@ header's other controls, because it leaves this application entirely and uses
 the OTHER_SITE_URL injection token rather than a route.
 WHY THE HOST ELEMENT MUST NOT ADD A BOX
 The menu is a direct child of the shell's layout: `.admin-nav` is the sticky band
-in `adminside/src/styles.css`. `admin-nav.css` gives this host
-`display: contents`, so the <nav> is laid out exactly where it was before the
-markup moved and no CSS rule had to move with it.
+in `adminside/src/styles.css`. `admin-nav.css` gives this host `display: contents`
+so the <nav> is laid out exactly where it was before the markup moved, no CSS rule
+had to move with it, and - the part that was wrong until this round - the sticky
+band has the SHELL's content box to travel in. It used to be confined to
+`admin-header`'s own box, whose bottom edge is the menu's own bottom edge, so the
+menu scrolled away with the header and `top: 0` never pinned anything; the
+measurements and the one-line repair are recorded in `admin-header.css`.
 IT PUBLISHES ITS OWN HEIGHT, for the same reason the public site's header does.
 `.admin-nav` is pinned at `top: 0`, so it is the band a sticky element below it
 has to clear. The event form's right column follows the scroll with
@@ -1417,7 +1421,9 @@ isFree                true | false
 includePast           true | false (used by the home page)
 sort, direction       whitelisted sort keys
 limit, offset, page   pagination
-audience              public | admin (the A3 admin switch)
+audience              public | admin (the A3 admin switch), checked like
+`state` and `sort`: a value outside the list is a 400
+rather than a switch that is quietly ignored
 publishStatus         active | suspended | cancelled | all, checked like `state`
 and `sort`: a value outside the list is a 400 rather than
 a filter that is quietly ignored
@@ -1540,11 +1546,16 @@ returned row into a 201 with a `Location` header.
 Update one event as a partial update.
 Only the fields sent are changed, and sending `{}` is a 400 because that is
 more likely to be a client bug than a real request - it would otherwise be a
-silent no-op reported as success.
+silent no-op reported as success. The pairs the row has to satisfy - end date
+not before start date, end time after start time - are checked against the row
+the update will actually leave behind, not only against the fields that
+happened to arrive together; see assertUpdateKeepsPairsOrdered().
 - `@param rawId - The id from the route parameter, still unvalidated text.`
 - `@param body - The untrusted request body holding only the fields to change.`
 - `@returns The event as it now stands, including its ticket tiers.`
-- `@throws HttpError with status 400 for an invalid id, an empty body or a value the database refuses, and 404 when no event has that id.`
+- `@throws HttpError with status 400 for an invalid id, an empty body, a pair the`
+stored row cannot satisfy or a value the database refuses, and 404 when no
+event has that id.
 
 #### function `deleteEvent`
 

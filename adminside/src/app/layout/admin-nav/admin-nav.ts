@@ -32,9 +32,13 @@ interface NavItem {
  *
  * WHY THE HOST ELEMENT MUST NOT ADD A BOX
  *   The menu is a direct child of the shell's layout: `.admin-nav` is the sticky band
- *   in `adminside/src/styles.css`. `admin-nav.css` gives this host
- *   `display: contents`, so the <nav> is laid out exactly where it was before the
- *   markup moved and no CSS rule had to move with it.
+ *   in `adminside/src/styles.css`. `admin-nav.css` gives this host `display: contents`
+ *   so the <nav> is laid out exactly where it was before the markup moved, no CSS rule
+ *   had to move with it, and - the part that was wrong until this round - the sticky
+ *   band has the SHELL's content box to travel in. It used to be confined to
+ *   `admin-header`'s own box, whose bottom edge is the menu's own bottom edge, so the
+ *   menu scrolled away with the header and `top: 0` never pinned anything; the
+ *   measurements and the one-line repair are recorded in `admin-header.css`.
  *
  * IT PUBLISHES ITS OWN HEIGHT, for the same reason the public site's header does.
  *   `.admin-nav` is pinned at `top: 0`, so it is the band a sticky element below it

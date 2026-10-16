@@ -103,8 +103,30 @@ export class EventNew {
       });
   }
 
-  /** POST the validated payload, then move to the event that was created. */
+  /**
+   * POST the validated payload, then move to the event that was created.
+   *
+   * THE GUARD IS HERE RATHER THAN ONLY IN THE FORM, and the difference is one change
+   * detection. `EventForm.onSubmit()` also returns early while `saving()` is true, but
+   * `saving` reaches the form as an INPUT binding, which Angular updates when it next
+   * checks the view - not while this handler is still running. Two clicks dispatched
+   * in the same JavaScript task therefore both get past the form's guard, and measured
+   * against this build (a click on Save, then a second click before any change
+   * detection, with the PUT paused at the network layer) TWO `PUT /api/events/2`
+   * requests left the browser. A real pointer cannot produce that - two physical clicks
+   * are two tasks, and change detection runs between them - but a script, a synthetic
+   * click, or a browser that coalesces them can, and the second request is a second
+   * write of the same payload.
+   *
+   * This signal, unlike the input, IS up to date: it is set synchronously by this very
+   * method, so the second call reads true and returns. The form's own guard stays as
+   * well - it is what stops the button being pressed again while the page is busy.
+   *
+   * @param input - The validated payload the form emitted.
+   */
   protected create(input: EventInput): void {
+    if (this.saving()) return;
+
     this.saving.set(true);
     this.serverErrors.set({});
 

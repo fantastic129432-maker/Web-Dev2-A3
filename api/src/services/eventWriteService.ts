@@ -39,6 +39,18 @@ const {
 const PUBLISH_STATUSES = ['active', 'suspended', 'cancelled'];
 
 /**
+ * The two cross-field messages, shared by every check that can raise them.
+ *
+ * `validateEventBody()` raises them for a body that carries both halves of a pair,
+ * and the partial-update check below raises them for a body that carries one half
+ * and inherits the other from the stored row. Two callers, one wording apiece, so
+ * the client cannot be told two different things about the same rule depending on
+ * how the request happened to be shaped.
+ */
+const DATE_ORDER_MESSAGE = 'The end date cannot be earlier than the start date.';
+const TIME_ORDER_MESSAGE = 'The end time must be later than the start time.';
+
+/**
  * The image files the client website ships with.
  *
  * A free-text image_url is accepted as well (an external URL), but choosing from
@@ -144,13 +156,13 @@ function validateEventBody(
   if (values.dateStart && values.dateEnd && values.dateEnd < values.dateStart) {
     errors.push({
       field: 'dateEnd',
-      message: 'The end date cannot be earlier than the start date.',
+      message: DATE_ORDER_MESSAGE,
     });
   }
   if (values.startTime && values.endTime && values.endTime <= values.startTime) {
     errors.push({
       field: 'endTime',
-      message: 'The end time must be later than the start time.',
+      message: TIME_ORDER_MESSAGE,
     });
   }
 
@@ -282,16 +294,103 @@ async function createEvent(body: UntrustedInput): Promise<DataRecord> {
 }
 
 /**
+ * Refuse a partial update that would leave the stored row contradicting itself.
+ *
+ * THE DEFECT THIS CLOSES, AND WHY IT COULD NOT BE LEFT TO THE DATABASE
+ *   `validateEventBody()` compares the start and the end of a pair only when BOTH
+ *   halves are in the body. An update sends only what changed, so
+ *
+ *     PUT /api/events/14  {"dateStart": "2027-06-01"}
+ *
+ *   was accepted: one half was written, the other stayed as stored, and the row
+ *   ended up with `date_end` (2026-12-01) EARLIER than `date_start` (2027-06-01) -
+ *   a state `chk_events_dates CHECK (date_end >= date_start)` in
+ *   database/01_schema.sql declares impossible, and that the same API refuses with
+ *   a 400 the moment both dates arrive in one body. `chk_events_times` fails the
+ *   same way for `start_time` / `end_time`. Measured against the offline data
+ *   source: both requests answered 200 and the reversed range was stored.
+ *
+ *   The database cannot be the answer on the deployed host. /docs/
+ *   deployment-cpanel.md records the measured server as MySQL 5.7.44, where a
+ *   CHECK constraint is parsed and IGNORED - and `database/charityevents_db.mysql57.sql`
+ *   is what is imported there - so on the live host these two constraints enforce
+ *   nothing at all and the application layer is the only guard. That is the same
+ *   reason the size bounds in validateEventBody() repeat the column definitions
+ *   instead of trusting the table.
+ *
+ *   These two are the only constraints the application does not already enforce
+ *   somewhere else. `tickets_purchased >= 1`, the email pattern and the goal and
+ *   price minimums are all checked by the validators on every path (see the
+ *   MySQL 5.7 note in docs/deployment-cpanel.md), so they need nothing here.
+ *
+ * WHY THE CHECK IS THE MERGED ROW RATHER THAN THE PAYLOAD
+ *   The outcome is what has to hold, not the request: the field that is absent
+ *   keeps the value the database already holds, so the stored row is read and the
+ *   sent fields are laid over it. A request that does not touch either pair skips
+ *   the read entirely, which keeps the ordinary partial update (a goal, a name, a
+ *   status) exactly as cheap as it was.
+ *
+ *   A row that is ALREADY inconsistent - written before this check existed, or
+ *   imported - can still be edited, as long as the edit does not itself change one
+ *   half of the broken pair: the check runs only on the pair the request touches.
+ *   Refusing every write to such a row would make it unrepairable field by field.
+ *
+ * @param eventId - The id of the event being changed.
+ * @param values - The validated fields the request is about to write.
+ * @throws HttpError with status 400 when the update would leave the end before the
+ *   start, or the end time at or before the start time.
+ */
+async function assertUpdateKeepsPairsOrdered(
+  eventId: number,
+  values: DataRecord
+): Promise<void> {
+  const touchesDates = values.dateStart !== undefined || values.dateEnd !== undefined;
+  const touchesTimes = values.startTime !== undefined || values.endTime !== undefined;
+  if (!touchesDates && !touchesTimes) return;
+
+  const stored = await repository.findEventById(eventId, { status: 'all' });
+  // No stored row: the update answers 404 on its own, and there is nothing to merge.
+  if (!stored) return;
+
+  const errors: ValidationIssue[] = [];
+
+  if (touchesDates) {
+    const start = values.dateStart ?? stored.dateStart;
+    const end = values.dateEnd ?? stored.dateEnd;
+    if (start && end && String(end) < String(start)) {
+      errors.push({ field: 'dateEnd', message: DATE_ORDER_MESSAGE });
+    }
+  }
+
+  if (touchesTimes) {
+    const start = values.startTime ?? stored.startTime;
+    const end = values.endTime ?? stored.endTime;
+    // `<=` rather than `<`: chk_events_times requires end_time > start_time, so an
+    // event that is zero minutes long is refused as well.
+    if (start && end && String(end) <= String(start)) {
+      errors.push({ field: 'endTime', message: TIME_ORDER_MESSAGE });
+    }
+  }
+
+  throwIfInvalid(errors, 'The event could not be saved because some fields are invalid.');
+}
+
+/**
  * Update one event as a partial update.
  *
  * Only the fields sent are changed, and sending `{}` is a 400 because that is
  * more likely to be a client bug than a real request - it would otherwise be a
- * silent no-op reported as success.
+ * silent no-op reported as success. The pairs the row has to satisfy - end date
+ * not before start date, end time after start time - are checked against the row
+ * the update will actually leave behind, not only against the fields that
+ * happened to arrive together; see assertUpdateKeepsPairsOrdered().
  *
  * @param rawId - The id from the route parameter, still unvalidated text.
  * @param body - The untrusted request body holding only the fields to change.
  * @returns The event as it now stands, including its ticket tiers.
- * @throws HttpError with status 400 for an invalid id, an empty body or a value the database refuses, and 404 when no event has that id.
+ * @throws HttpError with status 400 for an invalid id, an empty body, a pair the
+ *   stored row cannot satisfy or a value the database refuses, and 404 when no
+ *   event has that id.
  */
 async function updateEvent(rawId: string | number, body: UntrustedInput): Promise<DataRecord> {
   const eventId = parseEventId(rawId);
@@ -302,6 +401,8 @@ async function updateEvent(rawId: string | number, body: UntrustedInput): Promis
       'No fields were supplied. Send only the fields you want to change.'
     );
   }
+
+  await assertUpdateKeepsPairsOrdered(eventId, values);
 
   const event = await repository.updateEvent(eventId, values);
   if (!event) {

@@ -1,12 +1,30 @@
 /*
- * A custom element is `display: inline` until told otherwise, and the header band is
- * one of the two blocks that must not be. The colours, spacing and the dark-theme
- * rule all come from src/styles.css (.admin-header); nothing about this component's
- * appearance is redeclared here.
+ * The host must not add a box, and that is a LAYOUT requirement rather than a tidy-up.
  *
- * The sticky menu used to be the second block this file declared a display for. It is
- * now the `admin-nav` component and carries its own rule; see admin-nav.css.
+ * WHAT WENT WRONG WITH `display: block`
+ *   This host is the parent of the layout's two top segments: the `<header
+ *   class="admin-header">` band and the `<admin-nav>` menu. A block host therefore
+ *   becomes the CONTAINING BLOCK of `.admin-nav`, and a `position: sticky` element can
+ *   travel no further than its containing block's bottom edge. The menu's own bottom
+ *   edge IS that edge - measured on /events: `nav.admin-nav` and its host both ended
+ *   at 134.13px at rest, and both sat at -336.61px after scrolling 400px - so the band
+ *   scrolled away with the header and `top: 0` never took effect. The brief asks for a
+ *   menu on every page, and a menu that leaves the screen is not one.
+ *
+ * WHAT THIS RESTORES
+ *   With no box of its own, the host's two children are laid out as children of the
+ *   shell instead - the flex column `app.css` gives the app root - so `.admin-nav`'s
+ *   containing block is the shell's own content box (the whole page) and `top: 0`
+ *   holds it against the top of the viewport. The rendered order is unchanged: header,
+ *   then menu, then `main`, then footer. This is the same repair the public site's
+ *   `site-header.css` records for the same reason ("without it the host element would
+ *   be a box around both, and the sticky <header> would then be confined to that box
+ *   and could not follow the scroll at all"); `admin-nav.css` gives the nav component
+ *   the same treatment, so only ONE of the two hosts needs to be box-free.
+ *
+ * The colours, spacing and the dark-theme rule all come from src/styles.css
+ * (.admin-header); nothing about this component's appearance is redeclared here.
  */
 :host {
-  display: block;
+  display: contents;
 }

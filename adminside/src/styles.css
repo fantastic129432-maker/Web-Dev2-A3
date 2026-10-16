@@ -485,8 +485,13 @@ html body.admin-body .admin-page-header p {
  * in all four languages. `minmax(10rem, auto)` on a select keeps it wide enough
  * for its selected option instead of letting a long translation squeeze it to
  * nothing, and `minmax(12rem, 1fr)` on the search field gives the keyword a
- * usable minimum before it takes whatever remains. Below 600px the media query
- * further down drops the bar to one column per row.
+ * usable minimum before it takes whatever remains.
+ *
+ * THE FLOORS ALSO MEAN THE BAR CANNOT SHRINK INDEFINITELY, so it needs a breakpoint of
+ * its own lower down: below the width its four tracks need, it stacks one cell per
+ * row. That breakpoint is 700px, measured in all four languages - see the block in
+ * section 9 for the numbers, and for why the 600px statement that used to do this was
+ * too late.
  */
 .admin-filters {
   display: grid;
@@ -539,6 +544,34 @@ html body.admin-body .admin-page-header p {
  */
 @media (max-width: 760px) {
   .admin-filters--registrations { grid-template-columns: 1fr; }
+}
+
+/*
+ * The FOUR-cell bar needs its own breakpoint too, and it is a horizontal-overflow
+ * fix rather than a tidiness one.
+ *
+ * THE DEFECT, MEASURED. The four tracks above are all `minmax(...)` with a floor, so
+ * the bar has a MINIMUM width that no amount of shrinking can go below: 10rem + 10rem
+ * + 12rem + the buttons' own width, plus three 16px gaps and the bar's own padding.
+ * The narrowest case measured is English - its "All statuses" option is the longest
+ * selected label - at 694px of viewport; Chinese and Japanese stop overflowing at
+ * 668px and Vietnamese at 690px. Between those widths and the media query the bar
+ * used to rely on (600px, the last block in this file) the row simply stuck out of
+ * the page: measured on /events before this rule, `documentElement.scrollWidth`
+ * exceeded `clientWidth` by 67px at 601px and by 8px at 660px, and the element doing
+ * it was `.admin-filters__actions`, whose right edge sat at 653.39px whatever the
+ * viewport was - the fourth track had been pushed past the page by the three floors
+ * before it. A horizontally scrolling admin page is a real defect on its own, and it
+ * also puts the Apply button off screen.
+ *
+ * 700px is the round number above the widest measurement (694px), chosen the way the
+ * 760px and 900px breakpoints above were: it is stated once, it is the same in all
+ * four languages, and it leaves the four cells side by side at every width where they
+ * demonstrably fit. Below it the bar stacks, which is what the 600px block already
+ * did - that declaration is not repeated there, so there is one statement of it.
+ */
+@media (max-width: 700px) {
+  .admin-filters { grid-template-columns: 1fr; }
 }
 
 .admin-filters__actions {
@@ -1153,7 +1186,9 @@ html body.admin-body .admin-page-header p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .admin-filters { grid-template-columns: 1fr; }
+  /* The filter bars already stack from their own breakpoints - the registrations bar
+     at 760px and the four-cell bar at 700px, both stated with their measurements
+     beside them in section 3 - so nothing about them is repeated here. */
   /* Two columns will not fit a phone, so every tile takes the full width and the
      long values keep the room the 3x2 grid gave them. */
   .admin-stats { grid-template-columns: minmax(0, 1fr); }

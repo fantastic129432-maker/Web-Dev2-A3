@@ -184,6 +184,15 @@ export function createRateLimiter(): RateLimiter {
       hits.set(key, { count: 1, resetAt: now + windowMs });
       res.setHeader('X-RateLimit-Limit', max);
       res.setHeader('X-RateLimit-Remaining', max - 1);
+      // The reset time is known the moment the window is created, and this header is
+      // advertised in the CORS `Access-Control-Expose-Headers` list above, so leaving
+      // it out of a window's FIRST response made the header's presence depend on which
+      // request a client happened to look at: request 1 of a fresh window carried
+      // Limit and Remaining but no Reset, request 2 onwards carried all three. A
+      // client reading Reset to decide how long to wait saw `undefined` exactly once
+      // per window - the response it is most likely to read, because it is the one
+      // that reports the largest remaining allowance.
+      res.setHeader('X-RateLimit-Reset', Math.ceil((now + windowMs) / 1000));
       return next();
     }
 

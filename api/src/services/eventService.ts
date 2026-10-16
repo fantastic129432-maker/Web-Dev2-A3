@@ -55,7 +55,9 @@ const ALLOWED_AUDIENCES = ['public', 'admin'];
  *   includePast           true | false (used by the home page)
  *   sort, direction       whitelisted sort keys
  *   limit, offset, page   pagination
- *   audience              public | admin (the A3 admin switch)
+ *   audience              public | admin (the A3 admin switch), checked like
+ *                         `state` and `sort`: a value outside the list is a 400
+ *                         rather than a switch that is quietly ignored
  *   publishStatus         active | suspended | cancelled | all, checked like `state`
  *                         and `sort`: a value outside the list is a 400 rather than
  *                         a filter that is quietly ignored
@@ -202,15 +204,32 @@ function buildQuery(query: UntrustedInput = {}) {
     });
   }
 
+  // The audience switch is the SECOND filter that used to widen a result set by
+  // disappearing, and it is checked here for exactly the reason `publishStatus` is
+  // checked above: a value outside the list was silently replaced by the default, so
+  // `?audience=publicly` (a typo, or a caller expecting the admin view) answered 200
+  // with the PUBLIC view - 10 events where the admin view holds 11, and no hint that
+  // the switch had been dropped. A client cannot tell that apart from a correct
+  // answer, so it is now a 400 naming the two accepted words, and it joins the same
+  // single 400 as every other bad parameter because the problem is collected BEFORE
+  // the throw below.
+  const audienceText = (parseText(query.audience) || 'public').toLowerCase();
+  if (!ALLOWED_AUDIENCES.includes(audienceText)) {
+    errors.push({
+      field: 'audience',
+      message: `Audience must be one of: ${ALLOWED_AUDIENCES.join(', ')}.`,
+    });
+  }
+
   if (errors.length > 0) {
     throw HttpError.badRequest('One or more query parameters are invalid.', errors);
   }
 
   // A3: the admin website asks for ?audience=admin, which switches the query to
-  // vw_all_events so suspended and cancelled events are included. The default
-  // stays 'public', so no existing caller changes behaviour.
-  const audienceText = (parseText(query.audience) || 'public').toLowerCase();
-  const audience = ALLOWED_AUDIENCES.includes(audienceText) ? audienceText : 'public';
+  // vw_all_events so suspended and cancelled events are included. The default stays
+  // 'public', so no existing caller changes behaviour - and a value that is neither
+  // word never reaches here, because it was reported and threw above.
+  const audience = audienceText;
 
   // Already known to be one of the four accepted words: everything outside that
   // list was reported and threw above, so this needs no second fallback.

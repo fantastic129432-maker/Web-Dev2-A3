@@ -1,6 +1,6 @@
 import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { Observable, Subject, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 
 import { ApiError } from '@charity/shared/api/api-error';
@@ -126,6 +126,48 @@ interface FilterChip {
 type SearchOutcome =
   | { status: 'done'; page: Paged<Event> }
   | { status: 'error'; message: string };
+
+/**
+ * The six sort orders the results dropdown offers, in the order it offers them.
+ *
+ * One list rather than one per reader: `setSort()` narrows a `<select>`'s value
+ * against it and `formFromUrl()` narrows a URL's `sort`/`direction` pair against it,
+ * and two copies of the same six literals is how a URL restores a sort order the
+ * dropdown cannot show.
+ */
+const SORT_CHOICES: readonly SortChoice[] = [
+  'date-asc',
+  'date-desc',
+  'name-asc',
+  'name-desc',
+  'goal-desc',
+  'progress-desc',
+];
+
+/**
+ * Whether two filter forms hold the same filter.
+ *
+ * Used to tell "the URL now describes something else" from "this page has just
+ * written the URL its form already describes" - see watchUrl(). The category list is
+ * compared element by element, because it is an array: without that, every URL would
+ * look different from the form and every search would run twice.
+ *
+ * @param a - The form currently in the panel.
+ * @param b - The form the URL describes.
+ * @returns True when every filter is the same value.
+ */
+function sameForm(a: FilterForm, b: FilterForm): boolean {
+  return (
+    a.keyword === b.keyword &&
+    a.location === b.location &&
+    a.from === b.from &&
+    a.to === b.to &&
+    a.isFree === b.isFree &&
+    a.state === b.state &&
+    a.categories.length === b.categories.length &&
+    a.categories.every((id, index) => id === b.categories[index])
+  );
+}
 
 /**
  * An empty form, used both as the initial value and by "Clear filters".
@@ -801,14 +843,27 @@ export class SearchPage {
       });
 
     /*
-     * Exactly one request leaves this constructor. `applyFiltersFromUrl()` builds
-     * the form from the query string and runs a full search when the URL carried
-     * filters, which is what makes a shared link like /search?city=Lismore work.
-     * A clean /search carries none, so in that case the small arrival search runs
-     * instead and the results column is full before the visitor touches anything.
+     * THE QUERY STRING IS FOLLOWED FOR AS LONG AS THE PAGE IS OPEN, NOT READ ONCE.
+     *
+     * Decision 2 above is that the filters live in the URL, which makes the URL the
+     * description of the result set on screen. That description was only read in this
+     * constructor, and the router REUSES this component when only the query string
+     * changes - so a later navigation to /search left the page describing a URL that no
+     * longer existed. Measured against this build: opening
+     * /search?city=Lismore&keyword=gala shows the two chips and "Matching events (0)",
+     * and clicking the header menu's own "Search events" link then puts /search in the
+     * address bar while the page still shows Location: Lismore, Keyword: gala and the
+     * same empty result set. A reload showed something else entirely, which is the
+     * defect stated plainly: the page and its own URL disagreed, and the visitor had no
+     * way to tell which one the events belonged to. The same link is also the ordinary
+     * way out of a search that found nothing.
+     *
+     * `watchUrl()` re-applies the URL whenever it differs from the form, and does
+     * nothing when it does not - the second half is what stops this page's OWN writes
+     * from starting a second search: `syncUrl()` runs after the form has been set, so
+     * the echo of our own navigation matches the form and stops there.
      */
-    const deepLink = this.applyFiltersFromUrl();
-    if (!deepLink) this.runSearch('arrival');
+    this.watchUrl();
 
     // A pending debounced search must not outlive the page that queued it.
     this.destroyRef.onDestroy(() => {
@@ -1098,15 +1153,7 @@ export class SearchPage {
    * in the template rather than user input.
    */
   protected setSort(value: string): void {
-    const allowed: readonly SortChoice[] = [
-      'date-asc',
-      'date-desc',
-      'name-asc',
-      'name-desc',
-      'goal-desc',
-      'progress-desc',
-    ];
-    this.sort.set(allowed.find((choice) => choice === value) ?? 'date-asc');
+    this.sort.set(SORT_CHOICES.find((choice) => choice === value) ?? 'date-asc');
   }
 
   /* ==================================================================
@@ -1314,23 +1361,72 @@ export class SearchPage {
   }
 
   /**
-   * Restore the form from the query string, then search if anything was set.
+   * Follow the address bar for the length of the page's life.
    *
-   * Arriving at /search with no query string leaves the form at its defaults;
-   * the constructor's arrival search is what fills the results column, so this
-   * method only has to do nothing in that case. When the URL DID carry filters
-   * they are restored and the search runs, which is what makes a link like
-   * /search?city=Lismore&isFree=true reproduce the result - exactly the filter
-   * set the visitor was looking at when they copied the link.
+   * THE DEFECT THIS EXISTS FOR is recorded on the call site in the constructor: the
+   * query string was read once, so a same-route navigation (the menu's own "Search
+   * events" link, a footer link, a browser Back) changed the URL while the form, the
+   * chips and the grid stayed on the previous filters. The subscription re-applies the
+   * URL whenever it differs from the form and does nothing when it does not, which is
+   * what keeps the page's own `syncUrl()` writes from starting a second search.
    *
-   * @returns Whether the query string carried any filter, so the constructor can
-   *   decide between this search and the small arrival one without issuing both.
+   * WHICH SCOPE EACH EMISSION ASKS FOR. A deep link is the visitor stating a filter, so
+   * it asks for the whole result set (`'full'`); so does any later navigation, because
+   * it is a deliberate act rather than the page's own first paint. Only the opening
+   * emission of an unfiltered /search takes the small arrival request
+   * (`ARRIVAL_LIMIT`), which is decision 4 above and is what fills the results column
+   * before the visitor touches anything.
+   *
+   * `route.queryParamMap` emits the CURRENT url immediately on subscribe, so this one
+   * subscription replaces both the constructor's old `applyFiltersFromUrl()` call and
+   * the arrival search that followed it.
    */
-  private applyFiltersFromUrl(): boolean {
-    const params = this.route.snapshot.queryParamMap;
-    let hasFilter = false;
+  private watchUrl(): void {
+    let first = true;
 
-    const restored: Partial<FilterForm> = {};
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const restored = this.formFromUrl(params);
+        const opening = first;
+        first = false;
+
+        const changed =
+          restored.sort !== this.sort() || !sameForm(this.form(), restored.form);
+        if (!opening && !changed) return;
+
+        if (changed) {
+          this.sort.set(restored.sort);
+          this.form.set(restored.form);
+        }
+
+        this.runSearch(opening && !restored.hasFilter ? 'arrival' : 'full');
+      });
+  }
+
+  /**
+   * Build the complete form, sort order and "was anything asked for" flag from a URL.
+   *
+   * The whole form comes back rather than a patch of it, because the URL is now the
+   * authority on every control: a navigation that drops a parameter has to drop the
+   * filter too, and merging into whatever the form happened to hold could not express
+   * that.
+   *
+   * `location` (a venue id) wins over `city`, because that is the more specific
+   * instruction and it is the one the combobox writes for a single venue. An explicit
+   * `state=upcoming` is the default rather than a filter, so it does not count as one,
+   * while the legacy `includePast=true` does.
+   *
+   * @param params - The query parameters of the URL being applied.
+   * @returns The form and sort order the URL describes, and whether it asked for any filter.
+   */
+  private formFromUrl(params: ParamMap): {
+    form: FilterForm;
+    sort: SortChoice;
+    hasFilter: boolean;
+  } {
+    const restored = emptyForm();
+    let hasFilter = false;
 
     const from = params.get('from');
     if (from) {
@@ -1342,8 +1438,7 @@ export class SearchPage {
       restored.to = to;
       hasFilter = true;
     }
-    // `location` (a venue id) wins over `city`, because that is the more specific
-    // instruction and it is the one the combobox writes for a single venue.
+
     const locationIds = params.getAll('location').map((value) => Number(value));
     const locationId = locationIds.find((value) => Number.isInteger(value));
     if (locationId !== undefined) {
@@ -1392,14 +1487,14 @@ export class SearchPage {
 
     const sort = params.get('sort');
     const direction = params.get('direction');
+    let sortChoice: SortChoice = 'date-asc';
     if (sort && direction) {
-      this.setSort(`${sort}-${direction}`);
+      const candidate = `${sort}-${direction}`;
+      sortChoice =
+        SORT_CHOICES.find((choice) => choice === candidate) ?? 'date-asc';
     }
 
-    this.update(restored);
-
-    if (hasFilter) this.runSearch();
-    return hasFilter;
+    return { form: restored, sort: sortChoice, hasFilter };
   }
 
   /* ==================================================================
