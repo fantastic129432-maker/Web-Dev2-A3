@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, Subject, catchError, forkJoin, map, of, switchMap } from 'rxjs';
@@ -73,13 +73,17 @@ interface FilterForm {
   keyword: string;
   categories: number[];
   /**
-   * The chosen venue, as the <select>'s value: '' means "any venue" and
-   * 'city:<name>' means every venue in that city.
+   * The chosen venue or town, as the combobox's committed value: '' means "any
+   * venue", 'city:<name>' means every venue in that city.
    *
    * A single control answers two different questions ("which venue" and "which
    * town") because the visitor is really asking one: where. Keeping it as one
    * string means the two halves cannot both be set, which would produce an
    * impossible filter ("Lismore City Hall" AND "Sydney").
+   *
+   * The VALUE did not change when the control stopped being a `<select>`: the
+   * combobox's input shows a label for this string, but the string itself is still
+   * what the query, the URL and the chips are built from.
    */
   location: string;
   from: string;
@@ -141,18 +145,37 @@ function emptyForm(): FilterForm {
 }
 
 /**
- * One entry of the "where" dropdown.
+ * One entry of the "where" combobox.
  *
  * The list holds two kinds of entry and the value string says which it is:
  * `city:Lismore` filters by town, `12` filters by venue id. The API accepts both
  * (`city` and `location`), and a single control avoids the impossible
  * combination of a chosen venue plus a different town.
+ *
+ * `kind` exists because the list is GROUPED (review item: whole cities and
+ * individual venues sat in one flat run). It is derived, not fetched: see
+ * `locationOptions`.
  */
 interface LocationOption {
-  /** The <option> value: '' | 'city:<name>' | '<locationId>'. */
+  /** The committed value: 'city:<name>' | '<locationId>'. Never ''. */
   value: string;
   /** The already-translated label. */
   label: string;
+  /** Which heading the entry belongs under. */
+  kind: 'city' | 'venue';
+}
+
+/**
+ * One heading of the combobox's listbox, with the options under it.
+ *
+ * A group with no options is never produced, so a search that matches only venues
+ * does not leave an empty "Cities" heading behind.
+ */
+interface LocationGroup {
+  kind: 'city' | 'venue';
+  /** The translated heading, which is also the group's accessible name. */
+  label: string;
+  options: LocationOption[];
 }
 
 /**
@@ -228,11 +251,20 @@ interface LocationOption {
  *    `.field-message:empty` can collapse them.
  *
  * 6. The filter panel filters as the visitor changes it, and it says so.
- *    Every control in the panel applies itself: a tick, a radio, the venue or the
- *    sort order runs the search at once, and the two date fields and the keyword box
- *    run it 350ms after the last keystroke (`runSearchSoon`) so a word is searched
- *    once rather than once per letter. The rule is stated in the panel's action row
- *    through `search.resultsHint`, in all four languages.
+ *    Every control in the panel applies itself: a tick, a radio, a picked
+ *    suggestion in the venue combobox or the sort order runs the search at once, and
+ *    the two date fields and the keyword box run it 350ms after the last keystroke
+ *    (`runSearchSoon`) so a word is searched once rather than once per letter. The
+ *    rule is stated in the panel's action row through `search.resultsHint`, in all
+ *    four languages.
+ *
+ *    THE VENUE COMBOBOX IS THE ONE CONTROL WITH TWO GESTURES, and it treats them
+ *    differently on purpose: TYPING filters its own suggestion list and asks the API
+ *    for nothing, because the value this field sends is a chosen town or venue and a
+ *    half-typed word is not a filter the visitor has chosen; PICKING a suggestion is
+ *    the commit and applies at once, exactly as the `<select>`'s `change` did. So the
+ *    "filters as you change it" rule still holds for every change of the FILTER, and
+ *    no other control on the page changed its timing.
  *
  *    WHY THIS RATHER THAN AN EXPLICIT SUBMIT WITH A PINNED ACTION ROW - which is
  *    the other model the review offered - is a measured decision, not a preference.
@@ -309,9 +341,11 @@ export class SearchPage {
    * the keyword box fires `input` once per keystroke: without this, typing "Lismore"
    * would issue eight searches, each one cancelled by the next through the
    * pipeline's `switchMap` - correct, but eight round trips to answer a question
-   * the visitor has not finished asking. A checkbox, a radio, the venue select and
-   * the sort dropdown commit their answer in one event, so they call `runSearch()`
-   * and apply at once.
+   * the visitor has not finished asking. A checkbox, a radio, a picked suggestion in
+   * the venue combobox and the sort dropdown commit their answer in one event, so
+   * they call `runSearch()` and apply at once - and the combobox's own TYPING path
+   * calls neither, because it searches nothing: it narrows the suggestion list and
+   * the request waits for a pick (see `onLocationInput`).
    *
    * 350ms is the usual "pause in typing" figure and is deliberately longer than the
    * pipeline's own latency: the `results` panel goes to its loading state
@@ -441,25 +475,155 @@ export class SearchPage {
   protected readonly invalidField = signal<'from' | 'to' | null>(null);
 
   /**
-   * The "where" dropdown's options.
+   * The "where" combobox's options, towns first.
    *
    * Towns come first (alphabetically) and then the individual venues, because a
    * visitor who is willing to travel usually picks the town, and one who is not
-   * picks the venue. Both are derived from GET /api/locations: a town only exists
-   * in this project because a venue is in it, so a Set over the venues is the
-   * authoritative list and no extra endpoint is needed.
+   * picks the venue - and since this round the two runs are also LABELLED as
+   * "Cities" and "Venues" instead of being one flat list. The order and the
+   * membership are unchanged from the select this replaced: the same seven towns
+   * and the same eight venues.
+   *
+   * Both are derived from GET /api/locations, WHICH DOES NOT DISTINGUISH THE TWO:
+   * the endpoint returns flat venue rows (`locationId`, `venueName`, `city`,
+   * `state`, `latitude`, `longitude`, `eventCount` - see shared/src/models/
+   * reference.model.ts) with no type flag, no separate towns resource and no
+   * "city" entity at all. A town exists in this project only because a venue is in
+   * it, so a Set over the venues' `city` column is the authoritative list and no
+   * extra endpoint is needed. `kind` below is therefore derived from the row's
+   * SHAPE - a town is a distinct `city` value, a venue is the row itself - and any
+   * entry that is one must never also be listed as the other.
    */
   protected readonly locationOptions = computed<LocationOption[]>(() => {
     const venues = this.locations();
     const towns = [...new Set(venues.map((venue) => venue.city ?? '').filter(Boolean))].sort();
 
     return [
-      ...towns.map((town) => ({ value: `city:${town}`, label: town })),
+      ...towns.map((town) => ({ value: `city:${town}`, label: town, kind: 'city' as const })),
       ...venues
         .slice()
         .sort((a, b) => a.venueName.localeCompare(b.venueName))
-        .map((venue) => ({ value: String(venue.locationId), label: venue.venueName })),
+        .map((venue) => ({
+          value: String(venue.locationId),
+          label: venue.venueName,
+          kind: 'venue' as const,
+        })),
     ];
+  });
+
+  /**
+   * What the visitor has typed into the combobox's box.
+   *
+   * SEPARATE FROM `form().location` ON PURPOSE. The form holds the committed
+   * filter - the value the API, the URL and the chips are built from - while this
+   * holds the free text that narrows the suggestion list. Typing writes only this,
+   * so an unfinished word can never become a filter (see the field's comment in
+   * search.html for why the API's substring matching is not an invitation to send
+   * one), and the two are reconciled only when a suggestion is picked, when the
+   * panel closes, or when the filter changes from outside the box (a deep link, a
+   * chip, "Clear filters").
+   */
+  protected readonly locationQuery = signal('');
+
+  /** Whether the suggestion panel is open. */
+  protected readonly locationOpen = signal(false);
+
+  /** Which entry of `filteredLocations()` the keyboard is on, or -1 for none. */
+  protected readonly locationActive = signal(-1);
+
+  /** The combobox's input, so its text can be written without fighting the caret. */
+  private readonly locationInput = viewChild<ElementRef<HTMLInputElement>>('locationInput');
+
+  /**
+   * The last text written into the box, so the sync effect below can tell "the
+   * filter changed" from "the visitor is typing".
+   */
+  private lastLocationText = '';
+
+  /**
+   * The label for the committed filter, i.e. what the box shows when it is not
+   * being typed into.
+   *
+   * THIS IS THE REPLACEMENT FOR THE `[selected]` FIX the old `<select>` needed. A
+   * select's value had to be re-asserted on every option because a value written
+   * before the options existed was discarded and the browser showed the first
+   * option - so a deep link looked unfiltered. A computed label has nothing to
+   * discard: `form().location` is the truth, the label is derived from it on every
+   * read, and the box is written from this value.
+   *
+   * A `city:` value can be named before the venues arrive (the town name is in the
+   * value itself); a bare venue id cannot be named without the list, and is
+   * deliberately shown as an empty box rather than as "7" - the chip above the
+   * results names the filter in the meantime, which is what it did before this
+   * round too.
+   */
+  protected readonly committedLocationLabel = computed(() => {
+    const value = this.form().location;
+    if (!value) return '';
+
+    const known = this.locationOptions().find((option) => option.value === value)?.label;
+    if (known) return known;
+
+    return value.startsWith('city:') ? value.slice('city:'.length) : '';
+  });
+
+  /**
+   * The options the box's text leaves, in list order.
+   *
+   * A plain case-insensitive substring test against the LABEL, which is the same
+   * test the placeholder has always advertised: typing "Lis" leaves Lismore and
+   * the two Lismore venues, typing "syd" leaves Sydney. An empty box leaves
+   * everything, so clicking the field offers the full list the select used to open.
+   */
+  protected readonly filteredLocations = computed<LocationOption[]>(() => {
+    const needle = this.locationQuery().trim().toLocaleLowerCase();
+    const all = this.locationOptions();
+    if (needle === '') return all;
+    return all.filter((option) => option.label.toLocaleLowerCase().includes(needle));
+  });
+
+  /**
+   * The listbox's contents: the filtered options, split into the two headings.
+   *
+   * Empty groups are dropped, so typing "brisbane" shows one "Cities" heading (for
+   * Brisbane) and one "Venues" heading (for Brisbane Botanic Gardens) rather than
+   * two headings with a gap between them.
+   */
+  protected readonly locationGroups = computed<LocationGroup[]>(() => {
+    const options = this.filteredLocations();
+    const groups: LocationGroup[] = [];
+
+    const cities = options.filter((option) => option.kind === 'city');
+    if (cities.length > 0) {
+      groups.push({ kind: 'city', label: this.i18n.t('search.cityGroupCities'), options: cities });
+    }
+
+    const venues = options.filter((option) => option.kind === 'venue');
+    if (venues.length > 0) {
+      groups.push({ kind: 'venue', label: this.i18n.t('search.cityGroupVenues'), options: venues });
+    }
+
+    return groups;
+  });
+
+  /**
+   * The DOM id of one option.
+   *
+   * The id carries the option's position in the FLAT filtered list, because that
+   * is the index `locationActive` holds; the render walks the grouped view, so
+   * both have to agree on one numbering. `aria-activedescendant` points at these
+   * ids, which is what lets a screen reader announce the highlighted suggestion
+   * while the caret stays in the box.
+   */
+  protected locationOptionId(option: LocationOption): string {
+    return `location-option-${this.filteredLocations().indexOf(option)}`;
+  }
+
+  /** The id of the highlighted option, or null when the list is closed or idle. */
+  protected readonly activeLocationId = computed(() => {
+    const index = this.locationActive();
+    if (index < 0 || index >= this.filteredLocations().length) return null;
+    return `location-option-${index}`;
   });
 
   /** True when at least one filter is set, which drives the chip list. */
@@ -541,6 +705,30 @@ export class SearchPage {
     this.title.set();
 
     this.loadFilterOptions();
+
+    /*
+     * THE COMBOBOX'S BOX FOLLOWS THE FILTER, NOT THE OTHER WAY ROUND.
+     *
+     * The input is deliberately uncontrolled - the visitor types into it, and a
+     * `[value]` binding would rewrite the field on every keystroke and move the
+     * caret - so this effect is the ONE place the page writes it. It writes the
+     * label of the committed filter, which means it fires exactly when the filter
+     * changes from OUTSIDE the box: a deep link restored from the query string, a
+     * chip being removed, "Clear filters", or the venue list arriving and making a
+     * venue id nameable. That is also the replacement for the `[selected]` repair
+     * the old `<select>` needed - see `committedLocationLabel`.
+     *
+     * IT DOES NOT WRITE WHILE THE PANEL IS OPEN, and that guard is the whole reason
+     * this is an effect with a condition rather than a binding: the venue list can
+     * answer 200ms after the visitor starts typing, and a late answer must not
+     * erase the word they are in the middle of.
+     */
+    effect(() => {
+      const label = this.committedLocationLabel();
+      if (this.locationOpen()) return;
+      if (label === this.lastLocationText) return;
+      this.writeLocationText(label);
+    });
 
     /*
      * The single search pipeline: every query `runSearch()` accepts is pushed
@@ -648,8 +836,13 @@ export class SearchPage {
           return of<Category[]>([]);
         })
       ),
-      // A city search does not need the venue list, so a failure here is silent:
-      // the datalist is simply empty and the visitor can still type a city.
+      // A city or venue search does not need the venue list, so a failure here is
+      // silent: the suggestion list is simply empty, and the visitor can still
+      // search by date, category, keyword and event state. The box stays usable -
+      // it is a normal text input - but nothing can be PICKED, so no location
+      // filter can be applied; a word typed into it stays a word until the list
+      // arrives, which is why the panel says "no matching city or venue" rather
+      // than pretending the search is filtered.
       locations: this.api.getLocations().pipe(catchError(() => of<Venue[]>([]))),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -678,9 +871,191 @@ export class SearchPage {
     this.update({ [field]: value } as Partial<FilterForm>);
   }
 
-  /** The "where" dropdown. */
+  /**
+   * Write one value into the "where" filter and apply it - the ONE write path for
+   * this control.
+   *
+   * Called when a suggestion is picked (click or Enter) and when the box is emptied
+   * and left, which is the combobox's version of the select's "Any location"
+   * option. It applies AT ONCE rather than through `runSearchSoon`, because a pick
+   * is one committed decision and not a keystroke: the select it replaced applied
+   * on `change`, and the panel's own typing path never reaches this method (typing
+   * filters the list and issues no request - see `onLocationInput`).
+   *
+   * Writing the value and applying the search happen in the same turn, because the
+   * query, the URL and the chips are all built from `form()`.
+   */
   protected setLocation(value: string): void {
-    this.update({ location: value });
+    this.locationOpen.set(false);
+    this.locationActive.set(-1);
+
+    const changed = this.form().location !== value;
+    if (changed) this.update({ location: value });
+
+    // Re-read rather than reuse: the label belongs to the value that is now in the
+    // form, whether or not it changed.
+    this.writeLocationText(this.committedLocationLabel());
+
+    // Picking the option that is already applied is not a new filter - a select
+    // fires no `change` for it either - so nothing is re-requested.
+    if (!changed) return;
+
+    this.runSearch();
+  }
+
+  /**
+   * The visitor typed in the box: narrow the list, and ask the API for nothing.
+   *
+   * THE WHOLE POINT OF THE CONTROL. "Start typing, e.g. Lis" used to describe a
+   * `<select>` that could not be typed into; this filters the suggestions the way
+   * the placeholder always promised. It deliberately does NOT search: the value the
+   * API receives is a chosen town (`city:Lismore`) or a venue id, and a half-typed
+   * word is neither - sending it would filter the results by something the visitor
+   * has not chosen and, for an unfinished word, replace the list below with "no
+   * events matched" while they are still typing.
+   *
+   * The first match is highlighted so Enter has something to commit and so the
+   * highlighted option is announced through `aria-activedescendant` as it changes.
+   */
+  protected onLocationInput(text: string): void {
+    this.locationQuery.set(text);
+    this.locationActive.set(text.trim() === '' ? -1 : 0);
+    this.locationOpen.set(true);
+  }
+
+  /**
+   * A click in the box opens the list without changing the filter.
+   *
+   * The text is read back first: the box is uncontrolled (the visitor types in it),
+   * so the signal can lag behind it if the browser itself ever writes the field.
+   */
+  protected openLocations(): void {
+    if (this.locationOpen()) return;
+    const text = this.locationInput()?.nativeElement.value ?? '';
+    if (text !== this.locationQuery()) this.locationQuery.set(text);
+    this.locationOpen.set(true);
+    this.locationActive.set(-1);
+  }
+
+  /**
+   * Close the list and put the box back in step with the applied filter.
+   *
+   * THREE THINGS CAN HAPPEN WHEN THE LIST CLOSES, and they are the three ways out
+   * of this control:
+   *   * the box was left EMPTY after one was applied - that is the visitor asking
+   *     for every location, so the filter is cleared and the search re-runs (the
+   *     select's empty option did exactly this);
+   *   * the box holds a word that was never picked - it is restored to the label of
+   *     the applied filter, so the box can never show a filter that is not applied;
+   *   * the box already names the applied filter - nothing to do.
+   *
+   * `wasOpen` keeps a stray blur (tabbing through a field that was never opened)
+   * from rewriting anything.
+   */
+  protected closeLocations(): void {
+    const wasOpen = this.locationOpen();
+    this.locationOpen.set(false);
+    this.locationActive.set(-1);
+    if (!wasOpen) return;
+
+    if (this.locationQuery().trim() === '' && this.form().location !== '') {
+      this.setLocation('');
+      return;
+    }
+
+    const label = this.committedLocationLabel();
+    if (this.locationQuery() !== label) this.writeLocationText(label);
+  }
+
+  /**
+   * The combobox's keyboard path: Down/Up open and move, Enter picks, Escape puts
+   * the box back, Tab leaves.
+   *
+   * The caret never leaves the input - the listbox is not focusable and each option
+   * is pointed at by `aria-activedescendant` - so typing, arrowing and picking are
+   * one continuous gesture, which is the whole difference between this and the
+   * select it replaced. Home/End are included because fifteen suggestions is long
+   * enough for them to be worth having.
+   */
+  protected onLocationKeydown(event: KeyboardEvent): void {
+    const options = this.filteredLocations();
+
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        // The first arrow key opens the list, which is what makes it reachable
+        // without a mouse: focusing the box alone does not open it.
+        event.preventDefault();
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        if (!this.locationOpen()) {
+          this.locationOpen.set(true);
+          this.locationActive.set(step === 1 ? 0 : options.length - 1);
+        } else {
+          const next = this.locationActive() + step;
+          this.locationActive.set(Math.min(Math.max(next, 0), options.length - 1));
+        }
+        this.scrollActiveLocationIntoView();
+        return;
+      }
+
+      case 'Home':
+      case 'End': {
+        if (!this.locationOpen() || options.length === 0) return;
+        event.preventDefault();
+        this.locationActive.set(event.key === 'Home' ? 0 : options.length - 1);
+        this.scrollActiveLocationIntoView();
+        return;
+      }
+
+      case 'Enter': {
+        // A highlight means "pick this one". With no highlight the event is left
+        // alone so the form's own submit handler runs, which is what Enter does in
+        // the keyword box beside this field.
+        const index = this.locationActive();
+        if (!this.locationOpen() || index < 0 || index >= options.length) return;
+        event.preventDefault();
+        this.setLocation(options[index].value);
+        return;
+      }
+
+      case 'Escape': {
+        if (!this.locationOpen()) return;
+        event.preventDefault();
+        this.closeLocations();
+        return;
+      }
+
+      case 'Tab': {
+        // Focus is about to move on: close the list and reconcile the box now, so
+        // an uncommitted word is not left sitting in a field that looks applied.
+        this.closeLocations();
+        return;
+      }
+
+      default:
+        return;
+    }
+  }
+
+  /** Put one option's text into the box, leaving the caret alone when it matches. */
+  private writeLocationText(text: string): void {
+    this.locationQuery.set(text);
+    this.lastLocationText = text;
+
+    const input = this.locationInput()?.nativeElement;
+    if (input && input.value !== text) input.value = text;
+  }
+
+  /**
+   * Keep the highlighted option visible while the arrows walk a scrolling list.
+   *
+   * `ownerDocument` rather than a global `document`: the option's id is already the
+   * handle the template gave it, and it may be under either group heading.
+   */
+  private scrollActiveLocationIntoView(): void {
+    const id = this.activeLocationId();
+    if (id === null) return;
+    this.locationInput()?.nativeElement.ownerDocument.getElementById(id)?.scrollIntoView({ block: 'nearest' });
   }
 
   /**
@@ -742,7 +1117,8 @@ export class SearchPage {
    * Validate, then search.
    *
    * WHO CALLS IT: every control in the filter panel (the typed ones through
-   * `runSearchSoon`), the form's submit handler, a chip being removed, and the sort
+   * `runSearchSoon`, and the venue combobox through `setLocation` when a suggestion
+   * is picked), the form's submit handler, a chip being removed, and the sort
    * dropdown. That is the point of decision 6 in the class comment: the panel has no
    * "pending" state, so a caller is never asking "should this apply now?" - it
    * applies.
@@ -879,11 +1255,12 @@ export class SearchPage {
   }
 
   /**
-   * Split the "where" dropdown's value into the API parameters it means.
+   * Split the "where" combobox's committed value into the API parameters it means.
    *
    * `'city:Lismore'` becomes `{ city: 'Lismore' }` - which matches every venue in
    * that town - while `'12'` becomes `{ location: [12] }`, the venue id. An empty
-   * selection becomes neither, and the API then applies no location filter.
+   * selection becomes neither, and the API then applies no location filter. Both
+   * shapes are exactly what this field sent when it was a `<select>`.
    */
   private locationParams(value: string): { location?: number[]; city?: string } {
     if (value === '') return {};
@@ -966,7 +1343,7 @@ export class SearchPage {
       hasFilter = true;
     }
     // `location` (a venue id) wins over `city`, because that is the more specific
-    // instruction and it is the one the dropdown writes for a single venue.
+    // instruction and it is the one the combobox writes for a single venue.
     const locationIds = params.getAll('location').map((value) => Number(value));
     const locationId = locationIds.find((value) => Number.isInteger(value));
     if (locationId !== undefined) {

@@ -2102,6 +2102,106 @@ input:focus,
 select:focus,
 textarea:focus { border-color: var(--brand-500); }
 
+/* ==========================================================================
+   THE "WHERE" COMBOBOX (search page, field 2)
+   ==========================================================================
+   The suggestion list the "City or town" field opens is OURS, so this section
+   owns its direction: `.combobox__panel` is `top: calc(100% + 4px)` inside
+   `.combobox { position: relative }` and is therefore always BELOW the box, at
+   every scroll position and in every language.
+
+   WHY THAT IS A DELIBERATE CHANGE AND NOT A PREFERENCE. This field used to be a
+   native `<select>`, and a native select's popup is drawn by the BROWSER, not by
+   this stylesheet: it opens downward when there is room below the control and
+   flips above it when there is not. Measured in the Edge this project is
+   verified with, with the window's bottom edge on the bottom of the display
+   (the reported condition) and a three-row list so the popup's own box could be
+   read: with 292px of viewport below the control the popup's 92px box sat 44px
+   BELOW it, with 192px below it also sat below, and with only 2px below it sat
+   entirely ABOVE (its bottom edge 44px above the control's bottom). That is
+   correct browser behaviour and no CSS can move it - `bottom: 100%`, a flip
+   calculation or a `transform` would all have been dead code describing
+   something this stylesheet does not control. The popup only became positionable
+   by making the list a real element owned by the page, which is what this
+   section styles; see the comment on the field in search.html for the full
+   measurement and for the affordance defect the same change fixes.
+
+   THE PANEL IS A SIBLING OF THE INPUT, both inside `.combobox`: the field keeps
+   its own box, focus ring and `:focus` border rule above, and the list is an
+   overlay in the flow of the panel rather than a box drawn inside the control.
+
+   NO max-height WAS REMOVED HERE, and the one on the panel is deliberate: the
+   panel is a floating list of up to fifteen suggestions, so it has to be bounded
+   (the category checkbox list, by contrast, lays out in full - see the rule below
+   - because it is part of the form rather than an overlay). 15rem shows about
+   seven rows and scrolls the rest, which keeps the whole panel inside a 390x844
+   phone viewport: measured 240px tall, ending 4px below the field.
+   ========================================================================== */
+.combobox { position: relative; }
+
+.combobox__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  /* Above the results column beside the panel: the filter card is sticky and
+     therefore already paints over static siblings, and this keeps the list above
+     the event cards it overlaps. Below the site header's own z-index 40. */
+  z-index: 10;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+  background: var(--surface-0);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 24px rgba(16, 36, 43, 0.18);
+}
+
+.combobox__listbox {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.combobox__group { list-style: none; }
+
+/*
+ * The group heading ("Cities" / "Venues").
+ *
+ * `aria-hidden` in the template: the same words are the GROUP's accessible name
+ * (`role="group"` + `aria-label`), so announcing them twice would say "Cities,
+ * Cities, Brisbane". This rule only draws them.
+ */
+.combobox__group-label {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) 2px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.combobox__option {
+  padding: 0.45rem var(--space-3);
+  cursor: pointer;
+}
+
+/* The highlighted row: the keyboard's active option and the pointer's hover are
+   one style, because they mean one thing - "Enter or a click chooses this one". */
+.combobox__option--active,
+.combobox__option:hover { background: var(--brand-100); }
+
+/* The option the applied filter already uses. Bold rather than a tick, because a
+   tick is a second glyph to keep aligned in four languages. */
+.combobox__option[aria-selected='true'] { font-weight: bold; }
+
+.combobox__empty {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-500);
+  font-size: 0.85rem;
+}
+
 /*
  * THE CATEGORY LIST LAYS OUT IN FULL (review item: the category list scrolls
  * inside itself).

@@ -29,8 +29,10 @@
     <!-- ==============================================================
          FILTER FORM
          Native HTML controls only: date inputs for dates, checkboxes for
-         categories, a select for the venue or town, a toggle for free
-         events and a radio group for the event state.
+         categories, a combobox for the venue or town (its own input plus its
+         own listbox - see the field itself for why it is no longer a native
+         `<select>`), a toggle for free events and a radio group for the
+         event state.
 
          ONE MODEL: THE PANEL FILTERS AS THE VISITOR CHANGES IT (review item:
          the interaction model was ambiguous). Every control here applies
@@ -45,12 +47,18 @@
          pinning this row. The submit button stays as an explicit "search
          now" control, and the end-to-end suite still finds it by its text.
 
-         TEXT FIELDS ARE DEBOUNCED, TICKS ARE NOT. The two dates and the
-         keyword call `runSearchSoon()`, which waits 350ms after the last
-         keystroke; a checkbox, a radio, the venue select and the sort
-         dropdown call `runSearch()` and apply at once. Nothing here waits
-         for the button - the button re-runs what is already applied, which
-         is idempotent for a GET.
+         TYPED CONTROLS ARE DEBOUNCED, COMMITTED ONES ARE NOT. The two dates
+         and the keyword call `runSearchSoon()`, which waits 350ms after the
+         last keystroke; a checkbox, a radio, a pick in the venue combobox
+         and the sort dropdown call `runSearch()` and apply at once.
+         The combobox is the one control with TWO gestures, and it treats
+         them differently on purpose: typing filters its own suggestion list
+         and asks the API for nothing (a half-typed word is not a filter the
+         visitor has chosen - see the field's comment), while picking a
+         suggestion is the commit and applies at once, exactly as the
+         select's `change` did. Nothing here waits for the button - the
+         button re-runs what is already applied, which is idempotent for a
+         GET.
 
          (input) and (change) write into one `form` signal rather than
          using ngModel: there is no form model to validate with Angular's
@@ -136,32 +144,127 @@
         <fieldset>
           <legend>{{ 'search.where' | t }}</legend>
           <div class="field">
-            <label for="filter-location">{{ 'search.city' | t }}</label>
-            <select
-              id="filter-location"
-              name="location"
-              #location
-              aria-describedby="filter-location-hint"
-              [value]="form().location"
-              (change)="setLocation(location.value); runSearch()"
-            >
-              <option value="">{{ 'search.cityPlaceholder' | t }}</option>
-              <!--
-                [selected] is needed as well as the [value] on the select: the options
-                are created by the loop, so a value restored from the URL is written
-                before any option exists, is discarded, and the browser shows the
-                first one. The results were filtered by the venue while the picker
-                read "Start typing, e.g. Lis" - the page looked unfiltered.
-              -->
-              @for (option of locationOptions(); track option.value) {
-                <option
-                  [value]="option.value"
-                  [selected]="option.value === form().location"
-                >
-                  {{ option.label }}
-                </option>
+            <label for="filter-location" id="filter-location-label">{{ 'search.city' | t }}</label>
+            <!--
+              THIS FIELD IS A COMBOBOX, AND THE TWO REVIEW POINTS ON IT ARE WHY.
+
+              WHAT IT WAS, AND WHAT WAS ALREADY FIXED ON IT. It was a native
+              `<select>` whose options are created by an `@for`. A value restored
+              from the URL was written before any option existed, was discarded,
+              and the browser displayed the first option instead - so the results
+              were filtered by a venue while the picker read "Start typing, e.g.
+              Lis" and the page looked unfiltered. The fix was `[selected]` on each
+              option as well as `[value]` on the select, which is what made a deep
+              link like /search?city=Lismore display its own filter.
+              THAT TRAP CANNOT COME BACK HERE, and this is the part of that
+              reasoning that still applies: the box's text is a COMPUTED LABEL for
+              the applied filter (`committedLocationLabel()` in search.ts), not a
+              value written into a control before its options exist. There is
+              nothing to discard, so a deep link names its own filter on first
+              paint - and for `city:` values it names it even before the venue list
+              has answered, while a bare venue id waits for the list rather than
+              printing a number into a place field (the chip names the filter in
+              the meantime, exactly as it did before).
+
+              WHY IT IS NO LONGER A NATIVE SELECT. Two faults, both measured:
+              1. THE POPUP'S DIRECTION WAS NEVER OURS. A full select list opens
+                 upward when the control is low in the viewport, covering this
+                 field's own label and the date filters above it - which is what
+                 the review saw. It is the BROWSER's choice and not a CSS bug:
+                 measured in the Edge used for verification, with the window's
+                 bottom edge on the bottom of the display and a three-row list so
+                 the popup's own box could be read, the popup sat 44px BELOW the
+                 field with 292px of viewport beneath it, below it again with
+                 192px, and entirely ABOVE it (bottom edge 44px above the field's
+                 bottom) when only 2px remained. There is no `bottom: 100%` and no
+                 flip calculation anywhere in this project to mend, and a native
+                 popup cannot be repositioned from the page: the honest way to own
+                 the direction was to own the list.
+              2. THE PLACEHOLDER LIED. "Start typing, e.g. Lis" invited typing on
+                 a control that could not be typed into. The box now really is
+                 typeable, filters the suggestions as you type, and opens ITS OWN
+                 panel downward - so the same placeholder is now true as written.
+
+              THE LIST IS GROUPED, CITIES FIRST, and every suggestion that existed
+              before still exists. `GET /api/locations` returns venues only (flat
+              rows with a `city` column and no type flag), so the towns are derived
+              from the distinct `city` values exactly as they were for the select's
+              options - the same seven towns and the same eight venues, in the same
+              order, now under two headings. The headings are `role="group"` +
+              `aria-label` inside the `role="listbox"`, which is the same structure
+              a native `<optgroup>` produced, so a grouped listbox is a supported
+              pattern here rather than a half-accessible one. The visible heading is
+              `aria-hidden` because those words ARE the group's accessible name.
+
+              WHAT DID NOT CHANGE. Choosing a suggestion writes the same value the
+              select wrote (`city:<name>` or a venue id) into the same `location`
+              field, so the same query parameter, the same URL round trip, the same
+              chips and the same deep link all still apply; and a pick applies the
+              search at once, as the select's `change` did. Typing only filters this
+              list and issues no request: the API's `city` parameter is a substring
+              match, but the value this field has always set is a *chosen* town or
+              venue, and a half-typed word is not a filter the visitor has chosen.
+            -->
+            <div class="combobox">
+              <input
+                type="text"
+                id="filter-location"
+                name="location"
+                #locationInput
+                role="combobox"
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-describedby="filter-location-hint"
+                aria-controls="filter-location-listbox"
+                [attr.placeholder]="'search.cityPlaceholder' | t"
+                [attr.aria-expanded]="locationOpen()"
+                [attr.aria-activedescendant]="activeLocationId()"
+                (input)="onLocationInput(locationInput.value)"
+                (keydown)="onLocationKeydown($event)"
+                (click)="openLocations()"
+                (blur)="closeLocations()"
+              />
+              @if (locationOpen()) {
+                <div class="combobox__panel" (mousedown)="$event.preventDefault()">
+                  @if (filteredLocations().length === 0) {
+                    <!--
+                      An empty list is a real answer, so it is said out loud. The line
+                      sits BEFORE the listbox and outside it, because a listbox may own
+                      nothing but options and groups - so this is a live region beside
+                      the list rather than a fake option inside it. The (empty) listbox
+                      is still rendered below it: `aria-controls` on the input has to
+                      name an element that exists, at every moment the box says it is
+                      expanded.
+                    -->
+                    <p class="combobox__empty" role="status">{{ 'search.cityNoMatches' | t }}</p>
+                  }
+                  <ul
+                    class="combobox__listbox"
+                    id="filter-location-listbox"
+                    role="listbox"
+                    aria-labelledby="filter-location-label"
+                  >
+                    @for (group of locationGroups(); track group.kind) {
+                      <li class="combobox__group" role="group" [attr.aria-label]="group.label">
+                        <p class="combobox__group-label" aria-hidden="true">{{ group.label }}</p>
+                        @for (option of group.options; track option.value) {
+                          <div
+                            class="combobox__option"
+                            role="option"
+                            [id]="locationOptionId(option)"
+                            [attr.aria-selected]="option.value === form().location"
+                            [class.combobox__option--active]="locationOptionId(option) === activeLocationId()"
+                            (click)="setLocation(option.value)"
+                          >
+                            {{ option.label }}
+                          </div>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </div>
               }
-            </select>
+            </div>
             <p class="field__hint" id="filter-location-hint">{{ 'search.cityHint' | t }}</p>
           </div>
         </fieldset>
