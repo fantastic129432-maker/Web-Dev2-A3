@@ -350,9 +350,20 @@ Run everything from the project root.
       `.html` template and a doc comment per component, no cross-application
       imports, both applications importing `shared/`, the early-theme script in
       both `index.html` files, and a TypeScript-only API that compiles to `dist/`
-- [ ] `npm run check:translations` prints `10 checks passed`, with **298** keys in
+- [ ] `npm run check:translations` prints `11 checks passed`, with **298** keys in
       each of the four client languages and **250** in each of the four admin
-      languages, and every key the templates ask for present. The tenth check is
+      languages, and every key the templates ask for present. The tenth check
+      reads the VALUES rather than the keys: it fails when a Chinese, Vietnamese
+      or Japanese string still contains an English word, which is how the home
+      page's `已发布的 upcoming 活动` statistic was found. It keeps a hand-written
+      allow-list of the words that have to stay in Latin letters, each BY NAME
+      with its reason, and an entry that stops being needed fails as well:
+      acronyms (`API`, `ID`), the currency code `AUD`, the sort examples `A-Z`
+      and `Z-A`, the course code and roman numeral `PROG2002` / `Web` / `II`,
+      the weather brand `Open-Meteo` with its domain `Open-Meteo.com`, the place
+      names `Lismore` and `New South Wales` and the example city `Lis`, the
+      example name `Nguyễn Văn An`, the Vietnamese word `do` and the Vietnamese
+      loanwords `web`, `email`, `menu` and `gala`. The eleventh check is
       `tools/check-template-literals.mjs`: it fails when a user-facing word is
       written into a template instead of resolved from a dictionary, which the
       key-based checks cannot see

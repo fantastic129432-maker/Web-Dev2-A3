@@ -1,7 +1,7 @@
 /**
  * tools/check-translations.mjs
  * ---------------------------------------------------------------------------
- * Three checks that a language switcher can only be as good as:
+ * Four checks that a language switcher can only be as good as:
  *
  *   1. COMPLETENESS - the four dictionaries of a website define exactly the same
  *      keys. A missing key silently falls back to English, so without this check
@@ -16,8 +16,18 @@
  *      satisfies both while staying English in every language: `<h2>About this
  *      event</h2>` and `aria-label="Breadcrumb"` are invisible to them. The scan
  *      itself lives in tools/check-template-literals.mjs, next to the exemption
- *      list it needs; this file runs it so the three are counted and reported as
+ *      list it needs; this file runs it so the four are counted and reported as
  *      one suite.
+ *
+ *   4. WORDS INSIDE A VALUE - no English word is left inside a Chinese,
+ *      Vietnamese or Japanese string. Checks 1 to 3 are statements about keys or
+ *      about templates, so `"home.statUpcoming": "已发布的 upcoming 活动"` passed
+ *      every one of them: the key exists in all four languages, the template asks
+ *      for it, and the value is in the dictionary where it belongs. Only reading
+ *      the VALUE sees the English word in the middle of the Chinese sentence. The
+ *      scan and its allow-list live further down this file; a word that has to
+ *      stay in Latin letters is listed there by name with its reason, and an
+ *      entry that stops matching fails, so the list cannot rot.
  *
  * The dictionaries moved to TypeScript
  * (shared/src/i18n/client-translations.ts and admin-translations.ts) when the
@@ -25,6 +35,11 @@
  * vanilla clientside/js/translations.js. The parsing is deliberately tolerant of
  * formatting - it looks for `code: {` blocks and quoted keys - because people
  * edit these files by hand.
+ *
+ * The archived vanilla dictionaries under legacy/clientside/ are NOT scanned:
+ * they are the migration record, which is why they still contain the two mixed
+ * values this checker was written to catch. Editing them would falsify the
+ * record of what was migrated.
  *
  * Run:  node tools/check-translations.mjs
  *       npm run check:translations
@@ -265,6 +280,293 @@ function checkPlaceholders(name, dictionaries) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+
+/**
+ * ENGLISH WORDS INSIDE A TRANSLATION - the kind of defect this checker was
+ * missing.
+ *
+ * WHY THE OTHER CHECKS CANNOT SEE THIS
+ *   Completeness, key usage and placeholders are all statements about KEYS, or
+ *   about the {names} inside one value. The value
+ *
+ *     "home.statUpcoming": "已发布的 upcoming 活动"
+ *
+ *   defines the key, uses no placeholder, and is asked for by the template, so
+ *   every other check passed while a Chinese page showed an English word in the
+ *   middle of a Chinese sentence. The template-literal check cannot see it
+ *   either - the template asked for a key, honestly, and the words ARE in the
+ *   dictionary. Only reading the VALUE finds this, which is what this check does.
+ *
+ * WHAT IT CHECKS
+ *   Every value of every language except the reference language (`en`), in both
+ *   dictionaries:
+ *     * zh and ja do not spell words in Latin letters, so ANY Latin word left in
+ *       one of their values is reported;
+ *     * vi IS written in the Latin alphabet, so a Latin word is reported only
+ *       when the English dictionaries themselves use that word - the vocabulary
+ *       a half-translated value would be quoting. A Vietnamese syllable that
+ *       looks like an English function word (`do`) is allow-listed by name
+ *       below; `to` never becomes a token at all, because the tokenizer keeps
+ *       `toạ` and `Toàn` whole (see latinWords()).
+ *   The mirror case is checked too: a CJK character inside an `en` value.
+ *
+ * WHAT IS NOT REPORTED
+ *   Placeholders (`{count}`), e-mail addresses and URLs are removed before the
+ *   words are read: they are format examples, and the translator's job is to keep
+ *   them, not to translate them. Everything else that has to stay in Latin
+ *   letters is listed BY NAME below with its reason, exactly like the template
+ *   exemption list in tools/check-template-literals.mjs - and an entry that stops
+ *   matching FAILS, so the list cannot rot into a set of excuses.
+ *
+ * WHAT IT CANNOT CHECK (its limits, stated on purpose)
+ *   * A WORD THAT EXISTS IN BOTH LANGUAGES. `email`, `gala` and `menu` are
+ *     Vietnamese loanwords and English words at once, `web` is a loanword in all
+ *     three target languages, and `do` is a Vietnamese word spelled like an
+ *     English verb; all five are allow-listed, so a defect whose ONLY English
+ *     word was one of them would pass.
+ *   * A TRANSLITERATION. A Japanese カタカナ rendering of an English word is not
+ *     Latin script, so nothing here can tell it from a real translation.
+ *   * A NAME THE PROJECT DECIDES TO KEEP. This check cannot know that `PROG2002`
+ *     is a course code and `Lismore` a town; the allow-list records that decision
+ *     instead of guessing at it.
+ *   * A WORD NO ENGLISH VALUE EVER USES, in vi only. The vi rule needs an English
+ *     vocabulary to compare against and builds it from the `en` values, so a
+ *     stray English word that appears in no English string is invisible to it.
+ *     zh and ja do not have this limit: any Latin word is reported there.
+ *   * CASE. Allow-list matching ignores case, so `Web` and `web` share one entry.
+ *   * A DEFECT PRESENT IN ALL FOUR LANGUAGES. If a key is wrong in the same way
+ *     in en as well, this check has no reference to measure against; it compares
+ *     each translation with the English words, not with English SENSE.
+ */
+const ENGLISH_ALLOWED_IN_A_TRANSLATION = [
+  // -- acronyms the three target languages genuinely write as they are --------
+  {
+    value: 'API',
+    why: 'The interface/programming acronym, written API in Chinese, Vietnamese and Japanese technical prose alike; the dictionaries translate the words around it (API 正在运行, API に接続できません), not the acronym.',
+  },
+  {
+    value: 'ID',
+    why: 'The identifier column heading. Chinese and Japanese admin tables use ID for a primary key exactly as English does; an invented translation would be less clear than the acronym the database itself uses.',
+  },
+  {
+    value: 'AUD',
+    why: 'The ISO 4217 currency code on the fundraising amount labels. A currency code is a value, not a word - the same reason the project keeps the $ symbol rather than writing "Australian dollars" in four languages.',
+  },
+  // -- format examples -------------------------------------------------------
+  {
+    value: 'A-Z',
+    why: 'A sort-order example in the "name (A-Z)" option. It names the collation, not a word: the Chinese, Vietnamese and Japanese option labels all read "name (A-Z)" because that is what the list will do.',
+  },
+  {
+    value: 'Z-A',
+    why: 'The mirror image of A-Z, for the descending sort option, for the same reason.',
+  },
+  // -- proper nouns and brands ----------------------------------------------
+  {
+    value: 'PROG2002',
+    why: "The unit code of the course this project is an assessment for. A course code is a proper noun - it is written PROG2002 on the syllabus, in the README and in the marked submission.",
+  },
+  {
+    value: 'Web',
+    why: 'The World Wide Web, written in Latin letters inside the course title "PROG2002 Web Development II". Chinese (Web 开发), Japanese (Web開発) and Vietnamese (Phát triển Web) all keep the borrowed name for the Web itself.',
+  },
+  {
+    value: 'II',
+    why: 'The roman numeral in the same course title, "Web Development II". It is part of the course name, not a word, and every language block keeps it so the title matches the syllabus.',
+  },
+  {
+    value: 'Open-Meteo',
+    why: 'The weather API provider, named in weather.lead. A brand is not translated - the same decision as the organisation name in the footer.',
+  },
+  {
+    value: 'Open-Meteo.com',
+    why: "The provider's domain in the weather attribution line. A domain is an address, like the organisation's email address in the footer, and a translated one would not resolve.",
+  },
+  {
+    value: 'Lis',
+    why: 'The first letters of Lismore, typed into the city search box as the example query in search.cityPlaceholder. It is a proper noun used as a format example: a visitor types a place name, whatever language the interface is in.',
+  },
+  {
+    value: 'Lismore',
+    why: "The office town in the contact details. Place names are proper nouns and are kept in the country's own spelling; zh and ja transliterate it (利斯莫尔 / リズモア) while vi keeps the Latin spelling, which is correct Vietnamese usage.",
+  },
+  {
+    value: 'New South Wales',
+    why: 'The Australian state in the same address line, as a phrase so that the individual words New, South and Wales are never exempt on their own - allow-listing "New" by itself would hide a real defect.',
+  },
+  // -- Vietnamese words and loanwords that collide with English --------------
+  {
+    value: 'do',
+    only: ['vi'],
+    why: 'The Vietnamese preposition "do" (by, from, because of), which is spelled without a diacritic and therefore looks exactly like the English verb. It is Vietnamese, not untranslated English.',
+  },
+  {
+    value: 'email',
+    only: ['vi'],
+    why: 'A Vietnamese loanword in everyday use (thư điện tử is the formal alternative, and the dictionaries use "email" the way Vietnamese websites do).',
+  },
+  {
+    value: 'gala',
+    only: ['vi'],
+    why: 'A Vietnamese loanword, as in "tiệc gala". It names a kind of event rather than wording, so it is kept.',
+  },
+  {
+    value: 'menu',
+    only: ['vi'],
+    why: 'A Vietnamese loanword in interface language ("menu điều hướng"). Vietnamese software uses menu far more often than the native trình đơn.',
+  },
+  {
+    value: 'Nguyễn Văn An',
+    only: ['vi'],
+    why: 'The example name in the registration form placeholder, as a phrase so that "An" alone is never exempt. A Vietnamese example name must be Vietnamese - and the English placeholder uses a different example name.',
+  },
+];
+
+/** Escape a literal so it can be used inside a RegExp. */
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Remove what a translator is told to KEEP, so that only translatable words are
+ * left to judge: {placeholders}, e-mail addresses and URLs.
+ *
+ * These are the three exemptions the check can make mechanically, and it makes
+ * them here rather than in the allow-list because none of them is a decision
+ * about a specific word: `{count}` is a substitution, an address is an address.
+ */
+function stripFormatExamples(text) {
+  return text
+    .replace(/\{[^}]*\}/g, ' ')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, ' ')
+    .replace(/https?:\/\/\S+/g, ' ');
+}
+
+/**
+ * The Latin words in a value.
+ *
+ * The token pattern is Unicode-aware so that a Vietnamese word is ONE token:
+ * `Toàn` must not be split into `To` + `n`, because `To` would then look like an
+ * English word. A token is kept only when it is entirely ASCII, so a word that
+ * only contains non-Latin letters (网络, イベント, điều) is not a candidate.
+ * Digits are part of a word (PROG2002 is one token) but a token has to START
+ * with a letter, which is what keeps dates and times (2026-10-01, 9:00) out.
+ * One-letter tokens are not words, so they are dropped - that is what lets the
+ * multiplication sign in `{quantity} x {price}` stay as it is.
+ */
+function latinWords(text) {
+  const words = [];
+  for (const match of text.matchAll(/[\p{L}\p{N}][\p{L}\p{N}'’.+-]*/gu)) {
+    const word = match[0].replace(/[.'’+-]+$/, '');
+    if (/^[A-Za-z][A-Za-z0-9'’-]*(?:\.[A-Za-z0-9'’-]+)*$/.test(word) && word.length >= 2) {
+      words.push(word);
+    }
+  }
+  return words;
+}
+
+/**
+ * Remove the allow-listed words and phrases from one value, recording which
+ * entries matched so that a stale one can be reported.
+ *
+ * The entries are tried LONGEST FIRST. `Open-Meteo.com` has to be consumed
+ * before `Open-Meteo`, or the shorter entry would eat the brand and leave a bare
+ * `.com` behind - which the word scan would then report as an English word, and
+ * which would make the longer entry look unused. Sorting here rather than
+ * demanding a hand-kept order in the list means the list can be edited in any
+ * order without changing the result.
+ */
+function stripAllowedWords(text, code, used) {
+  let remaining = text;
+  const longestFirst = [...ENGLISH_ALLOWED_IN_A_TRANSLATION].sort(
+    (a, b) => b.value.length - a.value.length
+  );
+  for (const entry of longestFirst) {
+    if (entry.only && !entry.only.includes(code)) continue;
+    const pattern = new RegExp(`\\b${escapeRegExp(entry.value)}\\b`, 'giu');
+    if (!pattern.test(remaining)) continue;
+    used.add(entry);
+    remaining = remaining.replace(pattern, ' ');
+  }
+  return remaining;
+}
+
+/** Chinese characters and Japanese kana - never part of an English string. */
+const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/u;
+
+/**
+ * Report every English word left inside a translation, then register the result
+ * as one check in the caller's list.
+ *
+ * @param dictionariesByFile - One parsed dictionary map per dictionary file.
+ */
+function checkWordsInsideTranslations(dictionariesByFile) {
+  // The English vocabulary to compare Vietnamese against: every word the
+  // English dictionaries use. Built from BOTH files, because a word may be
+  // introduced on one site and left untranslated on the other.
+  const englishWords = new Set();
+  for (const dictionaries of Object.values(dictionariesByFile)) {
+    for (const value of dictionaries[CODES[0]]?.values() ?? []) {
+      for (const word of latinWords(stripFormatExamples(value))) {
+        englishWords.add(word.toLowerCase());
+      }
+    }
+  }
+
+  const problems = [];
+  const used = new Set();
+
+  for (const [file, dictionaries] of Object.entries(dictionariesByFile)) {
+    for (const code of CODES.slice(1)) {
+      for (const [key, value] of dictionaries[code] ?? new Map()) {
+        const remaining = stripAllowedWords(stripFormatExamples(value), code, used);
+        for (const word of latinWords(remaining)) {
+          // zh and ja never spell a word in Latin letters; vi does, so there only
+          // a word the English dictionaries themselves use is suspicious.
+          const suspicious = code !== 'vi' || englishWords.has(word.toLowerCase());
+          if (suspicious) problems.push({ file, code, key, value, word });
+        }
+      }
+    }
+  }
+
+  // The mirror case: a Chinese or Japanese string inside an English value.
+  for (const [file, dictionaries] of Object.entries(dictionariesByFile)) {
+    for (const [key, value] of dictionaries[CODES[0]] ?? new Map()) {
+      if (CJK.test(value)) problems.push({ file, code: CODES[0], key, value, word: 'CJK text' });
+    }
+  }
+
+  const unused = ENGLISH_ALLOWED_IN_A_TRANSLATION.filter((entry) => !used.has(entry));
+  // Printed in the order the list declares them, not in match order, so the
+  // report reads like the decision record it is.
+  const matched = ENGLISH_ALLOWED_IN_A_TRANSLATION.filter((entry) => used.has(entry));
+
+  console.log('');
+  console.log('Translated words');
+  console.log('----------------');
+  for (const problem of problems) {
+    console.log(`          ${problem.code} ${problem.key} [${problem.word}] ${problem.value}`);
+    console.log(`            in ${problem.file}`);
+  }
+  console.log(`          ${matched.length} allow-listed word(s), each with its reason:`);
+  for (const entry of matched) {
+    console.log(`            "${entry.value}"${entry.only ? ` (${entry.only.join(', ')} only)` : ''}`);
+    console.log(`              why: ${entry.why}`);
+  }
+  for (const entry of unused) {
+    console.log(`          STALE ALLOW-LIST ENTRY  "${entry.value}"`);
+  }
+
+  const detail =
+    problems.length === 0 && unused.length === 0
+      ? `${matched.length} allow-listed word(s) with a reason (listed above); no English word left in a zh, vi or ja value`
+      : `${problems.length} English word(s) inside a translation, ${unused.length} stale allow-list entr(ies) - see the lines above`;
+
+  check('no English word is left inside a zh, vi or ja translation', problems.length === 0 && unused.length === 0, detail);
+}
+
 /** Compare the four languages of one dictionary and report the gaps. */
 function checkDictionary(name, file, requested, requestedLabel) {
   console.log('');
@@ -343,9 +645,22 @@ check(
   'both applications use APP_CONFIG.storageKeys.language'
 );
 
-// The third check: the words themselves. It belongs here rather than in the two
-// dictionary sections above because it is about BOTH applications' templates at
-// once, and because a literal in either one is the same defect.
+// The fourth check: the words inside the values. It compares both dictionaries
+// at once, because the allow-list and the English vocabulary it measures a
+// Vietnamese value against are properties of the project, not of one file.
+checkWordsInsideTranslations({
+  'client-translations.ts': parseDictionaryValues(
+    fs.readFileSync(path.join(SHARED_I18N, 'client-translations.ts'), 'utf8')
+  ),
+  'admin-translations.ts': parseDictionaryValues(
+    fs.readFileSync(path.join(SHARED_I18N, 'admin-translations.ts'), 'utf8')
+  ),
+});
+
+// The fifth check: the words themselves, in the templates. It belongs here
+// rather than in the two dictionary sections above because it is about BOTH
+// applications' templates at once, and because a literal in either one is the
+// same defect.
 runTemplateLiteralCheck(check);
 
 /* ===================================================================== */

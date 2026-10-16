@@ -482,7 +482,7 @@ Every script lives in the root `package.json`. They fall into four groups.
 | --- | --- | --- |
 | `npm run check:angular` | `node tools/check-angular-architecture.mjs` | Any break of the required architecture - see section 10 |
 | `npm run check:shared` | `tsc -p tsconfig.shared.json` | A type error in `shared/` that neither application happens to import yet |
-| `npm run check:translations` | `node tools/check-translations.mjs` | Four dictionaries with different key sets, a template asking for a key that does not exist, or a user-facing word written into a template instead of resolved from a dictionary |
+| `npm run check:translations` | `node tools/check-translations.mjs` | Four dictionaries with different key sets, a template asking for a key that does not exist, a user-facing word written into a template instead of resolved from a dictionary, or an English word left inside a Chinese, Vietnamese or Japanese value instead of being translated (the words that must stay in Latin letters are allow-listed by name, each with its reason) |
 | `npm run check:refs` | `node tools/audit-references.mjs` | Documentation that names a file, tool or npm script that does not exist |
 | `npm run check:secrets` | `node tools/check-no-secrets.mjs` | A real credential in a tracked file |
 | `npm run check:encoding` | `node tools/find-encoding-damage.mjs` | Text mangled by an encoding round trip |

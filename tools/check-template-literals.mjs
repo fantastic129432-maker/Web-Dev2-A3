@@ -3,9 +3,9 @@
  * ---------------------------------------------------------------------------
  * The third translation check: no user-facing WORD is written into a template.
  *
- * WHY THE OTHER TWO CHECKS CANNOT SEE THIS
- *   check-translations.mjs proves two things, and both are statements about
- *   KEYS:
+ * WHY THE KEY CHECKS CANNOT SEE THIS
+ *   check-translations.mjs proves two things about keys, and both are statements
+ *   about KEYS rather than about the text on the page:
  *     1. the four dictionaries of a website define exactly the same keys, and
  *     2. every key a template or component ASKS FOR exists.
  *   A template that never asks for a key at all - `<h2>About this event</h2>`,
@@ -13,6 +13,11 @@
  *   dictionary, the key sets still match, so every check passes while the page
  *   stays English in all four languages. Only a person reading the template
  *   could see it. That is the hole this file closes.
+ *
+ *   This file closes the TEMPLATE half of that hole. The VALUE half - a template
+ *   that asks for a key honestly, and a dictionary that answers it in the wrong
+ *   language - is closed by the fourth check in tools/check-translations.mjs,
+ *   which reads the values themselves.
  *
  * WHAT IT CHECKS
  *   Every `*.html` file under `clientside/src` and `adminside/src`, for two
@@ -30,15 +35,22 @@
  *
  *   A candidate FAILS unless it is listed in INTENTIONAL_LITERALS below, so the
  *   normal way to add a word to a page is a dictionary key in all four
- *   languages - which checks 1 and 2 then hold to their own rules.
+ *   languages - which the key checks and the value check then hold to their own
+ *   rules.
  *
  * WHAT IT CANNOT CHECK (its own limits, stated on purpose)
- *   * A KEY THAT LOOKS LIKE ENGLISH. The check sees the key a template asks
+ *   * A VALUE IN THE WRONG LANGUAGE. This check sees the key a template asks
  *     for, never the text it resolves to, so it cannot tell that `ja` carries
  *     "All rights reserved." for `nav.rights` - a value identical to English is
- *     a translation decision, not a missing lookup. It also does not know that
- *     `state.event` and `state.charityEvent` are different words in English and
- *     the same word in another language.
+ *     a translation decision, not a missing lookup. That defect used to be a
+ *     documented blind spot HERE; it is now caught by the fourth check in
+ *     tools/check-translations.mjs, which reads the values ("All rights
+ *     reserved." in the Japanese block is exactly what it reports). What is
+ *     still invisible to both is a value that is translated into the WRONG
+ *     non-English language, or one that is simply wrong in a way no English
+ *     word appears in. This check also does not know that `state.event` and
+ *     `state.charityEvent` are different words in English and the same word in
+ *     another language.
  *   * A PROPER NOUN, A BRAND, A URL, A FORMAT. Nothing here can tell "Unity
  *     Heart Foundation" from a sentence, or an email address from a label, so
  *     those are exempted BY HAND below, each with its reason. A new one has to
@@ -69,7 +81,8 @@
  *   literal, remove its entry.
  *
  * Run:  node tools/check-template-literals.mjs
- *       npm run check:translations     (runs it with the other two)
+ *       npm run check:translations     (runs it with the key checks and the
+ *                                       value check)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -335,8 +348,8 @@ export function collectTemplateLiterals() {
  * Print the result, and register it as one check in the caller's list.
  *
  * The signature is the same `check(label, ok, detail)` helper that
- * tools/check-translations.mjs uses, so the three translation checks report in
- * one format and are counted together.
+ * tools/check-translations.mjs uses, so every translation check reports in one
+ * format and they are all counted together.
  *
  * @param check - The caller's recording function.
  */

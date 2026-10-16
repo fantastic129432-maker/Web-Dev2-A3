@@ -529,7 +529,7 @@ migration tool rather than part of the build.
 ### How the dictionaries are kept honest
 
 `tools/check-translations.mjs` (`npm run check:translations`) parses the
-TypeScript dictionaries and enforces four things:
+TypeScript dictionaries and enforces five things:
 
 1. all four languages are present;
 2. every language defines the same keys (a missing key silently falls back to
@@ -539,7 +539,24 @@ TypeScript dictionaries and enforces four things:
    `t('nav.hom')` would otherwise render the literal string `nav.hom` on the
    page, which is easy to introduce during a migration and impossible to spot by
    reading 300 keys;
-4. **no user-facing word is written into a template at all.** Checks 1 to 3 are
+4. **no English word is left inside a value.** Checks 1 to 3 are statements
+   about keys, and the literal check below is a statement about templates, so a
+   value such as `"home.statUpcoming": "已发布的 upcoming 活动"` satisfied all of
+   them: the key exists in all four languages, the template asks for it
+   honestly, and the text is in the dictionary where it belongs - and the
+   Chinese page showed an English word in the middle of a Chinese sentence. This
+   check reads the VALUES. Chinese and Japanese never spell a word in Latin
+   letters, so any Latin word in one of their values is reported; Vietnamese
+   *is* written in Latin letters, so a Latin word there is reported only when
+   the English dictionaries themselves use it. The words that legitimately stay
+   in Latin letters - an acronym (`API`, `ID`), a currency code (`AUD`), a sort
+   example (`A-Z`), the course code in the footer, a brand and its domain, a
+   place name, and the Vietnamese loanwords - are allow-listed BY NAME with a
+   reason, in the style of the template exemption list, and an entry that stops
+   matching fails so the list cannot rot. Its own limits (a word that exists in
+   both languages, a transliteration, a name the project decides to keep) are
+   written down in that file rather than left implied;
+5. **no user-facing word is written into a template at all.** Checks 1 to 3 are
    statements about KEYS, and a template that asks for no key satisfies every one
    of them while staying English in all four languages. The scan lives in
    `tools/check-template-literals.mjs`, which is run by this command; it reads
