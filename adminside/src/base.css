@@ -350,6 +350,49 @@ textarea {
 .field { margin-bottom: var(--space-4); }
 .field__hint { color: var(--ink-500); font-size: 0.8rem; margin: var(--space-1) 0 0; }
 
+/* ==========================================================================
+   THE FORM RHYTHM
+   ==========================================================================
+   The same three gaps the public site's forms use, so the two websites do not
+   space their forms differently:
+
+     label -> its own control              8px   --space-2
+     sibling items inside one group       12px   --space-3
+     one section to the next          24-32px   here 32px above a heading
+                                               (`.admin-form__heading`), 24px
+                                               between the public site's fieldsets
+
+   clientside/src/styles.css carries the full before/after measurement table for
+   both websites. The number that matters on this form is the middle one: a row
+   of two short fields is ONE group, so the row's own `gap` is the spacing
+   between its items and the `.field`'s generic bottom margin must not be added
+   on top of it.
+
+   AN EMPTY SLOT TAKES NO ROOM.
+   `.field-message` is the live region under a control: it is in the document
+   from the first paint so a screen reader is listening before the message
+   arrives, but it must not reserve a line of height while it is silent. On this
+   form that reserved line was 41.6px under every message slot (margin-top 8px +
+   min-height 1.1rem = 17.6px + the `p` rule's 16px margin-bottom), which is what
+   made the gap from the date input to the next row's label 57.59px instead of
+   16px and what turned the single-day date row into a 976px-wide empty band.
+
+   WHEN THIS RULE APPLIES, HONESTLY: `:empty` matches an element with no child
+   nodes, and an interpolation leaves one behind - a "  " text node if the
+   template puts the interpolation on its own line, which does NOT match, and no
+   child at all when the text is bound with `[textContent]`, which DOES (measured
+   in the Edge this project is verified with). Every message slot in
+   event-form.html and the two client-side forms therefore binds its text with
+   `[textContent]`. The trade-off is deliberate: a field grows by the message's
+   height when an error appears, instead of every field carrying 41.6px of
+   nothing all the time.
+   -------------------------------------------------------------------------- */
+.field-message:empty {
+  margin-top: 0;
+  margin-bottom: 0;
+  min-height: 0;
+}
+
 input[type='text'],
 input[type='search'],
 input[type='date'],
@@ -392,12 +435,38 @@ textarea[aria-invalid='true'] {
  * 130px wide, so two date fields pushed past their container on a narrow
  * window; auto-fit collapses the pair to one column automatically, so no media
  * query is needed.
+ *
+ * WHAT auto-fit DOES WHEN THE SECOND FIELD IS GONE, measured rather than assumed:
+ * it collapses every track that holds nothing, so the date row with the
+ * single-day switch ticked is `976px 0px 0px 0px 0px` - ONE live track, not the
+ * 50/50 grid it looks like. The start date's field therefore already spans the
+ * row; what the review saw as a hole was the row being 139px tall around a
+ * 208px-tall (13rem) date input, most of that height the empty message slot.
+ * The track count is left as it is on purpose: forcing two tracks so the lone
+ * field sits in the left half would put it exactly where it already is (the
+ * input is capped at 13rem either way) and would reserve an empty column that
+ * auto-fit does not.
+ *
+ * THE ROW'S GAP IS THE GROUP'S SPACING, AND THE ROW OWNS THE SPACE BELOW IT.
+ * `.field` carries `margin-bottom: var(--space-4)` so two stacked fields are
+ * 16px apart. Inside a row that margin is redundant - the row's `gap` already
+ * separates the items - and when a row collapses to one column it is what would
+ * make the two items 28px apart instead of 12px. The margin moves to the row,
+ * where it is counted once: a row's border box is 16px shorter and the thing
+ * after it starts at the same y, so this rule on its own moves nothing
+ * (measured on every row of the event form).
  */
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
+/* Weaker than `.admin-form .field`, which is the same weight and comes later in
+   styles.css - the event form therefore repeats this line one class heavier in
+   its own section, where the reason is written out. This copy is what keeps a
+   row outside `.admin-form` (the filter bars) on the same rule. */
+.form-row > .field { margin-bottom: 0; }
 
 /* ==========================================================================
    6. Panel

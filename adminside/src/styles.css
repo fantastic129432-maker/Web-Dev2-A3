@@ -718,6 +718,37 @@ html body.admin-body .admin-page-header p {
 
 .admin-form .field { margin-bottom: var(--space-4); }
 
+/*
+ * A field inside a row does not carry that margin as well.
+ *
+ * The row's own `gap` is the spacing between two sibling fields and the row's
+ * `margin-bottom` is the spacing below the pair (see `.form-row` in base.css),
+ * so the generic `.admin-form .field` margin above would be counted twice.
+ * Measured, once the empty message slots had stopped reserving a line: a
+ * two-field row's box was 97.42px around an 81.42px field, and the next row's
+ * label started 32px below the control where every other field on the form is
+ * 16px from the one above it.
+ *
+ * The rule is written HERE rather than in base.css because base.css's own
+ * `.form-row > .field { margin-bottom: 0 }` is a (0,2,0) selector and this
+ * `.admin-form .field` is the same weight, so base.css loses on source order -
+ * the same trap the `.ticket-rows` note further down describes. This selector is
+ * one class heavier, which is why it wins. That was found by measuring rather
+ * than by reading: the first version of this fix sat in base.css and the row was
+ * still 97.42px tall.
+ *
+ * THE EFFECT IS DELIBERATE AND IS THE RHYTHM, NOT A SIDE EFFECT: every gap on
+ * this form between one control and the next field's label is now `--space-4`
+ * (16px), the value `.field { margin-bottom }` already uses for two stacked
+ * fields on the public site's forms. Before this round that gap was 57.59px (the
+ * empty slot's 41.6px plus this doubled margin), and with only the slot fixed it
+ * was 32px. Sections are still 32px apart (`.admin-form__heading`), so the three
+ * levels stay distinct: 8px inside a field, 16px between fields, 24-32px between
+ * sections. Measured on the event form at 1440/1366/1100, in all four languages
+ * and both themes, single-day ticked and unticked.
+ */
+.admin-form .form-row > .field { margin-bottom: 0; }
+
 /* A checkbox on its own line, with the label after the box. */
 .field--inline {
   display: flex;

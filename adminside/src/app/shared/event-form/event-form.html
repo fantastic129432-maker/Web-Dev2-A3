@@ -7,7 +7,11 @@
      Every class comes from the admin stylesheet (src/styles.css):
        .admin-form          the form block and its section headings
        .field / .form-row   one labelled control / two controls side by side
-       .field-message       the slot under every control, empty until it has to speak
+       .field-message       the slot under every control: a live region that is
+                            empty until it has to speak, and that takes no space
+                            at all while it is empty - which is why each one binds
+                            its text with [textContent] instead of interpolating
+                            between two lines (see THE FORM RHYTHM in base.css)
        .ticket-rows / .ticket-row   the repeating ticket-tier block
        .admin-form__actions the submit row
 
@@ -38,7 +42,7 @@
       aria-describedby="eventName-message"
       [attr.aria-invalid]="messageFor('eventName') ? 'true' : null"
     />
-    <p class="field-message field-message--error" id="eventName-message" role="status">{{ messageFor('eventName') }}</p>
+    <p class="field-message field-message--error" id="eventName-message" role="status" [textContent]="messageFor('eventName')"></p>
   </div>
 
   <div class="form-row">
@@ -58,7 +62,7 @@
           <option [ngValue]="organization.organizationId">{{ organization.name }} ({{ organization.city }})</option>
         }
       </select>
-      <p class="field-message field-message--error" id="organizationId-message" role="status">{{ messageFor('organizationId') }}</p>
+      <p class="field-message field-message--error" id="organizationId-message" role="status" [textContent]="messageFor('organizationId')"></p>
     </div>
 
     <div class="field">
@@ -75,7 +79,7 @@
           <option [ngValue]="category.categoryId">{{ category.categoryName }}</option>
         }
       </select>
-      <p class="field-message field-message--error" id="categoryId-message" role="status">{{ messageFor('categoryId') }}</p>
+      <p class="field-message field-message--error" id="categoryId-message" role="status" [textContent]="messageFor('categoryId')"></p>
     </div>
   </div>
 
@@ -94,7 +98,7 @@
       }
     </select>
     <p class="field__hint">{{ 'field.locationHint' | t }}</p>
-    <p class="field-message field-message--error" id="locationId-message" role="status">{{ messageFor('locationId') }}</p>
+    <p class="field-message field-message--error" id="locationId-message" role="status" [textContent]="messageFor('locationId')"></p>
   </div>
 
   <div class="field">
@@ -110,7 +114,7 @@
       [attr.aria-invalid]="messageFor('shortDescription') ? 'true' : null"
     />
     <p class="field__hint" id="shortDescription-hint">{{ 'field.shortDescriptionHint' | t }}</p>
-    <p class="field-message field-message--error" id="shortDescription-message" role="status">{{ messageFor('shortDescription') }}</p>
+    <p class="field-message field-message--error" id="shortDescription-message" role="status" [textContent]="messageFor('shortDescription')"></p>
   </div>
 
   <div class="field">
@@ -124,7 +128,7 @@
       [attr.aria-invalid]="messageFor('description') ? 'true' : null"
     ></textarea>
     <p class="field__hint" id="description-hint">{{ 'field.descriptionHint' | t }}</p>
-    <p class="field-message field-message--error" id="description-message" role="status">{{ messageFor('description') }}</p>
+    <p class="field-message field-message--error" id="description-message" role="status" [textContent]="messageFor('description')"></p>
   </div>
 
   <div class="field">
@@ -139,7 +143,7 @@
       aria-describedby="purpose-message"
       [attr.aria-invalid]="messageFor('purpose') ? 'true' : null"
     />
-    <p class="field-message field-message--error" id="purpose-message" role="status">{{ messageFor('purpose') }}</p>
+    <p class="field-message field-message--error" id="purpose-message" role="status" [textContent]="messageFor('purpose')"></p>
   </div>
 
   <!-- ================================================================= when === -->
@@ -179,9 +183,7 @@
         aria-describedby="dateStart-message"
         [attr.aria-invalid]="messageFor('dateStart') ? 'true' : null"
       />
-      <p class="field-message field-message--error" id="dateStart-message" role="status">
-        {{ messageFor('dateStart') }}
-      </p>
+      <p class="field-message field-message--error" id="dateStart-message" role="status" [textContent]="messageFor('dateStart')"></p>
     </div>
 
     <!-- @if, not [hidden]: a hidden input is still focusable and still submitted,
@@ -198,7 +200,7 @@
         />
         <!-- The cross-field rule is validated on the GROUP (see core/event-form.ts)
              and its message is placed here, beside the box that has to change. -->
-        <p class="field-message field-message--error" id="dateEnd-message" role="status">{{ windowMessage('dateOrder') }}</p>
+        <p class="field-message field-message--error" id="dateEnd-message" role="status" [textContent]="windowMessage('dateOrder')"></p>
       </div>
     }
   </div>
@@ -214,7 +216,7 @@
         aria-describedby="startTime-message"
         [attr.aria-invalid]="messageFor('startTime') || windowMessage('timeOrder') ? 'true' : null"
       />
-      <p class="field-message field-message--error" id="startTime-message" role="status">{{ messageFor('startTime') }}</p>
+      <p class="field-message field-message--error" id="startTime-message" role="status" [textContent]="messageFor('startTime')"></p>
     </div>
 
     <div class="field">
@@ -227,9 +229,17 @@
         aria-describedby="endTime-message"
         [attr.aria-invalid]="messageFor('endTime') || windowMessage('timeOrder') ? 'true' : null"
       />
-      <p class="field-message field-message--error" id="endTime-message" role="status">
-        {{ messageFor('endTime') }} {{ windowMessage('timeOrder') }}
-      </p>
+      <!-- Two sentences can share this slot (the field's own rule and the
+           start/end window rule), so it is one binding with `trim()` rather than
+           two interpolations: `{{ a }} {{ b }}` leaves a whitespace text node
+           behind when both are empty, and a whitespace text node stops
+           `.field-message:empty` from collapsing the slot. -->
+      <p
+        class="field-message field-message--error"
+        id="endTime-message"
+        role="status"
+        [textContent]="(messageFor('endTime') + ' ' + windowMessage('timeOrder')).trim()"
+      ></p>
     </div>
   </div>
 
@@ -267,7 +277,7 @@
         [attr.disabled]="isFree() ? true : null"
         [class.field--locked]="isFree()"
       />
-      <p class="field-message field-message--error" id="goalAmount-message" role="status">{{ messageFor('goalAmount') }}</p>
+      <p class="field-message field-message--error" id="goalAmount-message" role="status" [textContent]="messageFor('goalAmount')"></p>
     </div>
 
     <div class="field">
@@ -282,7 +292,7 @@
         [attr.aria-invalid]="messageFor('capacity') ? 'true' : null"
       />
       <p class="field__hint" id="capacity-hint">{{ 'field.capacityHint' | t }}</p>
-      <p class="field-message field-message--error" id="capacity-message" role="status">{{ messageFor('capacity') }}</p>
+      <p class="field-message field-message--error" id="capacity-message" role="status" [textContent]="messageFor('capacity')"></p>
     </div>
   </div>
 
@@ -395,7 +405,7 @@
               {{ 'field.removeTier' | t }}
             </button>
           </div>
-          <p class="field-message field-message--error" role="status">{{ tierMessage(index) }}</p>
+          <p class="field-message field-message--error" role="status" [textContent]="tierMessage(index)"></p>
         </div>
       }
     </div>

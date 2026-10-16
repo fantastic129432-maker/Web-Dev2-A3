@@ -69,7 +69,24 @@
 @media (min-width: 601px) {
   /* Date, time and money. A date input renders its own picker icon, the time
      input its own spinner, so the box is sized for ten characters plus the
-     control's own chrome rather than for the label above it. */
+     control's own chrome rather than for the label above it.
+
+     THIS CAP IS KEPT WHEN THE END DATE IS GONE, and that was checked rather than
+     assumed. With the single-day switch ticked the `.form-row` holds one field,
+     so a reviewer expects "Start date in the left half, a large empty rectangle
+     on the right"; measured, `auto-fit` collapses the four tracks the lone field
+     does not occupy and the row's grid is `976px 0px 0px 0px 0px` - the field
+     already spans the row, and the 13rem cap is what leaves 768px of it empty.
+     Filling that space with the control was the other option the review offered
+     and it is the one thing this form must not do: a 976px date box puts the
+     picker icon ~900px from the label the eye has just read, which is the defect
+     this cap was introduced to remove (see the numbers at the top of this file).
+     What was wrong was the row's HEIGHT around the input - 139.02px of row for a
+     50.38px control, 41.6px of it an empty message slot - and that is fixed by
+     `.field-message:empty` in base.css plus the row rules in styles.css: the
+     row's box is now 81.42px and the next row's label starts 16px below the date
+     input instead of 57.59px, in all four languages, both themes and at 1440,
+     1366 and 1100px, with the switch ticked and unticked. */
   .admin-form input[type='date'],
   .admin-form input[type='time'],
   .admin-form input[type='number'] {

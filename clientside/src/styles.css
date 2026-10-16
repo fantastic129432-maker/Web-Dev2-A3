@@ -1644,6 +1644,94 @@ legend,
 .field { margin-bottom: var(--space-4); }
 .field__hint { color: var(--ink-500); font-size: 0.8rem; margin: var(--space-1) 0 0; }
 
+/* ==========================================================================
+   THE FORM RHYTHM
+   ==========================================================================
+   A form on this site uses three gaps and invents no fourth:
+
+     label -> its own control              8px   --space-2
+     sibling items inside one group       12px   --space-3
+     one section (fieldset) to the next   24px   --space-5
+
+   The three numbers are not new: 8px is the `margin-bottom` on the label rule
+   above, 12px is the `.form-row` gap (and the rule further down for a checkbox
+   that owns the field beneath it), and 24px is the `fieldset` `margin-bottom`.
+   Written down here because two of the four defects fixed in this round were a
+   form using a LARGER gap than the standard for something the standard calls a
+   group, which is what makes a pair of sibling fields read as two sections.
+
+   WHY 12px AND NOT 16px FOR SIBLINGS
+   A group's items are separated by the row's own `gap`, and the row is what
+   carries the 16px that follows the group - see `.form-row` in section 10. Two
+   numbers rather than one because the two questions are different: "how far
+   apart are these two fields" (12px) and "how far is the next thing" (16px, on
+   its way to the 24px between sections).
+
+   MEASURED GAPS, BEFORE AND AFTER THIS ROUND. Every number is the distance
+   between two element boxes (not glyph to glyph), English, 1440px, light theme;
+   the same numbers were reproduced in all four languages, both themes and at
+   1366 and 1100px, because none of these rules depends on either.
+
+     search, From date input bottom -> To date label top     69.59px -> 12px
+     search, From date field box bottom -> To date box top     28px  -> 12px
+     search, From date input bottom -> To date input top     100.64px -> 43.05px
+        (the 31.05px that remains is the "To date" label and its own 8px gap)
+     search, free-events checkbox box bottom -> keyword top     12px -> 12px
+     search, free-events checkbox TEXT bottom -> keyword top   17.6px -> 12px
+     search, legend bottom -> first item of that group           8px -> 8px
+     search, keyword input bottom -> "5. Event state" top       40px -> 40px
+     search, section to section, all four boundaries            24px -> 24px
+     register, row height (the note sat inside a column)     181.95px -> 132.36px
+     register, name/email column height, each                165.95px -> 79.42px
+     register, last content -> the next field's label top       32px -> 16px
+     admin, single-day date input bottom -> next label top   57.59px -> 16px
+     admin, paired date input bottom -> next label top       57.59px -> 16px
+     every field on all three pages, label bottom -> its own control 8px -> 8px
+   The unchecked `.field-message` slot is what moved most of those numbers, and
+   the rule for it is directly below.
+   -------------------------------------------------------------------------- */
+
+/*
+ * AN EMPTY SLOT TAKES NO ROOM.
+ *
+ * `.field-message` is the live region under a control: it exists from the first
+ * paint so that a screen reader is already listening when the form has something
+ * to say. It therefore cannot be created on demand - but it must not reserve a
+ * line of height while it is silent either, because that is invisible space in
+ * the middle of a form. On the search page it was 41.6px of it under every date
+ * field (margin-top 8px + min-height 1.1rem = 17.6px + the `p` rule's 16px
+ * margin-bottom), which is 60% of the 69.6px that separated From date from To
+ * date - the defect this round was asked to find.
+ *
+ * WHEN THIS RULE APPLIES, HONESTLY: `:empty` matches an element with no child
+ * nodes, so what decides it is what the template leaves behind.
+ *
+ * Measured in the Edge this project is verified with, against the build before
+ * this round: `<p>` with an interpolation on its own line keeps a whitespace text
+ * node ("  ") when the value is '' and matches `:empty` = FALSE, while the same
+ * slot written on one line with no whitespace keeps a ZERO-LENGTH text node and
+ * matches `:empty` = TRUE. The rule therefore cannot be left to depend on how a
+ * template happens to be wrapped. Every message slot whose value can be empty
+ * binds its text with `[textContent]` instead of interpolating: Angular then sets
+ * `textContent = ''`, which removes the child node entirely (measured: 0 child
+ * nodes, `:empty` = TRUE, height 0, and the element is still `display: block` and
+ * still a live region while it waits).
+ *
+ * The slots that were NOT changed are the ones that are never empty: the
+ * registration form's summary alert is inside an `@if`, so it is not in the
+ * document at all until there is a sentence to put in it.
+ *
+ * The trade-off is deliberate and is the point of the rule: a field that grows
+ * an error message while the visitor is looking at it moves the fields below it,
+ * where the old reserved line did not. The alternative was 41.6px of nothing
+ * under every control on both websites.
+ */
+.field-message:empty {
+  margin-top: 0;
+  margin-bottom: 0;
+  min-height: 0;
+}
+
 /*
  * There is deliberately no `.field__format` rule here any more.
  *
@@ -1652,9 +1740,15 @@ legend,
  * it promised something the control cannot deliver: a native <input type="date">
  * paints its own placeholder in the BROWSER's locale, and no `lang` attribute
  * changes it (measured - see decision 5 in clientside/src/app/pages/search/
- * search.ts). The one example line that remains under those fields,
- * `search.dateHint`, is a valid example rather than a claim about the control's
- * presentation, so it needs no styling of its own.
+ * search.ts). That removal was COMPLETE and left no residue, which was checked
+ * rather than assumed when the gap between the two date fields was investigated
+ * in this round: the built page contains zero `.field__format` elements, no rule
+ * in this file or any component stylesheet matches the class, and the template
+ * carries a comment where the two paragraphs used to be - a comment occupies no
+ * space. The gap the review saw came from the empty `.field-message` slot beside
+ * those fields, not from the hint (see the rule above). The one example line that
+ * remains under those fields, `search.dateHint`, is a valid example rather than a
+ * claim about the control's presentation, so it needs no styling of its own.
  */
 
 input[type='text'],
@@ -1714,6 +1808,31 @@ textarea:focus { border-color: var(--brand-500); }
 
 .radio-row { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .radio-row .checkbox { background: transparent; padding-left: 0; }
+
+/*
+ * A CHECKBOX THAT OWNS THE FIELD BENEATH IT IS ONE GROUP WITH IT.
+ *
+ * The search page's "4. Other options" block is a checkbox and then the keyword
+ * field it applies to - two items of one group, not two groups. It used to be
+ * separated by an inline `style="margin-top: 0.75rem"` on the field: a one-off
+ * margin that happened to be 12px, but written as a patch on the element rather
+ * than as the group rule, and measured from the wrong edge. `.checkbox` carries
+ * `padding: 0.35rem 0.5rem` for its own hover highlight, so 12px of margin under
+ * that box is 17.6px of visible gap - above the 12-16px the standard allows a
+ * group's siblings, and more than twice the 8px between the legend and the first
+ * item, which is exactly what makes the pair read as two groups.
+ *
+ * So the inline margin is gone and this rule states the group instead: the two
+ * items are `--space-3` (12px) apart, measured from the edge a person sees, which
+ * means the leading checkbox drops the hit-area padding that would otherwise be
+ * counted twice. It keeps its horizontal padding and its hover highlight; it is
+ * only the vertical padding, which is not part of the group's rhythm, that goes.
+ * Measured: checkbox label box bottom -> keyword field top 12px before and 12px
+ * after (the margin's own value never changed), and the checkbox row's content
+ * edge -> keyword label top 17.6px before, 12px after.
+ */
+.checkbox--lead { padding-block: 0; }
+.checkbox--lead + .field { margin-top: var(--space-3); }
 
 .field-message { display: block; margin-top: var(--space-2); font-size: 0.85rem; min-height: 1.1rem; }
 .field-message--error { color: var(--danger); }
@@ -2297,11 +2416,55 @@ textarea:focus { border-color: var(--brand-500); }
  *     container is too narrow, so no media query is needed for this rule.
  * The controls themselves also carry min-width: 0, which is what actually
  * allows the tracks to shrink.
+ *
+ * THE ROW'S GAP IS THE GROUP'S SPACING, AND THE ROW OWNS THE SPACE BELOW IT.
+ *
+ * A `.field` carries `margin-bottom: var(--space-4)` so that two stacked fields
+ * are 16px apart. Inside a `.form-row` that margin is redundant and harmful: a
+ * field in a row already has the row's `gap` beside it, and on the search page -
+ * where the 330px filter panel is too narrow for two 160px tracks, so auto-fit
+ * collapses the row to ONE column - the two date fields are stacked SIBLINGS of
+ * one group and were separated by the field's margin (16px) AND the row's gap
+ * (12px) at once, i.e. 28px where the standard allows 12-16px. The rule below
+ * removes the doubled-up margin from the items and puts it on the row. The
+ * 16px the row absorbs is the same 16px the items used to carry, so this rule on
+ * its own moves nothing: a row's border box is 16px shorter and the thing after
+ * it starts at the same y (measured on the registration form and on every row of
+ * the admin event form). What moves the numbers below is the empty message slot
+ * above no longer reserving its line.
+ *
+ * With that slot collapsed, From date -> To date is exactly the row's gap: input
+ * bottom to the next field's label top = 12px, inside the standard's 12-16px
+ * band, where the two rules together used to make it 69.59px.
  */
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.form-row > .field { margin-bottom: 0; }
+
+/*
+ * A SENTENCE THAT BELONGS TO ONE COLUMN OF A ROW.
+ *
+ * The registration page's email note ("The confirmation is recorded against this
+ * address.") is a description of the email input, so it has to stay next to it -
+ * but inside the email `.field` it made that column 44.94px taller than the name
+ * column beside it, and grid's `align-items: stretch` then held the name column
+ * open at the same height, which is the dead space the review found under "Full
+ * name". Both columns now hold the same thing (label -> input), so the row is
+ * level, and the note is the row's own last item placed in the email column,
+ * 12px under the input it describes. `aria-describedby` on the input still names
+ * it by id, so a screen reader hears exactly what it heard before.
+ *
+ * `grid-column: 2` is the email column while the row is two columns; the narrow
+ * -window rule at the end of this file resets it to full width when the row
+ * stacks, or the note would open an implicit third track.
+ */
+.form-row > .field__hint {
+  grid-column: 2;
+  margin-top: 0;
 }
 
 /* ==========================================================================
@@ -2874,6 +3037,10 @@ textarea:focus { border-color: var(--brand-500); }
   .site-header__divider { display: none; }
   .site-header__controls { flex: 1 1 100%; }
   .form-row { grid-template-columns: 1fr; }
+  /* The row is one column here, so the note that sits under its second column
+     takes the width of the single column instead of opening an implicit second
+     track for itself. */
+  .form-row > .field__hint { grid-column: 1 / -1; }
   .fact-list li { grid-template-columns: 1fr; gap: var(--space-1); }
   /* One tile per row on a phone: two 190px tiles plus the container padding no
      longer fit, and a squeezed tile breaks a venue name over three lines. */

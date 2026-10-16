@@ -61,6 +61,13 @@
                 the control for most of the world. `search.dateHint` below still
                 gives a valid example (2026-10-01), and the value the form submits
                 is always yyyy-mm-dd - see the class comment in search.ts, decision 5.
+
+                THE REMOVAL LEFT NOTHING BEHIND, and that was measured rather than
+                assumed: this page renders zero `.field__format` elements and no
+                stylesheet matches the class. The 69.59px that separated this field
+                from "To date" came from the empty message slot below it, which is
+                why every message slot in this template binds its text with
+                [textContent] - see `.field-message:empty` in styles.css.
               -->
               <input
                 type="date"
@@ -72,9 +79,13 @@
                 [value]="form().from"
                 (input)="setTextField('from', from.value)"
               />
-              <p class="field-message field-message--error" id="filter-from-message" role="status" aria-live="polite">
-                {{ messageFor('from') }}
-              </p>
+              <p
+                class="field-message field-message--error"
+                id="filter-from-message"
+                role="status"
+                aria-live="polite"
+                [textContent]="messageFor('from') || ''"
+              ></p>
             </div>
 
             <div class="field">
@@ -89,9 +100,13 @@
                 [value]="form().to"
                 (input)="setTextField('to', to.value)"
               />
-              <p class="field-message field-message--error" id="filter-to-message" role="status" aria-live="polite">
-                {{ messageFor('to') }}
-              </p>
+              <p
+                class="field-message field-message--error"
+                id="filter-to-message"
+                role="status"
+                aria-live="polite"
+                [textContent]="messageFor('to') || ''"
+              ></p>
             </div>
           </div>
           <p class="field__hint">{{ 'search.dateHint' | t }}</p>
@@ -162,7 +177,15 @@
         <!-- Criterion 4: other options -->
         <fieldset>
           <legend>{{ 'search.other' | t }}</legend>
-          <label class="checkbox">
+          <!--
+            `checkbox--lead` because this box OWNS the keyword field below it: the
+            two are one group, so the group's 12px comes from
+            `.checkbox--lead + .field` in styles.css rather than from a margin
+            written on the field. The class also drops this row's own vertical
+            padding, which is part of its hover highlight and not part of the
+            group's rhythm - otherwise the same 12px reads as 17.6px.
+          -->
+          <label class="checkbox checkbox--lead">
             <input
               type="checkbox"
               id="filter-free"
@@ -174,7 +197,7 @@
             <span>{{ 'search.freeOnly' | t }}</span>
           </label>
 
-          <div class="field" style="margin-top: 0.75rem">
+          <div class="field">
             <label for="filter-keyword">{{ 'search.keyword' | t }}</label>
             <input
               type="search"
@@ -256,7 +279,8 @@
           [class.field-message--error]="validationMessage() !== null"
           role="status"
           aria-live="polite"
-        >{{ validationMessage() }}</p>
+          [textContent]="validationMessage() || ''"
+        ></p>
       </form>
     </section>
 

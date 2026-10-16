@@ -271,6 +271,28 @@
               <form id="registration-form" novalidate (submit)="$event.preventDefault(); submit()">
                 <h3>{{ 'form.detailsHeading' | t }}</h3>
 
+                <!--
+                  ONE ROW, TWO EQUAL COLUMNS.
+
+                  The email note used to sit inside the email `.field`, which made
+                  that column 44.94px taller than the name column; `align-items:
+                  stretch` then held the name column open at the same height, and
+                  that reserved strip under "Full name" is the dead space the review
+                  found. The note is the row's own last item now, placed in the
+                  email column by `.form-row > .field__hint` in styles.css, so both
+                  columns hold exactly a label and an input and the row is level.
+                  The input still names it through `aria-describedby`, so nothing
+                  about the note changed for a screen reader - which is why this
+                  was chosen over moving the sentence into the placeholder: a
+                  placeholder is gone the moment the visitor types, and it is not
+                  a description.
+
+                  The message slots bind their text with [textContent] rather than
+                  interpolating between two lines: an interpolation leaves a
+                  whitespace text node behind, which stops `.field-message:empty`
+                  from collapsing the slot on the 41.6px of reserved line it would
+                  otherwise hold (see THE FORM RHYTHM in styles.css).
+                -->
                 <div class="form-row">
                   <div class="field">
                     <label for="reg-attendeeName">{{ 'form.name' | t }} *</label>
@@ -287,9 +309,13 @@
                       [value]="form().attendeeName"
                       (input)="setField('attendeeName', attendeeName.value)"
                     />
-                    <p class="field-message field-message--error" [id]="messageId('attendeeName')" role="status" aria-live="polite">
-                      {{ errorFor('attendeeName') }}
-                    </p>
+                    <p
+                      class="field-message field-message--error"
+                      [id]="messageId('attendeeName')"
+                      role="status"
+                      aria-live="polite"
+                      [textContent]="errorFor('attendeeName') || ''"
+                    ></p>
                   </div>
 
                   <div class="field">
@@ -307,11 +333,16 @@
                       [value]="form().attendeeEmail"
                       (input)="setField('attendeeEmail', attendeeEmail.value)"
                     />
-                    <p class="field__hint" id="reg-attendeeEmail-hint">{{ 'form.emailHint' | t }}</p>
-                    <p class="field-message field-message--error" [id]="messageId('attendeeEmail')" role="status" aria-live="polite">
-                      {{ errorFor('attendeeEmail') }}
-                    </p>
+                    <p
+                      class="field-message field-message--error"
+                      [id]="messageId('attendeeEmail')"
+                      role="status"
+                      aria-live="polite"
+                      [textContent]="errorFor('attendeeEmail') || ''"
+                    ></p>
                   </div>
+
+                  <p class="field__hint" id="reg-attendeeEmail-hint">{{ 'form.emailHint' | t }}</p>
                 </div>
 
                 <!--
@@ -339,9 +370,13 @@
                     (input)="setField('attendeePhone', attendeePhone.value)"
                   />
                   <p class="field__hint" id="reg-attendeePhone-hint">{{ 'form.phoneHint' | t }}</p>
-                  <p class="field-message field-message--error" [id]="messageId('attendeePhone')" role="status" aria-live="polite">
-                    {{ errorFor('attendeePhone') }}
-                  </p>
+                  <p
+                    class="field-message field-message--error"
+                    [id]="messageId('attendeePhone')"
+                    role="status"
+                    aria-live="polite"
+                    [textContent]="errorFor('attendeePhone') || ''"
+                  ></p>
                 </div>
 
                 <h3>{{ 'form.bookingHeading' | t }}</h3>
@@ -388,9 +423,13 @@
                       }
                     }
                   </select>
-                  <p class="field-message field-message--error" [id]="messageId('ticketTypeId')" role="status" aria-live="polite">
-                    {{ errorFor('ticketTypeId') }}
-                  </p>
+                  <p
+                    class="field-message field-message--error"
+                    [id]="messageId('ticketTypeId')"
+                    role="status"
+                    aria-live="polite"
+                    [textContent]="errorFor('ticketTypeId') || ''"
+                  ></p>
                 </div>
 
                 <div class="field">
@@ -483,9 +522,13 @@
                   <p class="field__hint" id="reg-ticketsPurchased-hint">
                     {{ 'form.quantityHint' | t: { max: maxTickets } }}
                   </p>
-                  <p class="field-message field-message--error" [id]="messageId('ticketsPurchased')" role="status" aria-live="polite">
-                    {{ errorFor('ticketsPurchased') }}
-                  </p>
+                  <p
+                    class="field-message field-message--error"
+                    [id]="messageId('ticketsPurchased')"
+                    role="status"
+                    aria-live="polite"
+                    [textContent]="errorFor('ticketsPurchased') || ''"
+                  ></p>
                 </div>
 
                 <!-- The running total, recomputed from the signals on every change. -->
@@ -506,9 +549,13 @@
                     [value]="form().notes"
                     (input)="setField('notes', notes.value)"
                   ></textarea>
-                  <p class="field-message field-message--error" [id]="messageId('notes')" role="status" aria-live="polite">
-                    {{ errorFor('notes') }}
-                  </p>
+                  <p
+                    class="field-message field-message--error"
+                    [id]="messageId('notes')"
+                    role="status"
+                    aria-live="polite"
+                    [textContent]="errorFor('notes') || ''"
+                  ></p>
                 </div>
 
                 <!--

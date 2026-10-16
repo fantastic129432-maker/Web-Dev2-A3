@@ -208,6 +208,16 @@ interface LocationOption {
  *    guaranteed by the spec (`yyyy-mm-dd`, checked by `validate()` below), and
  *    that is the part the page is responsible for.
  *
+ *    THAT REMOVAL WAS COMPLETE, which a later review of the gap between the two
+ *    date fields required proving rather than assuming: the rendered page holds
+ *    zero `.field__format` elements and no stylesheet matches the class, so no
+ *    wrapper, margin or reserved height survived it. The 69.59px the review
+ *    measured between "From date" and "To date" was the empty `.field-message`
+ *    slot under the first field (41.6px of it) plus that field's own bottom
+ *    margin and the row's gap. Both are fixed in styles.css - see THE FORM RHYTHM
+ *    there - and the message slots now bind their text with `[textContent]` so
+ *    `.field-message:empty` can collapse them.
+ *
  * The category and venue lists are loaded with `forkJoin` so both requests are in
  * flight at the same time; each half also has its own `catchError`, so a failed
  * category lookup still leaves a usable city and date search rather than an empty
