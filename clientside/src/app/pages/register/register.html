@@ -140,82 +140,96 @@
                  The brief is explicit that the page must make it clear which
                  event is being registered for, so the essentials are repeated
                  rather than relying on the visitor remembering the last page.
+
+                 THE RAIL IS A BOX, NOT DECORATION. The card inside it is
+                 `position: sticky`, and a sticky element can travel only as far
+                 as its containing block is tall - so the box that holds it
+                 decides how far it follows the form and what it can reach. The
+                 card used to be the grid item itself, which left its containing
+                 block as the column's grid area: a card that may slide the
+                 whole length of a column paints over anything else in that
+                 column, which is the bug the event detail page's ticket card
+                 hit. This rail is the plain block box that holds only this one
+                 card, so the card's travel ends with the card and it can never
+                 reach a sibling. See `.registration-summary__rail` in
+                 clientside/src/styles.css.
                  ========================================================== -->
-            <aside class="panel panel--brand registration-summary">
-              <h2 class="registration-summary__title">{{ current.eventName }}</h2>
+            <div class="registration-summary__rail">
+              <aside class="panel panel--brand registration-summary">
+                <h2 class="registration-summary__title">{{ current.eventName }}</h2>
 
-              <div class="registration-summary__media">
-                <img
-                  [src]="image()"
-                  [alt]="'a11y.eventIllustration' | t: { name: current.eventName }"
-                  width="480"
-                  height="300"
-                />
-              </div>
+                <div class="registration-summary__media">
+                  <img
+                    [src]="image()"
+                    [alt]="'a11y.eventIllustration' | t: { name: current.eventName }"
+                    width="480"
+                    height="300"
+                  />
+                </div>
 
-              <div class="registration-summary__meta">
-                <span [class]="badgeClass()">{{ stateLabelKey() | t }}</span>
-                @if (current.categoryName) {
-                  <span class="chip">{{ current.categoryName }}</span>
-                }
-              </div>
+                <div class="registration-summary__meta">
+                  <span [class]="badgeClass()">{{ stateLabelKey() | t }}</span>
+                  @if (current.categoryName) {
+                    <span class="chip">{{ current.categoryName }}</span>
+                  }
+                </div>
 
-              <p>{{ current.shortDescription }}</p>
+                <p>{{ current.shortDescription }}</p>
 
-              <ul class="fact-list">
-                <li>
-                  <span class="fact-list__label">{{ 'event.detailDate' | t }}</span>
-                  <span class="fact-list__value">{{ fullDate() }}</span>
-                </li>
-                <li>
-                  <span class="fact-list__label">{{ 'event.detailTime' | t }}</span>
-                  <span class="fact-list__value">{{ timeRange() }}</span>
-                </li>
-                <li>
-                  <span class="fact-list__label">{{ 'event.detailVenue' | t }}</span>
-                  <span class="fact-list__value">{{ current.venueName }}</span>
-                </li>
-                <li>
-                  <span class="fact-list__label">{{ 'event.detailLocation' | t }}</span>
-                  <span class="fact-list__value">{{ locationLine() }}</span>
-                </li>
-                <!-- Places left is only meaningful against a published capacity. -->
-                @if (seatsRemaining()) {
+                <ul class="fact-list">
                   <li>
-                    <span class="fact-list__label">{{ 'event.detailCapacity' | t }}</span>
-                    <span class="fact-list__value">{{ seatsRemaining() }}</span>
+                    <span class="fact-list__label">{{ 'event.detailDate' | t }}</span>
+                    <span class="fact-list__value">{{ fullDate() }}</span>
                   </li>
-                }
-              </ul>
+                  <li>
+                    <span class="fact-list__label">{{ 'event.detailTime' | t }}</span>
+                    <span class="fact-list__value">{{ timeRange() }}</span>
+                  </li>
+                  <li>
+                    <span class="fact-list__label">{{ 'event.detailVenue' | t }}</span>
+                    <span class="fact-list__value">{{ current.venueName }}</span>
+                  </li>
+                  <li>
+                    <span class="fact-list__label">{{ 'event.detailLocation' | t }}</span>
+                    <span class="fact-list__value">{{ locationLine() }}</span>
+                  </li>
+                  <!-- Places left is only meaningful against a published capacity. -->
+                  @if (seatsRemaining()) {
+                    <li>
+                      <span class="fact-list__label">{{ 'event.detailCapacity' | t }}</span>
+                      <span class="fact-list__value">{{ seatsRemaining() }}</span>
+                    </li>
+                  }
+                </ul>
 
-              <a class="button button--small button--outline" [routerLink]="['/events', current.eventId]">
-                {{ 'common.viewDetails' | t }}
-              </a>
-            </aside>
+                <a class="button button--small button--outline" [routerLink]="['/events', current.eventId]">
+                  {{ 'common.viewDetails' | t }}
+                </a>
+              </aside>
+            </div>
 
             <!-- ==========================================================
                  THE FORM
-                 One control per column the API stores. Every field has a
-                 <label for>, and its message paragraph is linked with
-                 aria-describedby so the reason a field was rejected is
-                 announced together with the field.
+
+                 One control per field the VISITOR supplies. The registration
+                 date is deliberately not one of them: it is a column the API
+                 stores, but for a booking made now the moment of submission is
+                 the only honest value, so the API writes it and the body leaves
+                 it out (see the comment on `input` in register.ts). Nothing
+                 here lets a visitor date their own registration.
+
+                 The card carries no title of its own either. The page banner
+                 above already prints 'form.title', and the card repeated it, so
+                 one screen showed the same heading twice; the card now begins
+                 at 'form.detailsHeading', which is the first thing a visitor
+                 actually has to fill in.
+
+                 Every field has a <label for>, and its message paragraph is
+                 linked with aria-describedby so the reason a field was rejected
+                 is announced together with the field.
                  ========================================================== -->
             <section class="panel registration-form-card">
-              <h2>{{ 'form.title' | t }}</h2>
-
               <form id="registration-form" novalidate (submit)="$event.preventDefault(); submit()">
-                <!--
-                  The summary alert. role="alert" makes a screen reader announce it
-                  as soon as the text is set, which is the accessible equivalent of
-                  the "client-side alert" the brief asks for - without a modal
-                  dialog that would be dismissed before it was read.
-                -->
-                @if (summaryMessage(); as message) {
-                  <p class="field-message field-message--error" role="alert" aria-live="assertive">
-                    {{ message }}
-                  </p>
-                }
-
                 <h3>{{ 'form.detailsHeading' | t }}</h3>
 
                 <div class="form-row">
@@ -261,46 +275,34 @@
                   </div>
                 </div>
 
-                <div class="form-row">
-                  <div class="field">
-                    <label for="reg-attendeePhone">{{ 'form.phone' | t }}</label>
-                    <input
-                      type="tel"
-                      id="reg-attendeePhone"
-                      #attendeePhone
-                      name="attendeePhone"
-                      autocomplete="tel"
-                      maxlength="30"
-                      [attr.placeholder]="'form.phonePlaceholder' | t"
-                      [attr.aria-invalid]="errorFor('attendeePhone') ? 'true' : null"
-                      [attr.aria-describedby]="messageId('attendeePhone') + ' reg-attendeePhone-hint'"
-                      [value]="form().attendeePhone"
-                      (input)="setField('attendeePhone', attendeePhone.value)"
-                    />
-                    <p class="field__hint" id="reg-attendeePhone-hint">{{ 'form.phoneHint' | t }}</p>
-                    <p class="field-message field-message--error" [id]="messageId('attendeePhone')" role="status" aria-live="polite">
-                      {{ errorFor('attendeePhone') }}
-                    </p>
-                  </div>
-
-                  <div class="field">
-                    <label for="reg-registeredAt">{{ 'form.date' | t }} *</label>
-                    <input
-                      type="date"
-                      id="reg-registeredAt"
-                      #registeredAt
-                      name="registeredAt"
-                      lang="en-AU"
-                      [attr.aria-invalid]="errorFor('registeredAt') ? 'true' : null"
-                      [attr.aria-describedby]="messageId('registeredAt') + ' reg-registeredAt-hint'"
-                      [value]="form().registeredAt"
-                      (input)="setField('registeredAt', registeredAt.value)"
-                    />
-                    <p class="field__hint" id="reg-registeredAt-hint">{{ 'form.dateHint' | t }}</p>
-                    <p class="field-message field-message--error" [id]="messageId('registeredAt')" role="status" aria-live="polite">
-                      {{ errorFor('registeredAt') }}
-                    </p>
-                  </div>
+                <!--
+                  The phone number has a row of its own, and therefore the full
+                  width of its column. It used to share a `.form-row` with the
+                  "Date of registration" control, and two controls in a
+                  `minmax(160px, 1fr)` row were squeezed into a fraction of the
+                  column each with a gap between them; with the date control gone
+                  the row would have held one field, so the row wrapper goes with
+                  it and the field is a plain block like the others.
+                -->
+                <div class="field">
+                  <label for="reg-attendeePhone">{{ 'form.phone' | t }}</label>
+                  <input
+                    type="tel"
+                    id="reg-attendeePhone"
+                    #attendeePhone
+                    name="attendeePhone"
+                    autocomplete="tel"
+                    maxlength="30"
+                    [attr.placeholder]="'form.phonePlaceholder' | t"
+                    [attr.aria-invalid]="errorFor('attendeePhone') ? 'true' : null"
+                    [attr.aria-describedby]="messageId('attendeePhone') + ' reg-attendeePhone-hint'"
+                    [value]="form().attendeePhone"
+                    (input)="setField('attendeePhone', attendeePhone.value)"
+                  />
+                  <p class="field__hint" id="reg-attendeePhone-hint">{{ 'form.phoneHint' | t }}</p>
+                  <p class="field-message field-message--error" [id]="messageId('attendeePhone')" role="status" aria-live="polite">
+                    {{ errorFor('attendeePhone') }}
+                  </p>
                 </div>
 
                 <h3>{{ 'form.bookingHeading' | t }}</h3>
@@ -354,8 +356,18 @@
 
                 <div class="field">
                   <label for="reg-ticketsPurchased">{{ 'form.quantity' | t }} *</label>
+                  <!--
+                    A number between 1 and 20 does not need the full width of the
+                    card: a 100%-wide box for two digits reads as an empty field
+                    waiting for a long answer, and pushes the running total below
+                    it. `input.registration-quantity` in styles.css fixes the box
+                    at 120px, which still leaves the spinner and the digits
+                    comfortable on a phone (the rule carries `max-width: 100%` so
+                    it can never overflow a narrow column).
+                  -->
                   <input
                     type="number"
+                    class="registration-quantity"
                     id="reg-ticketsPurchased"
                     #quantity
                     name="ticketsPurchased"
@@ -413,7 +425,29 @@
                   {{ (submitting() ? 'form.submitting' : 'form.submit') | t }}
                 </button>
 
-                <p class="field__hint">{{ 'form.requiredNotice' | t }}</p>
+                <!--
+                  The summary alert. role="alert" makes a screen reader announce it
+                  as soon as the text is set, which is the accessible equivalent of
+                  the "client-side alert" the brief asks for - without a modal
+                  dialog that would be dismissed before it was read.
+
+                  IT APPEARS ONLY AFTER A FAILED SUBMIT, AND ONLY ONCE. The form
+                  used to carry this alert at the top AND an unconditional
+                  `form.requiredNotice` line here, so the error sentence "Please
+                  correct the highlighted fields and try again." was on the page
+                  before the visitor had submitted anything - a failure message for
+                  a failure that had not happened - and after a real failure the
+                  same sentence was printed twice. There is now one summary, set by
+                  `submit()` for every way a submission can fail (client-side
+                  validation, a 400, a 409, or a transport error), and it sits under
+                  the button the visitor just pressed rather than above a form they
+                  are still filling in.
+                -->
+                @if (summaryMessage(); as message) {
+                  <p class="field-message field-message--error" role="alert" aria-live="assertive">
+                    {{ message }}
+                  </p>
+                }
               </form>
             </section>
           </div>

@@ -16,7 +16,6 @@ import {
   imageUrl,
   stateKey,
 } from '@charity/shared/util/format';
-import { todayIso } from '@charity/shared/weather/weather.model';
 
 import { useDocumentTitle } from '../../shared/page-title';
 
@@ -38,7 +37,6 @@ interface RegistrationForm {
   attendeeName: string;
   attendeeEmail: string;
   attendeePhone: string;
-  registeredAt: string;
   ticketTypeId: string;
   ticketsPurchased: number;
   notes: string;
@@ -121,15 +119,23 @@ export class RegisterPage {
   protected readonly submitting = signal(false);
 
   /**
-   * The form. `registeredAt` defaults to today, because a visitor registering now
-   * is recording today's purchase; the field exists because the API accepts an
-   * explicit date for entering an existing record.
+   * The form.
+   *
+   * THERE IS NO `registeredAt` HERE, AND THAT IS THE POINT. The registration
+   * date is a column the API stores, but it is not a decision for the person
+   * booking: the admin site owns the back-dating control, and the API writes the
+   * moment of submission when the POST body omits the field
+   * (api/src/services/registrationService.ts validates it with
+   * `required: false`). The public form used to ask for it, defaulted to today
+   * and hinted "Change it only when entering an existing record", which put an
+   * administrator's control in a visitor's hands and let anyone date their own
+   * registration - the value the whole registrations list is ordered by. The
+   * field is gone from the form type as well, so no code here can send one.
    */
   protected readonly form = signal<RegistrationForm>({
     attendeeName: '',
     attendeeEmail: '',
     attendeePhone: '',
-    registeredAt: todayIso(),
     ticketTypeId: '',
     // 1 rather than 0: the field is "how many", so an empty-looking 0 would be a
     // validation error before the visitor had touched anything.
@@ -422,7 +428,7 @@ export class RegisterPage {
    * without waiting for the next submit.
    */
   protected setField(
-    field: 'attendeeName' | 'attendeeEmail' | 'attendeePhone' | 'registeredAt' | 'notes',
+    field: 'attendeeName' | 'attendeeEmail' | 'attendeePhone' | 'notes',
     value: string
   ): void {
     this.form.update((current) => ({ ...current, [field]: value }));
@@ -495,6 +501,10 @@ export class RegisterPage {
    * so the two agree on what a valid address is and the visitor is told before a
    * round trip is made. The phone number is optional, but a wrong one is worse
    * than a missing one, so a bad shape is rejected rather than stripped.
+   *
+   * There is no rule for the registration date any more, because the visitor is
+   * never asked for one: this form has no date field to check and sends none, so
+   * the API's `YYYY-MM-DD` rule for it cannot be broken from here.
    */
   private validate(): FieldErrors {
     const current = this.form();
@@ -512,10 +522,6 @@ export class RegisterPage {
     const phone = current.attendeePhone.trim();
     if (phone !== '' && !/^[+()\d][\d\s\-().]{5,29}$/.test(phone)) {
       errors.attendeePhone = this.i18n.t('event.validationPhone');
-    }
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(current.registeredAt)) {
-      errors.registeredAt = this.i18n.t('event.validationDate');
     }
 
     const quantity = current.ticketsPurchased;
@@ -569,13 +575,25 @@ export class RegisterPage {
     this.submitting.set(true);
 
     const current = this.form();
+    /*
+     * The body carries NO `registeredAt`. The API's contract for it is
+     * "optional": `validateRegistrationBody()` in
+     * api/src/services/registrationService.ts reads it with `required: false`,
+     * and the `registrations.registered_at` DATETIME column then takes the
+     * moment of the insert. Omitting the field is therefore how this page stops
+     * choosing the date at all - sending `todayIso()` instead would have been
+     * the same visitor-chosen value by another route.
+     *
+     * Nothing else changes for the receipt: the API returns the stored row,
+     * `registration.registeredAt` is what the confirmation prints, and the admin
+     * site still reads and edits the same column.
+     */
     const input: RegistrationInput = {
       attendeeName: current.attendeeName.trim(),
       // Lower-cased to match the API and the UNIQUE (event_id, attendee_email)
       // key, so the visitor's "Alex@Example.com" is recognised as the same person.
       attendeeEmail: current.attendeeEmail.trim().toLowerCase(),
       attendeePhone: current.attendeePhone.trim() === '' ? null : current.attendeePhone.trim(),
-      registeredAt: current.registeredAt,
       ticketsPurchased: current.ticketsPurchased,
       ticketTypeId: current.ticketTypeId === '' ? null : Number(current.ticketTypeId),
       notes: current.notes.trim() === '' ? null : current.notes.trim(),
@@ -630,7 +648,6 @@ export class RegisterPage {
               'attendeeName',
               'attendeeEmail',
               'attendeePhone',
-              'registeredAt',
               'ticketsPurchased',
               'ticketTypeId',
               'notes',
@@ -678,7 +695,6 @@ export class RegisterPage {
       'attendeeName',
       'attendeeEmail',
       'attendeePhone',
-      'registeredAt',
       'ticketTypeId',
       'ticketsPurchased',
       'notes',
@@ -716,6 +732,14 @@ export class RegisterPage {
        * line would be a visible symptom rather than a silent wrong value.
        */
       { labelKey: 'form.email', value: registration.attendeeEmail ?? '' },
+      /*
+       * The registration date is still on the receipt, and it still has the
+       * 'form.date' label - but the value now comes from the API's stored row
+       * rather than from a control the visitor filled in, which is why the label
+       * stays in all four dictionaries while the hint that explained the control
+       * is gone. It is printed as a plain date because the column is a DATETIME
+       * and a receipt needs the day, not the second.
+       */
       { labelKey: 'form.date', value: formatDate(String(registration.registeredAt).slice(0, 10)) },
       {
         labelKey: 'form.ticketType',

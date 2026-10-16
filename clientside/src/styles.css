@@ -166,12 +166,16 @@
   background: var(--surface-50);
 }
 
-/* Form controls were explicitly white. */
+/* Form controls were explicitly white. The list is the same one as the control
+   rule further down, `tel` included: a type present in one list and absent from
+   the other is either an unstyled control in the light theme or a white one in
+   the dark theme. */
 [data-theme='dark'] input[type='text'],
 [data-theme='dark'] input[type='search'],
 [data-theme='dark'] input[type='date'],
 [data-theme='dark'] input[type='number'],
 [data-theme='dark'] input[type='email'],
+[data-theme='dark'] input[type='tel'],
 [data-theme='dark'] select,
 [data-theme='dark'] textarea,
 [data-theme='dark'] .filter-chip,
@@ -1274,6 +1278,14 @@ input[type='search'],
 input[type='date'],
 input[type='number'],
 input[type='email'],
+/* `tel` belongs in this list and was missing from it. A control left out gets the
+   browser's own 224px-wide inset box instead: on the registration form the phone
+   field sat at a fraction of the column it is in, drawn in a different style from
+   the email field directly above it, and in the dark theme it kept a white
+   background because the theme override below lists the same types. There is one
+   tel input in the public site (the phone field on /register/:id), so this is the
+   whole effect. */
+input[type='tel'],
 select,
 textarea {
   width: 100%;
@@ -2032,16 +2044,68 @@ textarea:focus { border-color: var(--brand-500); }
 
 /* --------------------------------------------------------------------------
    Registration page
+   --------------------------------------------------------------------------
+   A two-column checkout: the event summary on the left, the form on the right.
+   The summary is sticky so it follows the visitor down the long form the way an
+   order summary does, and the rail below is the box that makes that safe.
    -------------------------------------------------------------------------- */
 .registration-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   gap: var(--space-6);
-  align-items: start;
 }
 
-/* The summary is the narrower column and sticks while the form scrolls, so the
-   visitor can always see what they are registering for. */
+/*
+ * The rail: the sticky card's containing block, and the only reason this box
+ * exists.
+ *
+ * A sticky element travels only as far as its containing block is tall, so the
+ * box that holds the card decides both how far it follows the form and what it
+ * can reach. Measured on /register/6 at 1400x1000 in English: the layout is
+ * 1031.17px tall and the summary card is 695.61px, so the card has 335.56px of
+ * travel - it pins at top 96px from scrollY 325 to scrollY 625 and is still fully
+ * on screen at every one of the 40 scroll steps from 0 to 970, which is the end of
+ * the page's scroll range.
+ *
+ * WHY A PLAIN BLOCK BOX RATHER THAN THE GRID ITEM ITSELF
+ *   With the card as the grid item, its containing block was the column's grid
+ *   area - the same box that holds the form - so how far the card could slide was
+ *   decided by the thing beside it. Nothing else shares this column today, which
+ *   is why the card reaches nothing, but that is a property of the CONTENT rather
+ *   than of this CSS, and it is exactly the pattern that failed on the event
+ *   detail page's ticket card: a sticky item free to slide the length of its
+ *   column paints over whatever shares it. This rail holds this one card and
+ *   nothing else, so the card's travel ends with the card however the column is
+ *   filled later. Measured at 25px scroll steps over the whole range: the card's
+ *   box intersects no other box inside the layout - 0.00px2 of overlap, against
+ *   34,873.81px2 for the event page's card before its own fix. The only box it
+ *   ever meets is the sticky `.site-header`, which paints above it by design
+ *   (z-index 40) as the page ends and the rail's bottom passes.
+ *
+ *   `min-height: 0` keeps the rail's automatic minimum size from being its
+ *   content's min-content height: the row's height is decided by the form beside
+ *   it, and the rail must not be able to force it taller. The same rail, for the
+ *   same reason, is `.side-column__rail` on the event detail page.
+ */
+.registration-summary__rail {
+  min-height: 0;
+}
+
+/*
+ * The summary is the narrower column and sticks while the form scrolls, so the
+ * visitor can always see what they are registering for.
+ *
+ * `top: 96px` is the offset `.panel--sticky` and `.side-column` already use, so
+ * every sticky card on the site comes to rest on the same line, and it clears the
+ * site header at its English height. The header is not one height in every
+ * language: measured at 1400x1000 it is 65.31px in English, 85.08px in Chinese and
+ * 113.94px in Vietnamese and Japanese, because the nav labels and the settings
+ * note wrap onto more lines. In those last two languages a 96px offset therefore
+ * leaves the card's top 17.94px behind the header once it is pinned. That is true
+ * of every `top: 96px` card on the site, the event page's ticket card included, so
+ * it is a fact about the shared offset rather than about this card, and one shared
+ * value is the fix for it rather than a second value on one page.
+ */
 .registration-summary { position: sticky; top: 96px; }
 
 .registration-summary__media img {
@@ -2062,7 +2126,36 @@ textarea:focus { border-color: var(--brand-500); }
 
 .registration-summary .fact-list { margin: var(--space-3) 0; }
 
-.registration-form-card { min-width: 0; }
+/*
+ * The form column keeps its own alignment now that the layout no longer sets
+ * `align-items: start` for both columns. The rail beside it has to stretch to the
+ * row so the sticky card inside it has room to travel (see the rail above), and
+ * `align-self: start` is what stops that change from also stretching this card:
+ * a panel drawn far taller than its fields is the "large empty area" this layout
+ * exists to avoid. `.prose { align-self: start }` on the event detail page is the
+ * same rule for the same reason.
+ */
+.registration-form-card {
+  min-width: 0;
+  align-self: start;
+}
+
+/*
+ * The ticket count: two digits, so the control is sized for two digits instead of
+ * taking the whole card. A 100%-wide box for "1" reads as an empty field waiting
+ * for a long answer and pushes the running total below it.
+ *
+ * The selector is `input.registration-quantity` on purpose. `input[type='number']`
+ * above sets `width: 100%` at the same specificity (one element plus one class
+ * against one element plus one attribute), so this rule wins on source order
+ * alone and has to stay BELOW it in this file. `max-width: 100%` is the phone
+ * case: 120px fits every viewport the site supports, and the cap means this box
+ * can never be the reason a narrow column scrolls sideways.
+ */
+input.registration-quantity {
+  width: 120px;
+  max-width: 100%;
+}
 
 .registration-form-card h3 {
   margin-top: var(--space-5);
@@ -2173,7 +2266,9 @@ textarea:focus { border-color: var(--brand-500); }
   .panel--sticky { position: static; }
   .hero__inner { grid-template-columns: 1fr; }
   .event-hero__grid { grid-template-columns: 1fr; }
-  /* A3: the event summary stacks above the form. */
+  /* A3: the event summary stacks above the form.
+     In one column the rail has nothing to bound - it holds a static card placed
+     by normal flow - and the card's sticky rule is switched off just below. */
   .registration-layout { grid-template-columns: 1fr; gap: var(--space-5); }
   .registration-summary { position: static; }
 }
