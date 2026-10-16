@@ -36,7 +36,41 @@
     </select>
   </div>
 
-  <!-- Theme: one button that cycles light -> dark -> system. -->
+  <!--
+    Theme: one button that cycles light -> dark -> system.
+
+    AN ICON-ONLY CONTROL, NOT A LABELLED PILL (review item C2).
+    It used to be `<span>☀️</span><span>Theme: Light</span>` in a pill, which
+    measured 130.80px of the header's prime space in the dark theme and 133.61px
+    in the light one - the widest thing in a row that also has to hold the whole
+    navigation. It is now one round icon button, ~34px square, showing the SUN
+    while the resolved theme is light and the MOON while it is dark.
+
+    The glyph is inline SVG rather than the emoji the old span held, which is the
+    convention the brand mark and the fact tiles already follow: the project loads
+    no icon font, four lines of path data cannot 404, and the stroke is
+    `currentColor` so the dark theme needs no second rule. An emoji would also be
+    drawn by the operating system's font - the sun and moon that were there
+    rendered in colour on Windows and differently on every other platform.
+
+    WHAT THE ICON CANNOT SHOW, AND HOW IT IS STILL ANNOUNCED. The preference has
+    three states (light / dark / system) and two pictures, so the icon can only
+    report the RESOLVED theme - "system" and "light" look identical on a light
+    machine, exactly as the old label's comment noted. The `aria-label` still
+    spells the whole state out through `themeAriaLabel()` ("Theme: Light (System =
+    Light)"), so a screen reader user gets the information the visible label used
+    to carry; a sighted visitor reads the same thing from the picture. The label
+    being the accessible name rather than a title attribute also means it is
+    announced on focus, not only on hover.
+
+    WHAT THE END-TO-END SUITE DOES WITH IT. Nothing by text: tests/angular-e2e.mjs
+    sets `localStorage['charity-events:theme']` and reloads, and asserts the
+    resulting `data-theme`. The jsdom suite (tests/run-tests.js) clicks the button
+    by its `id` - `document.getElementById('theme-toggle')` - and asserts the
+    light -> dark -> system cycle. The id and the click behaviour are therefore
+    part of the contract and are kept exactly as they were; only the two spans
+    inside the button changed.
+  -->
   <div class="settings-bar__group">
     <button
       class="theme-toggle"
@@ -45,8 +79,42 @@
       [attr.aria-label]="themeAriaLabel()"
       (click)="cycleTheme()"
     >
-      <span class="theme-toggle__icon" aria-hidden="true">{{ icon() }}</span>
-      <span>{{ themeLabel() }}</span>
+      @if (resolved() === 'dark') {
+        <!-- A moon: the resolved theme is dark. -->
+        <svg
+          class="theme-toggle__icon"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M20.5 14.8A8.6 8.6 0 0 1 9.2 3.5a8.6 8.6 0 1 0 11.3 11.3z"></path>
+        </svg>
+      } @else {
+        <!-- A sun: the resolved theme is light. -->
+        <svg
+          class="theme-toggle__icon"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.6 5.6l1.5 1.5M16.9 16.9l1.5 1.5M18.4 5.6l-1.5 1.5M7.1 16.9l-1.5 1.5"></path>
+        </svg>
+      }
     </button>
   </div>
 

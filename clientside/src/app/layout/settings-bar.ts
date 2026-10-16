@@ -22,10 +22,13 @@ import { ThemeService } from '@charity/shared/theme/theme.service';
  *
  * Theme switch: one button that CYCLES light -> dark -> system. Three states
  * cannot be expressed by a two-state switch, and a three-way radio group would
- * take far more room than the header has. The button's own text is the current
- * setting ("Theme: Dark"), so it doubles as a status indicator, and its
- * `aria-label` spells out which preference is stored - important because
- * "System" and "Light" look identical when the operating system is light.
+ * take far more room than the header has. It is drawn as a single round icon
+ * button - a sun while the resolved theme is light, a moon while it is dark - and
+ * its `aria-label` spells out which preference is stored, which matters because
+ * "System" and "Light" look identical when the operating system is light and no
+ * two-state picture can tell them apart. See the markup for the full argument
+ * (review item C2: it used to be an icon plus the words "Theme: Light", 130.80px
+ * of the header's prime space, and it is now about 34px).
  *
  * NO @angular/forms HERE ON PURPOSE
  *   The select writes straight through to the service with a `change` handler
@@ -54,22 +57,33 @@ export class SettingsBarComponent {
   /** What is actually shown, with 'system' already resolved. */
   protected readonly resolved = this.theme.resolved;
 
-  /** The glyph for the resolved theme: the button reads at a glance in a header. */
-  protected readonly icon = computed(() => (this.resolved() === 'dark' ? '\u{1F319}' : '\u2600\uFE0F'));
-
   /**
    * The visible label, e.g. "Theme: Dark".
    *
-   * Built here rather than in the template so the colon and spacing are not part
-   * of a translation string: only the two words that need translating are.
+   * STILL NEEDED, AND NO LONGER DRAWN. Since review item C2 the button shows an
+   * icon only, so nothing on screen reads this string - but the accessible name
+   * below is built from it, and that name is now the ONLY description of the
+   * control a screen reader gets. It stays a computed value rather than moving
+   * into the template so the colon and spacing are still not part of a
+   * translation string: only the two words that need translating are.
+   *
+   * The glyph itself is no longer produced here. It used to be an `icon` computed
+   * returning an emoji, which could only pick between the two resolved themes and
+   * could not be styled; the sun and moon are inline SVG in the template now, so
+   * the choice that remains in TypeScript is the one the SVG cannot make for
+   * itself - which label to announce. See the markup for the full reasoning.
    */
   protected readonly themeLabel = computed(
     () => `${this.i18n.t('settings.theme')}: ${this.i18n.t(this.theme.labelKey())}`
   );
 
   /**
-   * The accessible name, which additionally names the System preference the
-   * visible label cannot show: "Theme: Light (System = system)".
+   * The accessible name, and since review item C2 the button's ONLY name: the
+   * label above is no longer drawn, so this string is what a screen reader reads
+   * (and what a voice-control user has to say) instead of "Theme: Light". It
+   * additionally names the System preference the icon cannot show, because the
+   * sun and the moon have only two pictures between them for three states:
+   * "Theme: Light (System = Light)".
    */
   protected readonly themeAriaLabel = computed(
     () =>

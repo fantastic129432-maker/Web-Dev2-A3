@@ -8,7 +8,19 @@ import { ApiStatusComponent } from '../shared/api-status';
 
 /**
  * The site footer. Rendered once, below `<router-outlet>`, so every page ends
- * with the same three columns: who we are, where to go, and what this project is.
+ * with the same three columns: who we are, where to go, and what we do - plus the
+ * bottom bar carrying the copyright, the assessment notice and the live API
+ * indicator.
+ *
+ * THE THIRD COLUMN IS NO LONGER THE PROJECT NOTE (review item E1)
+ *   It used to be headed "Student project" and held nothing but the academic
+ *   disclaimer, which gave a course assessment the same column weight as the
+ *   charity beside it. The disclaimer now sits as a small muted line beside the
+ *   copyright in the bottom bar - still visible, still in the accessibility tree,
+ *   still the same two dictionary keys - and the column carries the
+ *   organisation's mission instead (`about.heading` and `about.mission`, the same
+ *   two keys the home page's About section uses). The admin link moved with it so
+ *   it is not lost.
  *
  * THE SINGLE HOME FOR CONTACT DETAILS
  *   These are the same fictional values the legacy footer and the home page's
@@ -17,7 +29,9 @@ import { ApiStatusComponent } from '../shared/api-status';
  *   pixels above this column, so it was removed and this footer became the one
  *   place they appear; `id="contact"` on the `<footer>` element is what keeps the
  *   About section's "Talk to our events team" fragment link pointing at a real
- *   element rather than at the section that no longer exists.
+ *   element rather than at the section that no longer exists. They deliberately
+ *   did NOT also move into the new third column: two columns carrying the same
+ *   email address is the duplication this structure exists to prevent.
  *
  *   The heading, the address and the hours are translation keys, so they follow the
  *   language switcher like the rest of the interface. The email address and the

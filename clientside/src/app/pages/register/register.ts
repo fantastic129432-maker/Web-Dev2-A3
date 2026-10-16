@@ -256,14 +256,34 @@ export class RegisterPage {
   });
 
   /**
-   * The ceiling actually shown on the number input.
+   * The ceiling the stepper works to: its `aria-valuemax`, and the value the "+"
+   * button stops at.
    *
-   * `max="0"` would make the browser refuse every value for a sold-out tier, which
-   * hides the real message ("Sold out") behind a spinner that will not move. The
-   * sold-out case is reported by validation instead, so the attribute is floored at
-   * 1 and never blocks the field from being used.
+   * WHY IT IS FLOORED AT 1. This was written for the number input's `max`
+   * attribute, where `max="0"` would make the browser refuse every value for a
+   * sold-out tier and hide the real message ("Sold out") behind a spinner that
+   * would not move. The same trap exists in the stepper - a ceiling of 0 would
+   * disable the "+" button at the quantity it is already showing and leave the
+   * visitor with a control they cannot move and no explanation - so the sold-out
+   * case is still reported by VALIDATION (`event.soldOut` against the tier) and
+   * this figure is still floored at 1.
    */
   protected readonly quantityMax = computed(() => Math.max(this.quantityCeiling(), 1));
+
+  /**
+   * True at the top of the range: the stepper's "+" button is disabled.
+   *
+   * The end states are exposed as signals rather than checked in the template so
+   * the disabled attribute and the clamp in `setQuantity()` are computed from the
+   * same two numbers - a button that is enabled can never be a button that does
+   * nothing.
+   */
+  protected readonly quantityAtMax = computed(
+    () => this.form().ticketsPurchased >= this.quantityMax()
+  );
+
+  /** True at the bottom of the range (1): the stepper's "-" button is disabled. */
+  protected readonly quantityAtMin = computed(() => this.form().ticketsPurchased <= 1);
 
   /**
    * The running total, e.g. "Total: 2 x $185.00 = $370.00".
@@ -450,19 +470,81 @@ export class RegisterPage {
   }
 
   /**
-   * The number of tickets.
+   * The number of tickets, as the one setter every control uses.
    *
-   * A non-numeric value (an emptied field) is stored as 0 rather than ignored, so
-   * validation can tell the visitor that at least one ticket is needed instead of
-   * silently keeping the previous number while the box looks empty.
+   * WHY THIS NO LONGER TAKES A STRING. It was written for a native
+   * `<input type="number">`, and its old comment recorded the reason an emptied
+   * field was stored as 0: validation should say "at least one ticket is needed"
+   * rather than silently keeping the previous number while the box looked empty.
+   * Review item C1 replaced that input with the -/+ stepper, so no free-text value
+   * can arrive at all - the empty-field case cannot happen, and the rule that
+   * takes its place is the CLAMP: the quantity is always kept inside
+   * 1..`quantityMax()`.
+   *
+   * The ceiling is `quantityMax()`, not MAX_TICKETS, because the chosen tier may
+   * have fewer places left than the API's limit; `setTier()` already brings a
+   * now-too-high quantity back into range when the tier changes, and this is the
+   * other half of the same guarantee.
+   *
+   * @param value - The requested quantity; anything outside the range is clamped.
    */
-  protected setQuantity(value: string): void {
-    const parsed = Number(value);
-    this.form.update((current) => ({
-      ...current,
-      ticketsPurchased: Number.isFinite(parsed) ? Math.trunc(parsed) : 0,
-    }));
+  protected setQuantity(value: number): void {
+    const clamped = Math.min(Math.max(Math.trunc(value), 1), this.quantityMax());
+    this.form.update((current) => ({ ...current, ticketsPurchased: clamped }));
     this.clearFieldError('ticketsPurchased');
+  }
+
+  /**
+   * Move the quantity by one step, for the stepper's two buttons.
+   *
+   * The buttons are disabled at the ends (`quantityAtMin` / `quantityAtMax`), so
+   * this is the belt-and-braces path: `setQuantity` clamps anyway, which is what
+   * keeps a stale render from stepping past the range.
+   *
+   * @param delta - +1 for the "+" button, -1 for the "-" button.
+   */
+  protected stepQuantity(delta: number): void {
+    this.setQuantity(this.form().ticketsPurchased + delta);
+  }
+
+  /**
+   * Keyboard operation for the stepper's value element.
+   *
+   * A `role="spinbutton"` is expected to answer the arrow keys, and the element is
+   * focusable (`tabindex="0"`), so without this a keyboard user could reach a
+   * control that does nothing. Up/Right add, Down/Left subtract, Home jumps to 1
+   * and End to the ceiling - the same keys a native number input supports, which is
+   * what keeps this a replacement for it rather than a downgrade.
+   *
+   * `preventDefault()` is what stops ArrowUp/Down from scrolling the page instead
+   * of changing the number. Keys other than these are left alone, so Tab still
+   * leaves the control.
+   */
+  protected onQuantityKeydown(event: KeyboardEvent): void {
+    const current = this.form().ticketsPurchased;
+    let next: number | null = null;
+
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'ArrowRight':
+        next = current + 1;
+        break;
+      case 'ArrowDown':
+      case 'ArrowLeft':
+        next = current - 1;
+        break;
+      case 'Home':
+        next = 1;
+        break;
+      case 'End':
+        next = this.quantityMax();
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    this.setQuantity(next);
   }
 
   private clearFieldError(field: keyof RegistrationForm): void {

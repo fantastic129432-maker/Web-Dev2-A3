@@ -139,11 +139,14 @@
           THE ORDER INSIDE THE BANNER IS breadcrumbs -> eyebrow -> title ->
           subtitle, and the breadcrumb keeps the structure it had: a `nav` with
           an accessible name, an ordered list, a link to each ancestor and
-          `aria-current="page"` on the last item. Its colours are unchanged
-          (--ink-700 for the trail, --brand-700 for the links), which is the pair
-          the contrast check measures against the banner's --brand-100: 8.30:1
-          and 4.51:1 in the light theme, 7.99:1 and 5.05:1 in the dark one, all
-          above the 4.5:1 this 14.08px text is held to.
+          `aria-current="page"` on the last item. Its trail colour is unchanged
+          (--ink-700 on the banner's --brand-100) and its LINKS are no longer the
+          inherited --brand-700 but --brand-900, scoped by `.breadcrumb a`
+          (review item A1): on this banner the inherited link colour measured
+          4.51:1 in the light theme, which passes with 0.01:1 to spare, and the
+          darker token measures 9.52:1 light and 7.37:1 dark. The trail itself
+          measures 8.30:1 and 7.99:1, so all four figures are in
+          clientside/src/styles.css with the rest of the measurement.
 
           THE BREADCRUMB NOW RENDERS IN THIS BRANCH ONLY. It used to be outside
           the @switch, so the loading, no-event, problem and confirmation screens
@@ -391,30 +394,92 @@
                 </div>
 
                 <div class="field">
-                  <label for="reg-ticketsPurchased">{{ 'form.quantity' | t }} *</label>
                   <!--
-                    A number between 1 and 20 does not need the full width of the
-                    card: a 100%-wide box for two digits reads as an empty field
-                    waiting for a long answer, and pushes the running total below
-                    it. `input.registration-quantity` in styles.css fixes the box
-                    at 120px, which still leaves the spinner and the digits
-                    comfortable on a phone (the rule carries `max-width: 100%` so
-                    it can never overflow a narrow column).
+                    A SPAN, NOT A <label for>. The control below is a div of
+                    buttons and a value, and `for` only resolves to a LABELABLE
+                    element - a span with `role="spinbutton"` is not one, so the
+                    association is made the other way round: the value element
+                    names this span through `aria-labelledby`. A <label> without
+                    a resolvable `for` would be an association that reads as one
+                    and is not.
                   -->
-                  <input
-                    type="number"
-                    class="registration-quantity"
-                    id="reg-ticketsPurchased"
-                    #quantity
-                    name="ticketsPurchased"
-                    min="1"
-                    step="1"
-                    [attr.max]="quantityMax()"
-                    [attr.aria-invalid]="errorFor('ticketsPurchased') ? 'true' : null"
-                    [attr.aria-describedby]="messageId('ticketsPurchased') + ' reg-ticketsPurchased-hint'"
-                    [value]="form().ticketsPurchased"
-                    (input)="setQuantity(quantity.value)"
-                  />
+                  <span class="field__label" id="reg-ticketsPurchased-label">
+                    {{ 'form.quantity' | t }} *
+                  </span>
+                  <!--
+                    THE TICKET COUNT IS A STEPPER, NOT A NUMBER INPUT (review item C1).
+
+                    WHAT THIS REPLACES, AND WHY. `<input type="number" min="1"
+                    max="20">` was a 120px box whose only affordance was a native
+                    spinner - two 10px arrows in the corner, unusable on a touch
+                    screen, drawn differently by every browser, and paired with a
+                    numeric keypad that a phone raises over the rest of the form
+                    the moment the field is touched. A booking quantity is one of
+                    the few genuinely enumerable inputs on the site, so it is now
+                    `[-] 1 [+]`: two large buttons a thumb can hit, no spinner, and
+                    nothing that opens a keyboard.
+
+                    THE VALUE IS STILL THE SAME VALUE. The span holds
+                    `form().ticketsPurchased` and the POST body still sends
+                    `ticketsPurchased: current.ticketsPurchased` (see `submit()` in
+                    register.ts), so the API sees exactly the number the old input
+                    submitted - only the control changed, not the data.
+
+                    A SPINBUTTON, NOT A TEXT BOX. `role="spinbutton"` with
+                    aria-valuenow/min/max is what a number input exposes natively,
+                    so a screen reader user keeps the "spin button, 2, minimum 1,
+                    maximum 20" model they had before; `tabindex="0"` plus the
+                    arrow/Home/End handler on the component keeps it reachable and
+                    operable from the keyboard. The two buttons carry their own
+                    `aria-label`s, so nothing here depends on the glyphs "-" and
+                    "+" being read out.
+
+                    THE ENDS ARE DISABLED, NOT JUST CLAMPED. `quantityAtMin()` and
+                    `quantityAtMax()` disable the button at each end, which is what
+                    tells a visitor the range has been reached instead of leaving a
+                    control that silently does nothing. The ceiling is the tier's
+                    own remaining stock when that is lower than the API's limit of
+                    20 (see `quantityCeiling()` in register.ts), so the buttons ref
+                    use the same number the hint prints.
+                  -->
+                  <div class="quantity-stepper" data-ticket-stepper>
+                    <button
+                      type="button"
+                      class="quantity-stepper__button"
+                      data-stepper-decrement
+                      [attr.aria-label]="'form.quantityDecrease' | t"
+                      [disabled]="quantityAtMin()"
+                      (click)="stepQuantity(-1)"
+                    >
+                      &minus;
+                    </button>
+
+                    <span
+                      class="quantity-stepper__value"
+                      data-stepper-value
+                      id="reg-ticketsPurchased"
+                      role="spinbutton"
+                      tabindex="0"
+                      aria-labelledby="reg-ticketsPurchased-label"
+                      aria-valuemin="1"
+                      [attr.aria-valuemax]="quantityMax()"
+                      [attr.aria-valuenow]="form().ticketsPurchased"
+                      [attr.aria-invalid]="errorFor('ticketsPurchased') ? 'true' : null"
+                      [attr.aria-describedby]="messageId('ticketsPurchased') + ' reg-ticketsPurchased-hint'"
+                      (keydown)="onQuantityKeydown($event)"
+                    >{{ form().ticketsPurchased }}</span>
+
+                    <button
+                      type="button"
+                      class="quantity-stepper__button"
+                      data-stepper-increment
+                      [attr.aria-label]="'form.quantityIncrease' | t"
+                      [disabled]="quantityAtMax()"
+                      (click)="stepQuantity(1)"
+                    >
+                      +
+                    </button>
+                  </div>
                   <p class="field__hint" id="reg-ticketsPurchased-hint">
                     {{ 'form.quantityHint' | t: { max: maxTickets } }}
                   </p>

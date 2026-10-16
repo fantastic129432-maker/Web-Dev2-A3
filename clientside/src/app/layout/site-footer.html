@@ -1,5 +1,35 @@
 <!--
-  Site footer: brand note, quick links, project note and the live API indicator.
+  Site footer: brand note, quick links, what we do, and the live API indicator.
+
+  THE ACADEMIC DISCLAIMER MOVED TO THE BOTTOM LINE (review item E1).
+  It had a COLUMN of its own - the heading "Student project" over one paragraph -
+  which drew as much attention as the charity's own name beside it and gave a
+  course assessment the same visual weight as the organisation the site is about.
+  It is now a small, muted line in the bottom bar, directly beside the copyright,
+  where an assessment notice belongs.
+
+  IT IS STILL THERE, AND STILL READABLE BY EVERYTHING.
+  The project is an assessment submission, so the notice cannot disappear: the
+  line is visible text in the document (not `display: none`, not clipped by
+  `.sr-only`, no `aria-hidden`), it keeps both of its dictionary keys, and it is
+  read in document order right after the copyright. Only its position and its
+  size changed - see `.site-footer__disclaimer` in clientside/src/styles.css for
+  the measurement of the colour it is drawn in, which is held to the same 4.5:1
+  as the rest of the footer's body text.
+
+  WHAT TOOK THE COLUMN'S PLACE. Real content, all of it already on the site: the
+  organisation's own mission sentence (`about.mission`, the same string the home
+  page's About section falls back to when GET /api/organization has not answered)
+  under the heading it already carries there (`about.heading`), and the link to
+  the separate admin website, which needed a home once the "Student project"
+  column went. No new copy was invented for it, no route was invented for it, and
+  the paragraph is a translation key in all four languages like every other
+  string here.
+
+  The contact details did NOT move into the new column. They live in the first
+  one, they are the only place the email and phone appear on the whole site, and
+  repeating them two columns to the right is exactly the duplication this footer
+  was restructured to remove in the first place (see the note below).
 
   THE CONTACT DETAILS LIVE HERE, AND ONLY HERE
   The home page used to carry a white "Get in touch" section with the same email,
@@ -39,11 +69,32 @@
         <li><a routerLink="/">{{ 'nav.home' | t }}</a></li>
         <li><a routerLink="/search">{{ 'nav.search' | t }}</a></li>
       </ul>
+      <!--
+        THE TWO REAL ROUTES ARE BOTH HERE, AND THERE IS NO THIRD TO ADD. `/` and
+        `/search` are the only routes the public site has that do not need an
+        event id (`/events/:id` and `/register/:id` cannot be linked to without
+        one), so nothing was invented to fill the list.
+
+        A FRAGMENT LINK TO THE ABOUT SECTION WAS TRIED AND REMOVED, and the reason
+        is worth recording because the pattern looks like it should work. A
+        `routerLink="/"` with `fragment="about"` navigates correctly - the URL lands
+        on `/#about` - but the scroll happens as soon as the router activates the
+        route, while the home page's event listing is still being fetched. Measured
+        in headless Edge at 1440x1080: the page finished at scrollY 1287 with the
+        `#about` section at document y 2470, so the visitor landed 1183px short of
+        the section the link named, and it stayed there (the section only becomes
+        visible once the listing above it has rendered and the page stops growing).
+        The event hero's "Get tickets" link does not hit this because it stays on
+        the route it is already on, so nothing is being loaded underneath it. A
+        link that says "About us" and lands in the middle of the event grid is
+        worse than no link, so the column carries the mission sentence itself
+        instead - which is what a visitor wanted from that link anyway.
+      -->
     </div>
 
     <div class="site-footer__column">
-      <h3>{{ 'nav.projectHeading' | t }}</h3>
-      <p>{{ 'nav.projectNote' | t }}</p>
+      <h3>{{ 'about.heading' | t }}</h3>
+      <p>{{ 'about.mission' | t }}</p>
       <!--
         A plain href, not routerLink: the admin site is a separate application on
         its own origin. rel="noopener" because the link opens in a new tab.
@@ -55,7 +106,19 @@
   </div>
 
   <div class="site-footer__bottom">
-    <p>&copy; {{ year }} {{ 'nav.siteName' | t }}. {{ 'nav.rights' | t }}</p>
+    <!--
+      The copyright and the assessment notice are one block so they sit together on
+      the left of the bottom bar, whatever the viewport does to the row. The notice
+      keeps the two keys it had as a column heading and a paragraph ("Student
+      project: Built for PROG2002 ..."), joined on one line, so no string was lost
+      and no new one was written.
+    -->
+    <div class="site-footer__legal">
+      <p>&copy; {{ year }} {{ 'nav.siteName' | t }}. {{ 'nav.rights' | t }}</p>
+      <p class="site-footer__disclaimer">
+        {{ 'nav.projectHeading' | t }}: {{ 'nav.projectNote' | t }}
+      </p>
+    </div>
     <!-- The live "Event server: online" indicator, from GET /api/health. -->
     <app-api-status />
   </div>

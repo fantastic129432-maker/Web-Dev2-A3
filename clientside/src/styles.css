@@ -57,9 +57,35 @@
   --warning: #8a6100;
   --warning-bg: #fdf3dc;
 
-  --radius-sm: 6px;
+  /*
+   * Radius: THREE steps, and nothing between them (review item D1).
+   *
+   *   --radius-sm    4px   controls: inputs, selects, nav links, tiles, chips-as-boxes
+   *   --radius      12px   cards and panels: one corner for every raised or bounded surface
+   *   --radius-pill 999px  pills and pill-shaped buttons, and the circular icon badges
+   *
+   * WHAT THIS REPLACES. The scale used to be 6px / 12px / 20px with 999px and 50%
+   * written out by hand in eleven more places, so the site drew EIGHT distinct
+   * corner radii: 6, 12, 20, 999, 50, 0 and whatever a browser's default is. The
+   * 6px control corner is now 4px (the value the review names for a control) and
+   * the two 20px surfaces - the hero panel and the event hero's illustration box
+   * - moved down to 12px, which is the nearest of the three (8px away rather than
+   * 16px). --radius-lg therefore no longer exists: keeping a fourth token that
+   * nothing is allowed to use would be a scale with four steps in it.
+   *
+   * WHY 50% IS GONE TOO. `.fact__icon`, `.spinner` and `.confirmation__glyph`
+   * are all square boxes (2.1rem, 34px and 3.5rem), and on a square box a 50%
+   * radius and a 999px radius produce the identical circle. They are written with
+   * --radius-pill so the whole stylesheet has one "fully rounded" value, and the
+   * circle is what "full" means at that size.
+   *
+   * The one deliberate non-token corner is `.info-card--plain`'s `0`: that rule
+   * exists to REMOVE the box (see the note on it), so a radius there would be a
+   * property with nothing to round.
+   */
+  --radius-sm: 4px;
   --radius: 12px;
-  --radius-lg: 20px;
+  --radius-pill: 999px;
   --shadow-sm: 0 1px 2px rgba(16, 36, 43, 0.08), 0 1px 3px rgba(16, 36, 43, 0.06);
   --shadow: 0 6px 18px rgba(16, 36, 43, 0.1);
   --shadow-lg: 0 18px 40px rgba(16, 36, 43, 0.16);
@@ -169,11 +195,13 @@
 /* Form controls were explicitly white. The list is the same one as the control
    rule further down, `tel` included: a type present in one list and absent from
    the other is either an unstyled control in the light theme or a white one in
-   the dark theme. */
+   the dark theme. `input[type='number']` left BOTH lists when the ticket stepper
+   replaced the last number input on the public site (review item C1) - it is
+   removed from the pair together, so the parity the sentence above describes is
+   still true. */
 [data-theme='dark'] input[type='text'],
 [data-theme='dark'] input[type='search'],
 [data-theme='dark'] input[type='date'],
-[data-theme='dark'] input[type='number'],
 [data-theme='dark'] input[type='email'],
 [data-theme='dark'] input[type='tel'],
 [data-theme='dark'] select,
@@ -450,7 +478,7 @@ textarea {
   gap: var(--space-2);
   padding: 0.7rem 1.35rem;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--brand-700);
   /* --on-brand rather than #fff: the dark theme inverts --brand-700 to a light
      teal, so white text measured 2.4:1 there. Pairing one flipping token with
@@ -538,7 +566,7 @@ textarea {
 .badge {
   display: inline-block;
   padding: 0.2rem 0.65rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
   font-weight: bold;
   letter-spacing: 0.04em;
@@ -562,7 +590,7 @@ textarea {
 .chip {
   display: inline-block;
   padding: 0.2rem 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--chip-bg);
   color: var(--on-brand);
   font-size: 0.78rem;
@@ -658,29 +686,39 @@ textarea {
   white-space: nowrap;
 }
 
-/* The visible text of the theme button is the current setting, so it doubles as
-   a status indicator: "Theme: Dark". */
+/* The theme button is an ICON-ONLY round control (review item C2).
+ *
+ * It used to be a pill holding the sun or moon plus the words "Theme: Light",
+ * which measured 130.80px wide in the dark theme and 133.61px in the light one -
+ * the single widest item in a header row that also has to carry the whole
+ * navigation. It is now a 2.1rem (33.6px) square, so the row gives back about
+ * 97px; the sun and moon are the two inline SVGs in the template and the
+ * accessible name is the button's `aria-label`, which still names the stored
+ * preference. The visible focus ring is the site-wide `:focus-visible` outline
+ * declared in section 2 - it needs no rule here because it was never removed. */
 .theme-toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.35rem 0.7rem;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-0);
   color: var(--ink-700);
-  font-size: 0.8rem;
-  font-weight: bold;
   cursor: pointer;
-  white-space: nowrap;
 }
 .theme-toggle:hover {
   border-color: var(--brand-500);
   color: var(--brand-900);
 }
+/* The SVG inherits `currentColor` for its stroke, so the hover colour above
+   reaches the glyph itself and the dark theme needs no second rule. */
 .theme-toggle__icon {
-  font-size: 0.95rem;
-  line-height: 1;
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
 }
 
 .language-select {
@@ -835,6 +873,47 @@ textarea {
   font-size: 0.85rem;
 }
 .site-footer__bottom p { margin: 0; }
+
+/*
+ * The copyright and the assessment notice (review item E1).
+ *
+ * A column, not a row: the notice is a whole sentence and it belongs UNDER the
+ * copyright line rather than beside it, so the pair reads as the page's legal
+ * footnote on the left of the bar while the live API indicator stays on the
+ * right. The wrapper is what keeps the two together - without it the notice
+ * would be a third flex child of `.site-footer__bottom` and `justify-content:
+ * space-between` would push it into the middle of the row.
+ */
+.site-footer__legal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/*
+ * The academic disclaimer, moved here from the column it used to have.
+ *
+ * SMALLER, NOT FAINTER THAN THE REST OF THE FOOTER'S TEXT. It is 0.78rem against
+ * the bottom bar's 0.85rem, and its colour is #b9d8d2 - the colour
+ * `.site-footer p` already paints every paragraph in this footer with, measured
+ * at 7.17:1 on the light theme's background and 11.81:1 on the dark theme's. A
+ * quieter grey would have to be a NEW colour that also clears 4.5:1 against a
+ * dark green block in both themes, and the footer's own muted ink already does
+ * the job: the line is set apart by its size and its position, not by being hard
+ * to read.
+ *
+ * IT IS NOT HIDDEN FROM ANYTHING. No `display: none`, no `.sr-only`, no
+ * `aria-hidden` - the sentence is rendered text and is read in document order
+ * after the copyright, which is what an assessment submission needs. `max-width`
+ * in `ch` keeps it to a readable measure on a wide screen instead of letting it
+ * run the full 1180px container.
+ */
+.site-footer__disclaimer {
+  font-size: 0.78rem;
+  color: #b9d8d2;
+  max-width: 68ch;
+}
 .site-footer__status { color: #b9d8d2; }
 .site-footer__status.is-online { color: #8fe0b6; }
 .site-footer__status.is-warning { color: #f6cf88; }
@@ -886,10 +965,30 @@ textarea {
  * THE COLOUR PAIR, MEASURED, ON BOTH BACKGROUNDS IT NOW SITS ON. This 14.08px
  * text is held to 4.5:1. On the tinted banner's --brand-100 (measured on
  * /register/2 at 1920x1080) the trail reads 8.30:1 in the light theme and
- * 7.99:1 in the dark one and its links 4.51:1 and 5.05:1 - the pair /search has
- * always shown. On the event hero's --surface-0 the same two are 9.50:1 and
- * 10.71:1 for the trail and 5.16:1 and 6.77:1 for the links. All eight are
- * above the minimum.
+ * 7.99:1 in the dark one. On the event hero's --surface-0 the same trail is
+ * 9.50:1 and 10.71:1.
+ *
+ * THE LINKS WERE THE WEAK PAIR, AND ARE NOW THE STRONG ONE (review item A1).
+ *   They inherited the site-wide `a { color: var(--brand-700) }`, which is a
+ *   BACKGROUND-agnostic link colour: on the tinted banner it measured 4.51:1 in
+ *   the light theme - passing, but with 0.01:1 of margin, which is not a margin -
+ *   and 5.05:1 in the dark one. On the white/dark hero the same colour measured
+ *   5.16:1 and 6.77:1. The trail therefore had twice the contrast of the links
+ *   inside it.
+ *
+ *   `.breadcrumb a` now uses --brand-900, the project's "strong brand ink": the
+ *   light theme's value (#08453c) is inside the #064e3b-#0f5132 family the review
+ *   suggested, and the dark theme already flips that token to #7fd8c8, which is
+ *   what a link on the dark-teal banner needs. Re-measured on the same pages:
+ *   banner links 9.52:1 light and 7.37:1 dark, hero links 10.90:1 light and
+ *   9.88:1 dark - every one of the eight figures above 4.5:1 with room to spare,
+ *   and no link weaker than the trail text beside it.
+ *
+ *   The token is shared - --brand-900 is also every heading, the hero's and the
+ *   footer's background, the button hover fill and `.brand` - so its VALUE was
+ *   deliberately not touched: the change is only which token the trail's links
+ *   resolve, scoped by `.breadcrumb a`, which is why nothing else on the site
+ *   moved.
  *
  * --ink-700 rather than --ink-500 in the colour below, because the lighter grey
  * measured 4.3:1 on the tinted banner.
@@ -904,6 +1003,9 @@ textarea {
 }
 .breadcrumb ol { display: flex; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
 .breadcrumb li + li::before { content: "/"; margin-right: var(--space-2); color: var(--ink-300); }
+/* The trail's links: --brand-900 rather than the inherited --brand-700, which
+   measured 4.51:1 on the tinted banner (see the measurement above). */
+.breadcrumb a { color: var(--brand-900); }
 
 /* ==========================================================================
    6. Home page
@@ -944,22 +1046,36 @@ textarea {
 }
 
 /* A slightly smaller, roomier h1 than the page default: 46.4px at these widths
-   with 1.25 leading read as too large and too tight, and the line breaks fell
-   wherever the column width happened to land. The measure caps the line length,
-   so the sentence breaks after "buy" and "help" rather than orphaning a word on
-   the last line, and 1.12 leading keeps the three lines together as one block. */
+   with 1.25 leading read as too large and too tight. The measure caps the line
+   length so the headline wraps as one block rather than running the full width
+   of the column.
+
+   THE LAST LINE USED TO HOLD TWO SHORT WORDS (review item B2). Measured at
+   1440x1080 in English before this change, "Every ticket you buy becomes help
+   someone can feel." broke into three lines of 4 / 3 / 2 words, and the third -
+   "can feel." - was the orphan the review flagged. `text-wrap: balance` asks the
+   browser to even the line lengths out instead of filling each line to the
+   measure, and it is set HERE rather than as a `<br>` in the template on
+   purpose: the headline is a translated string in four languages (see
+   home.title in shared/src/i18n/client-translations.ts), a `<br>` would sit in
+   the wrong place in three of them, and it would break the moment the copy
+   changed. A browser that does not know `text-wrap` ignores the declaration and
+   keeps the old wrapping, so this degrades to exactly the previous behaviour.
+   `max-width: 22ch` stays: balance redistributes the words across the lines, it
+   does not decide how wide the block is. */
 .hero h1 {
   color: #fff;
   font-size: clamp(1.75rem, 1.3rem + 1.3vw, 2.45rem);
   line-height: 1.12;
   max-width: 22ch;
+  text-wrap: balance;
   margin-bottom: var(--space-3);
 }
 
 .hero__eyebrow {
   display: inline-block;
   padding: 0.25rem 0.8rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   /* The hero is a dark surface in both themes, so this label is pinned to a
      light colour rather than inheriting one that flips with the theme. */
   color: #ffffff;
@@ -995,7 +1111,9 @@ textarea {
 .hero__panel {
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: var(--radius-lg);
+  /* --radius, not the retired 20px step: the panel is a card, and 12px is the
+     card corner (review item D1). */
+  border-radius: var(--radius);
   padding: var(--space-4) var(--space-5);
   backdrop-filter: blur(4px);
   /* The card is a column so its link can sit at the bottom edge. The list keeps
@@ -1050,12 +1168,47 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-4);
 }
+/*
+ * BORDERS VERSUS ELEVATION (review item D2).
+ *
+ * THE RULE, STATED ONCE SO EVERY CARD CAN BE CHECKED AGAINST IT:
+ *   ONLY AN INTERACTIVE ELEMENT MAY BE RAISED. A surface that only DISPLAYS data
+ *   is drawn flat, with a `1px solid var(--line)` border and no `box-shadow`. The
+ *   shadow tokens (--shadow-sm, --shadow, --shadow-lg) belong to things a visitor
+ *   can click, press or focus - a button while it is hovered, a card that lifts
+ *   because a link inside it is engaged - and never to a container whose contents
+ *   are read rather than operated.
+ *
+ * WHAT IT REPLACES. Both treatments were on the same site with no rule behind
+ * them: `.stat` (four numbers and their labels - pure data) carried --shadow-sm
+ * while looking identical to `.event-card` (a card holding links), and the
+ * register summary, the panels and the filter panel all carried --shadow-sm too,
+ * so every box on every page floated a little and the elevation said nothing.
+ *
+ * THE ELEMENTS THAT CHANGED, and why each one is on the display side:
+ *   .stat            a figure and its label, nothing else          -> border only
+ *   .info-card       a heading, a paragraph and a list             -> border only
+ *   .event-card      the card itself is not clickable (see below)   -> border only
+ *   .panel           a container: the goal panel, the form card,
+ *                    the register summary, the ticket card         -> border only
+ *   .filter-panel    the search page's form container               -> border only
+ *   .event-hero__media  an illustration box                         -> border only
+ *
+ * WHAT STILL CARRIES A SHADOW, because each one is genuinely interactive:
+ *   .button:hover / :focus-visible     a pressed-able control (unchanged)
+ *   .event-card while an inner link or button is hovered or focus-visible - the
+ *       one ambiguous case, argued in the rule on `.event-card` below
+ *   .event-card__media .badge          NOT elevation: a legibility device, see
+ *       the note on it
+ *
+ * The print block at the end of this file already dropped the shadows for paper;
+ * it now has less to drop.
+ */
 .stat {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: var(--space-5);
-  box-shadow: var(--shadow-sm);
 }
 .stat__value {
   font-size: 1.8rem;
@@ -1090,7 +1243,8 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: var(--space-5);
-  box-shadow: var(--shadow-sm);
+  /* Flat: display-only data gets a border, not elevation (review item D2 - see
+     the rule above `.stat`). */
 }
 .info-card h3 { margin-top: 0; }
 .info-card ul { color: var(--ink-700); }
@@ -1152,10 +1306,33 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  /* Flat at rest: see the rule on `.event-card:has(...)` below and the border
+     versus elevation statement above `.stat`. */
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.event-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+/*
+ * THE AMBIGUOUS CARD, AND THE CHOICE MADE (review item D2).
+ *
+ * An event card is not clickable as a whole: the artwork is a link, the title is
+ * a link and "View details" is a link, but the card element itself carries no
+ * handler and the summary, the when/where/cause list and the progress bar are
+ * read-only. Under "only interactive elements get elevation, display-only data
+ * gets a border" that makes the CARD display-only - so it no longer floats at
+ * rest, and it measures the same as the `.stat` cards beside it on the home page.
+ *
+ * The lift is kept, but it is now tied to the interaction that justifies it: the
+ * card rises while one of the links inside it is hovered or keyboard-focused,
+ * which is what the elevation always meant to say. `:has()` is what makes that
+ * expressible without a click handler on the card (and without making the whole
+ * card clickable, which would be a behaviour change this round was not asked
+ * for). The transition stays on `.event-card` so the movement is still animated;
+ * a browser without `:has()` simply never lifts the card, which loses decoration
+ * rather than function.
+ */
+.event-card:has(a:hover, button:hover, a:focus-visible, button:focus-visible) {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
 .event-card--past { opacity: 0.94; }
 .event-card--past .event-card__media img { filter: grayscale(0.45); }
 
@@ -1201,6 +1378,12 @@ textarea {
   position: absolute;
   top: var(--space-3);
   left: var(--space-3);
+  /* NOT elevation (review item D2). This card is display-only and flat, but the
+     badge is a 12px label painted on top of arbitrary artwork, and its shadow is
+     what separates it from whatever the illustration happens to be at that
+     corner. Removing it would put the label's contrast at the mercy of the
+     image, which is a legibility problem rather than a consistency one, so it is
+     the one deliberate exception to the rule and it is documented here. */
   box-shadow: var(--shadow-sm);
 }
 
@@ -1367,7 +1550,9 @@ textarea {
   top: 96px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+  /* Flat: the search page's form container holds controls, not data, and the
+     controls themselves carry the focus styling that says they are interactive
+     (review item D2 - see the rule above `.stat`). */
   padding: var(--space-5);
   background: var(--surface-0);
 }
@@ -1382,8 +1567,16 @@ fieldset {
 }
 fieldset:last-of-type { margin-bottom: var(--space-4); }
 
+/*
+ * `.field__label` is the label a form control cannot be wrapped in. It is in this
+ * list so it is drawn exactly like a `<label>` and the registration form keeps one
+ * label style: the ticket stepper's control is a `role="spinbutton"` span, which
+ * `for` cannot point at, so its label is a span associated with
+ * `aria-labelledby` instead (review item C1).
+ */
 legend,
-.field > label {
+.field > label,
+.field__label {
   display: block;
   font-weight: bold;
   font-size: 0.9rem;
@@ -1411,7 +1604,6 @@ legend,
 input[type='text'],
 input[type='search'],
 input[type='date'],
-input[type='number'],
 input[type='email'],
 /* `tel` belongs in this list and was missing from it. A control left out gets the
    browser's own 224px-wide inset box instead: on the registration form the phone
@@ -1494,7 +1686,7 @@ textarea:focus { border-color: var(--brand-500); }
   gap: var(--space-2);
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #fff;
   font-size: 0.82rem;
   color: var(--ink-700);
@@ -1628,9 +1820,13 @@ textarea:focus { border-color: var(--brand-500); }
 .event-hero h1 { margin-bottom: var(--space-4); }
 .event-hero__lead { font-size: 1.08rem; color: var(--ink-700); }
 .event-hero__media {
-  border-radius: var(--radius-lg);
+  /* --radius, not the retired 20px step: an illustration box is a card-shaped
+     surface, and 12px is the card corner (review item D1). */
+  border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: var(--shadow);
+  /* Flat: an illustration is display-only data, so its border does the work and
+     the drop shadow went with the other display-only surfaces (review item D2 -
+     see the rule above `.stat`). */
   border: 1px solid var(--line);
 
   /*
@@ -1660,6 +1856,30 @@ textarea:focus { border-color: var(--brand-500); }
  * `auto-fit` + `minmax(190px, 1fr)` does the responsive work: four tiles per row
  * on a wide hero, two beside the illustration, one on a phone - without a media
  * query per breakpoint.
+ *
+ * EVERY TILE IS THE SAME HEIGHT NOW (review item B1).
+ *   The venue is the one fact long enough to wrap: "Coffs Harbour Jetty
+ *   Foreshore, Marina Dr" takes two lines where its neighbours take one. Measured
+ *   before this change at 1440x1080 in English, the tiles measured 71.13px in the
+ *   date/time row, 95.44px in the venue/location row, then 71.13px, 71.13px - and
+ *   in Japanese the availability tile wrapped too, so the last row was 95.44px as
+ *   well. The rows were therefore two different heights, which is the uneven grid
+ *   the review describes.
+ *
+ *   `grid-auto-rows: 1fr` is what levels them: the implicit rows share one height,
+ *   so the tallest fact in the grid sets it and every other row matches, in every
+ *   language and at every width. `min-height` on the tile (72px, the figure the
+ *   review suggests) is the floor for the case where no fact wraps at all, so a
+ *   one-line grid cannot collapse into something thinner than the shape the tiles
+ *   are drawn at; `align-content: centre` keeps the icon, label and value as one
+ *   vertically centred block inside whatever height the row gives them, instead of
+ *   pinning them to the top edge of a taller tile.
+ *
+ *   Measured after the change: every tile in every row is the same height, at
+ *   1440, 1366 and 1100px, in all four languages (the figures are in the round's
+ *   report). Nothing about the tile's own content changed - the label and the
+ *   value are still a `dt`/`dd` pair, so the reading order a screen reader gets is
+ *   the one the comment on the markup describes.
  */
 .fact-grid {
   list-style: none;
@@ -1667,6 +1887,8 @@ textarea:focus { border-color: var(--brand-500); }
   margin: 0 0 var(--space-5);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  /* One height for every row: the tallest fact sets it (review item B1). */
+  grid-auto-rows: 1fr;
   gap: var(--space-3);
 }
 
@@ -1676,7 +1898,10 @@ textarea:focus { border-color: var(--brand-500); }
   grid-template-areas:
     'icon label'
     'icon value';
-  align-content: start;
+  /* Content centred in the tile, with 72px as the floor a row cannot go below
+     (review item B1). */
+  align-content: center;
+  min-height: 72px;
   column-gap: var(--space-3);
   row-gap: 0.15rem;
   padding: var(--space-3);
@@ -1693,7 +1918,9 @@ textarea:focus { border-color: var(--brand-500); }
   justify-content: center;
   width: 2.1rem;
   height: 2.1rem;
-  border-radius: 50%;
+  /* A square box, so the pill radius draws the same circle 50% did - and the
+     scale now has one "fully rounded" value instead of two (review item D1). */
+  border-radius: var(--radius-pill);
   background: var(--brand-100);
   color: var(--brand-700);
 }
@@ -1904,7 +2131,8 @@ textarea:focus { border-color: var(--brand-500); }
   background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+  /* Flat: a panel is a container, and its contents are read (review item D2 -
+     see the rule above `.stat`). */
   padding: var(--space-5);
 }
 .panel h2, .panel h3 { margin-top: 0; font-size: 1.1rem; }
@@ -1920,17 +2148,40 @@ textarea:focus { border-color: var(--brand-500); }
   margin-bottom: var(--space-2);
 }
 .progress__percent { font-weight: bold; color: var(--brand-700); }
+/*
+ * THE FUNDRAISING BAR IS ONE COLOUR (review item A2).
+ *
+ * WHAT IT WAS, AND WHY THE SECOND COLOUR WENT. The fill was painted with
+ * `linear-gradient(90deg, var(--brand-500), var(--accent-500))` - teal at the
+ * left edge of the fill, amber at its right edge - so a bar at 25% showed a
+ * green-to-orange ramp and the review read it as "an orange segment followed by a
+ * green one". Nothing in the markup, the stylesheet, the templates, the legacy
+ * `js/dom.js progressBar()` or the API's event payload gives that amber a
+ * meaning: the track carries ONE quantity (`progressPercent`, clamped 0-100 and
+ * printed beside it as "{percent}% of goal"), the fill is a single element with
+ * no segments and no children (measured: 0 child nodes), and there is no legend
+ * and no second data field in `Event` that a colour could be keyed to. In a
+ * fundraising chart a colour has to mean something, so the one that meant nothing
+ * is gone and the bar is a single flat colour.
+ *
+ * WHY --brand-700 AND NOT --brand-500 (the gradient's own start colour).
+ * This is a UI graphic, so it is held to 3:1 against what it sits on - the
+ * --surface-100 track. Measured in headless Edge: --brand-500 is 2.95:1 on the
+ * light track (below the minimum) and 4.11:1 in the dark one. --brand-700 is
+ * 4.67:1 light and 6.30:1 dark, and it is already the colour of the percentage
+ * text in the bar's own header, so the number and the bar now match.
+ */
 .progress__track {
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-100);
   overflow: hidden;
 }
 .progress__fill {
   height: 100%;
   width: 0;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--brand-500), var(--accent-500));
+  border-radius: var(--radius-pill);
+  background: var(--brand-700);
   transition: width 0.8s ease;
 }
 .progress__amounts { margin: var(--space-3) 0 0; font-size: 0.9rem; color: var(--ink-700); }
@@ -2025,7 +2276,8 @@ textarea:focus { border-color: var(--brand-500); }
   margin: 0 auto var(--space-3);
   border: 3px solid var(--surface-100);
   border-top-color: var(--brand-700);
-  border-radius: 50%;
+  /* Square box: --radius-pill draws the same circle 50% did (review item D1). */
+  border-radius: var(--radius-pill);
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -2331,20 +2583,73 @@ textarea:focus { border-color: var(--brand-500); }
 }
 
 /*
- * The ticket count: two digits, so the control is sized for two digits instead of
- * taking the whole card. A 100%-wide box for "1" reads as an empty field waiting
- * for a long answer and pushes the running total below it.
+ * THE TICKET STEPPER (review item C1).
  *
- * The selector is `input.registration-quantity` on purpose. `input[type='number']`
- * above sets `width: 100%` at the same specificity (one element plus one class
- * against one element plus one attribute), so this rule wins on source order
- * alone and has to stay BELOW it in this file. `max-width: 100%` is the phone
- * case: 120px fits every viewport the site supports, and the cap means this box
- * can never be the reason a narrow column scrolls sideways.
+ * WHAT THIS REPLACES. `input.registration-quantity` sized a 120px number box for
+ * two digits, and the comment on it recorded why: a 100%-wide field for "1" reads
+ * as an empty box waiting for a long answer. The box is gone - the count is now
+ * two buttons around a value element - so that rule went with it, and the reason
+ * for its odd selector (a specificity race with `input[type='number']` above,
+ * which set `width: 100%` at the same weight) went with it too. There is one
+ * fewer input type in the two control lists above and in the dark theme for the
+ * same reason, and the parity note between those two lists still holds: `number`
+ * was removed from BOTH, not from one.
+ *
+ * THE MEASUREMENTS. Each button is 2.75rem (44px) square and the value element is
+ * at least 3.25rem (52px) wide, so the whole control is about 140px - narrower
+ * than the card's column and wider than the "+" needs to be, which is the point:
+ * a booking quantity is pressed with a thumb, and 44px is the target size the
+ * touch guidance asks for. `inline-flex` keeps it the width of its contents
+ * instead of filling the card; `overflow: hidden` on the box is what lets the
+ * container's own `--radius-sm` corner clip the two button backgrounds inside it
+ * without a radius on each of them.
+ *
+ * The value element carries `font-variant-numeric: tabular-nums` so the digit does
+ * not shift the two buttons sideways as the count goes from 1 to 2 to 10, and it
+ * is a grid-free `inline-flex` centre so "20" stays on the same baseline as "1".
  */
-input.registration-quantity {
-  width: 120px;
-  max-width: 100%;
+.quantity-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-0);
+  overflow: hidden;
+}
+
+.quantity-stepper__button {
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: var(--surface-100);
+  color: var(--ink-900);
+  font-size: 1.25rem;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+}
+.quantity-stepper__button:hover:not([disabled]) {
+  background: var(--brand-100);
+  color: var(--brand-900);
+}
+/* The ends of the range are disabled, so they have to look it - the same 0.55
+   opacity `.button[disabled]` uses, so a dead control looks dead everywhere. */
+.quantity-stepper__button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.quantity-stepper__value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 0 var(--space-2);
+  font-size: 1.05rem;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
 }
 
 .registration-form-card h3 {
@@ -2407,7 +2712,8 @@ input.registration-quantity {
   height: 3.5rem;
   line-height: 3.5rem;
   margin: 0 auto var(--space-4);
-  border-radius: 50%;
+  /* Square box: --radius-pill draws the same circle 50% did (review item D1). */
+  border-radius: var(--radius-pill);
   background: var(--success-bg);
   color: var(--success);
   font-size: 1.8rem;

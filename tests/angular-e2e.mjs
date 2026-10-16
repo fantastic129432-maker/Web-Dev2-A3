@@ -443,15 +443,42 @@ async function main() {
       );
     }
     record('registration page shows the event being registered for (A3)', registration.text.includes(eventName), eventName);
-    const formFields = await registration.page.evaluate(() => ({
-      email: document.querySelectorAll('input[type="email"], input[name*="mail"]').length,
-      number: document.querySelectorAll('input[type="number"]').length,
-      text: document.querySelectorAll('input[type="text"], input:not([type])').length,
-      forms: document.querySelectorAll('form').length,
-    }));
+    const formFields = await registration.page.evaluate(async () => {
+      /*
+       * The ticket count is a STEPPER, not `<input type="number">` (A3 review item
+       * C1). It is one value element between two large buttons, so the check is
+       * that all three exist AND that the "+" button actually moves the number -
+       * a stepper that renders but does not step is the failure this assertion is
+       * here to catch. `numberInputs` is asserted at 0 so the old control cannot
+       * come back unnoticed.
+       */
+      const stepper = document.querySelector('[data-ticket-stepper]');
+      const value = stepper ? stepper.querySelector('[data-stepper-value]') : null;
+      const buttons = stepper ? [...stepper.querySelectorAll('button')] : [];
+      const before = value ? value.textContent.trim() : '';
+      const plus = buttons.find((button) => button.hasAttribute('data-stepper-increment'));
+      if (plus) plus.click();
+      await new Promise((done) => setTimeout(done, 200));
+      const after = value ? value.textContent.trim() : '';
+
+      return {
+        email: document.querySelectorAll('input[type="email"], input[name*="mail"]').length,
+        stepperValues: stepper ? stepper.querySelectorAll('[data-stepper-value]').length : 0,
+        stepperButtons: buttons.length,
+        numberInputs: document.querySelectorAll('input[type="number"]').length,
+        text: document.querySelectorAll('input[type="text"], input:not([type])').length,
+        forms: document.querySelectorAll('form').length,
+        stepped: before !== '' && after === String(Number(before) + 1),
+      };
+    });
     record(
       'registration page offers a real form (name, email, tickets)',
-      formFields.forms > 0 && formFields.email > 0 && formFields.number > 0,
+      formFields.forms > 0 &&
+        formFields.email > 0 &&
+        formFields.stepperValues === 1 &&
+        formFields.stepperButtons === 2 &&
+        formFields.numberInputs === 0 &&
+        formFields.stepped,
       JSON.stringify(formFields)
     );
     await registration.page.close();
