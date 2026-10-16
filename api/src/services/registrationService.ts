@@ -508,10 +508,20 @@ function parsePositiveId(rawId: string | number, noun: string): number {
 /**
  * The service's public surface.
  *
- * The five operations are used by the registration and admin controllers; the
- * validators and the id parser are exported so the tests can exercise a rule
- * without going through Express, and the ticket ceiling is exported so the admin
- * form can state the same limit the validator enforces.
+ * The six operations are used by the registration and admin controllers: the
+ * public form posts through createRegistration, the event page and the admin
+ * event screen read through listForEvent, and the admin registrations list and
+ * the dashboard use listRegistrations, getRegistration, updateRegistration and
+ * deleteRegistration.
+ *
+ * `normaliseEmail` used to be exported here with no reader. This module is
+ * required only by src/controllers/registrationController.ts, and a name search
+ * for the export across the API, the test suite and the tools matched nothing but
+ * this file and the two repository-local copies of the same rule that do not
+ * import from here. It has been removed and the helper stays private, called by
+ * the create and update paths below. The doc block it sat under also described
+ * two exports - a body validator and a ticket ceiling - that this object has never
+ * contained, so that description has been replaced with the list above.
  */
 export = {
   createRegistration,
@@ -520,5 +530,4 @@ export = {
   listForEvent,
   listRegistrations,
   getRegistration,
-  normaliseEmail,
 };

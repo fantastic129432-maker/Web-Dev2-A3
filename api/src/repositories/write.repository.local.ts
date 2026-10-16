@@ -380,15 +380,31 @@ function saveTicketTypes(eventId: number, ticketTypes: DataRecord[]): void {
 }
 
 /**
- * The write repository plus the helpers the tests exercise.
+ * The write repository, and the only thing this module exports.
  *
- * One export: the helpers the original attached to module.exports afterwards ride
- * along on the same object, so `require('./write.repository.local')` is still the
- * object src/repositories/index.ts binds onto the read half.
+ * THE HELPERS THAT USED TO RIDE ALONG
+ *   When the API was JavaScript this module attached `toRow`,
+ *   `assertReferences`, `assertUniqueTicketTypeNames` and `nowStamp` to
+ *   `module.exports` after the fact, so a caller could reach a private helper
+ *   through the repository object. The TypeScript migration kept all four
+ *   attachments, and each of them was then reachable from outside the module
+ *   while nothing outside the module ever reached for one: repository member
+ *   searches for all four names returned only this file (their own call sites
+ *   inside it) plus `docs/api-reference.md`, and the statements above the
+ *   original block that said the helpers were there for the test suite were
+ *   wrong - `tests/run-tests.js` requires `./repositories`,
+ *   `./repositories/repository.local`, `./repositories/repository.mysql` and
+ *   `./repositories/registration.repository.local`, and never this module, so it
+ *   could not have exercised them. The four attachments were therefore removed:
+ *   every one of them is still called internally, by name, a few lines above.
+ *
+ * WHY THE HELPERS THEMSELVES STAY
+ *   They are the reasoning this file exists to record, and their own blocks
+ *   carry it: `assertReferences` names the three foreign keys and why the
+ *   offline half reproduces them (see also the note in
+ *   write.repository.mysql.ts), and `assertUniqueTicketTypeNames` records why
+ *   the twin of `uq_ticket_event_name` has to be stated explicitly when there is
+ *   no key to lean on. Deleting the exports removes an unused way IN, not the
+ *   rules themselves.
  */
-export = Object.assign(writeRepository, {
-  toRow,
-  assertReferences,
-  assertUniqueTicketTypeNames,
-  nowStamp,
-});
+export = writeRepository;

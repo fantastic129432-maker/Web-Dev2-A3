@@ -109,21 +109,4 @@ export class HttpError extends Error {
   ): HttpError {
     return new HttpError(429, message, details);
   }
-
-  /**
-   * Build a 500 for a failure the client cannot correct.
-   *
-   * @param message - The message returned to the client. May be omitted, in
-   *   which case a generic server-error message is used. In production the
-   *   middleware replaces the message of any 500 rather than leaking internals.
-   * @param details - Extra machine readable information about the failure. May
-   *   be omitted, and is normally left off so that internals stay in the log.
-   * @returns The error, ready to be thrown.
-   */
-  static serverError(
-    message = 'Internal server error',
-    details?: unknown
-  ): HttpError {
-    return new HttpError(500, message, details);
-  }
 }

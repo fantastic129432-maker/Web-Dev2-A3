@@ -574,13 +574,22 @@ const repository: EventReadRepository = {
  * ride along on the same object, so `require('./repository.local')` is still the
  * repository the merged module expects and the unit tests can call `decorate()`
  * or `matches()` directly.
+ *
+ * WHAT RODE ALONG AND WAS NOT READ
+ *   `allEvents` and `sortEvents` were attached in this same block and had no
+ *   reader outside this file: neither the test suite, nor the tools, nor either
+ *   Angular application names them, and both are still called by name a few
+ *   lines above, where the public and the admin listings are assembled. They
+ *   have been removed from the attachment. Every name that remains has a reader -
+ *   `today()` is asserted against the process time zone in
+ *   `tests/run-tests.js`, `publicEvents` is read by
+ *   `tools/verify-deployment.mjs`, and `decorate`, `eventState` and `matches`
+ *   are shared with the MySQL half and the services beside it.
  */
 export = Object.assign(repository, {
   decorate,
   eventState,
   today,
   publicEvents,
-  allEvents,
   matches,
-  sortEvents,
 });

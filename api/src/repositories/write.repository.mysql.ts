@@ -494,10 +494,18 @@ async function replaceTicketTypes(eventId: number, ticketTypes: DataRecord[]) {
  * One export: the helpers the original attached to module.exports afterwards ride
  * along on the same object, so `require('./write.repository.mysql')` is still the
  * object src/repositories/index.ts binds onto the read half.
+ *
+ * `insertTicketTypes` was attached in this block and had no reader outside this
+ * file - it is called by name from the tier-writing path above, which is the only
+ * place the row-per-tier insert belongs - so it has been removed from the
+ * attachment and stays private. The three names that remain are all read from
+ * another module: `replaceTicketTypes` is a repository method the merged object
+ * publishes, while `translateMysqlError` and `toColumns` are the two helpers the
+ * offline half borrows so both data sources translate the same driver failures
+ * and the same column names.
  */
 export = Object.assign(writeRepository, {
   translateMysqlError,
   toColumns,
   replaceTicketTypes,
-  insertTicketTypes,
 });

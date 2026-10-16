@@ -365,10 +365,16 @@ const registrationRepository: RegistrationWriteRepository = {
 };
 
 /**
- * The write repository plus the helper the tests exercise.
+ * The registration write repository, and the only thing this module exports.
  *
- * One export: the helper the original attached to module.exports afterwards rides
- * along on the same object, so `require('./registration.repository.mysql')` is
- * still the object src/repositories/index.ts binds onto the merged repository.
+ * `normaliseEmail` used to ride along here as a second property, inherited from
+ * the JavaScript module that attached it to `module.exports` after the fact. No
+ * caller reached it: `src/repositories/index.ts` imports this module only to bind
+ * `insertRegistration`, `updateRegistration` and `deleteRegistration` onto the
+ * merged repository, nothing else in the repository, the tests or the tools names
+ * the export, and the lower-case rule it implements is already stated in the two
+ * places that need it - the service layer's own copy and the local twin's. The
+ * attachment was removed; the function stays, called by name from the write paths
+ * above.
  */
-export = Object.assign(registrationRepository, { normaliseEmail });
+export = registrationRepository;

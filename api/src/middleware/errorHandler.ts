@@ -70,6 +70,16 @@ function underlyingCode(error: any): string | undefined {
  * becomes 500, and unexpected failures are logged with their full stack while
  * the client receives only the message, so internal details are not leaked.
  *
+ * WHY THERE IS NO 500 FACTORY ON `HttpError`
+ *   `HttpError` used to carry a `serverError()` builder beside `badRequest()`,
+ *   `notFound()`, `conflict()` and `tooManyRequests()`, and nothing ever threw
+ *   it: no service, repository, validator or middleware called it, so the 500
+ *   below was the only path a server-side failure could take. The builder was
+ *   therefore removed rather than kept as a factory with no caller, and the one
+ *   decision it documented - that in production the message of any 500 is
+ *   REPLACED rather than passed through, so internals are never leaked - is
+ *   recorded here, at the branch that actually reads `IS_PRODUCTION`.
+ *
  * @param error - The thrown value: an HttpError, a mysql2 driver error, or anything else.
  * @param req - The request being answered, used for the log line and to know whether the response is still open.
  * @param res - The response the error envelope is written to.

@@ -1045,20 +1045,33 @@ const registrationQueries: RegistrationQueries = {
  * module.exports afterwards ride along on the same object, so
  * `require('./repository.mysql')` is still the repository the merged module
  * expects and the unit tests can assert on the generated SQL.
+ *
+ * WHICH HELPERS RIDE ALONG, AND WHY THE LIST IS SHORTER THAN IT WAS
+ *   Five names from the original list were attached for a reader that does not
+ *   exist and have been removed: `buildOrderBy`, `normaliseEvent`,
+ *   `normaliseRegistration`, `decorateEventDetail` and `PRIMARY_PRICE`. A name
+ *   search for each returned only this file - where every one of them is still
+ *   called by name from the query builders above - and `docs/api-reference.md`,
+ *   which is generated from those same blocks; no test, tool, service or
+ *   controller ever reached for one. `EVENT_COLUMNS`, `SORT_COLUMNS` and
+ *   `LIKE_ESCAPE` are in the same position as exports but stay for a different
+ *   reason: they are module-level constants this file reads directly, so
+ *   removing them from the attachment would delete nothing while making the
+ *   similarity between the two data sources harder to see.
+ *
+ *   What remains attached is what is genuinely read from outside:
+ *   `buildEventFilter`, `escapeLike` and `containsPattern` are called by
+ *   `tests/run-tests.js` to assert that a keyword of `%` is escaped rather than
+ *   selecting the whole table, and `REGISTRATION_COLUMNS` is read there too, as
+ *   the counter-example in the privacy check: the staff projection must NOT
+ *   carry the masked name. `REGISTRATION_COLUMNS_PUBLIC` is the projection that
+ *   same check reads the SQL mask out of, which is why it is attached beside it.
  */
 export = Object.assign(repository, {
   buildEventFilter,
-  buildOrderBy,
-  normaliseEvent,
-  normaliseRegistration,
-  SORT_COLUMNS,
-  EVENT_COLUMNS,
-  REGISTRATION_COLUMNS,
-  REGISTRATION_COLUMNS_PUBLIC,
-  PRIMARY_PRICE,
-  LIKE_ESCAPE,
   escapeLike,
   containsPattern,
-  decorateEventDetail,
+  REGISTRATION_COLUMNS,
+  REGISTRATION_COLUMNS_PUBLIC,
   registrationQueries,
 });

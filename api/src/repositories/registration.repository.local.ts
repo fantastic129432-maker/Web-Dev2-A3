@@ -546,16 +546,29 @@ function nowStamp(): string {
 /**
  * The registration store plus the helpers the tests exercise.
  *
- * One export: the helpers the original attached to module.exports afterwards ride
- * along on the same object, so `require('./registration.repository.local')` is
- * both the read half MySQL keeps separately and the write half it keeps in
- * registration.repository.mysql.ts.
+ * Two exports' worth of history lives here. The original JavaScript module
+ * attached every private helper to `module.exports` after the fact, and the
+ * TypeScript migration reproduced that list verbatim. Three of the six attached
+ * names - `rawForEvent`, `normaliseEmail` and `nowStamp` - had no reader at all:
+ * the only `require()` of this module outside it is the one in
+ * `tests/run-tests.js` that reads `maskAttendeeName`, `narrowRegistrationToPublic`
+ * and `toApiShape`, so those three attachments were removed and the helpers stay
+ * private, still called by name throughout the repository below.
+ *
+ * The three that remain are the test suite's own instrumentation, and that is why
+ * they must stay public. `tests/run-tests.js` asserts that the MySQL public
+ * projection and the offline public row expose the SAME key set, and it builds
+ * the offline half of that comparison by calling `toApiShape()` and then
+ * `narrowRegistrationToPublic()` rather than from a hand-written list - so the
+ * comparison is between the two real implementations, not between one
+ * implementation and a copy of what someone believed it produced.
+ * `maskAttendeeName()` is compared name by name against the SQL `CASE` expression
+ * that mirrors it. Removing any of the three would leave the two halves of the
+ * privacy rule checkable only against each other by eye, which is the drift these
+ * tests exist to catch.
  */
 export = Object.assign(registrationStore, {
   toApiShape,
-  rawForEvent,
-  normaliseEmail,
-  nowStamp,
   maskAttendeeName,
   narrowRegistrationToPublic,
 });
