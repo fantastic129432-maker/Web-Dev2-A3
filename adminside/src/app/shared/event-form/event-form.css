@@ -163,14 +163,17 @@
  *     sideways)
  *
  * `resize: both` is base.css's inherited default for a textarea, and the full
- * description is the one textarea in this application. Widening it by 220px on the
- * built page at 1440x900 - which is what a sideways drag writes into its inline
- * style - took the box from 832px to 1052px while its field stayed 832px, so its
- * right edge passed the column's right edge (112px + 832px = 944px, the box reached
- * 1164px) and the two-column grid it sits in read as broken. `resize: vertical`
- * keeps the one dimension a description actually wants and makes that impossible;
- * measured after the change, the same write to `style.width` leaves the box at
- * 832px, the column at 832px and the page's scroll width unchanged.
+ * description is the one textarea in this application. A real pointer drag of its
+ * native corner - 220px to the right and 60px down at 1440x900, on the built page -
+ * took the box from 832 x 184.31px to 1052 x 245px: the height changed by the 60px
+ * that was asked for, and the WIDTH grew 220px past the field it belongs to. The
+ * box's right edge went to 1164px while its column's right edge is 944px, so the
+ * textarea ran out over the gap and under the right column and the two-column grid
+ * read as broken. `resize: vertical` keeps the one dimension a description actually
+ * wants: the same 220x60 drag now measures 832 x 245px - the height still follows
+ * the pointer, the width does not move, and the column's right edge and the page's
+ * scroll width are unchanged. `resize: none` was the other option and was rejected:
+ * a long description is exactly the text a person wants more room for.
  */
 .admin-form textarea {
   resize: vertical;
@@ -697,13 +700,14 @@
    355.20px. That is the layout the previous round settled on, and it is what the
    form can give: the host is capped at 76rem (1216px) and the shell adds 3rem of
    gutter, so 1216px is the row's maximum. Inside the left column the same five
-   tracks would be 832px wide and the description would be 197px (measured by
-   constraining the row to the column's width in the browser).
+   tracks would be 240 / 120 / 120 / 240 / 80px and the description would be 240px
+   (measured by constraining the row to the column's own 832px).
 
    SO THE ROOM THE ROW IS SHORT OF IS NOT HORIZONTAL SPACE AT THE TOP END - it is at
-   every width below the 76rem cap, where five tracks share a shrinking row:
-   description 355.20px at 1264px of viewport and wider, 306px at 1100px (row
-   1052px), 252.75px at 901px (row 853px), against a name field of exactly the same
+   every width below the 76rem cap, where five tracks share a shrinking row. Measured
+   on the built page, the five-track row gives the description 246.30px at 901px of
+   viewport (row 853px), 276px at 1000px (row 952px), 306px at 1100px (row 1052px)
+   and 354.89px at 1263px (row 1215px), against a name field of exactly the same
    width. That is the "too narrow to read what is typed", and the fix is to give the
    description half the row there instead of 30% of it.
 
@@ -713,10 +717,11 @@
    measure the previous round settled on. So 1263px is where the two-by-two layout
    takes over - one pixel below the last width at which the five-track row is at its
    measured best.
-   MEASURED AFTER THE CHANGE: at 1100x900 the description track is 522px (from
-   306px, +216px) and at 390x844 the 760px rule below still gives every control the
-   full 366px of the row. At 1920x1080, 1440x900 and any width at or above 1264px
-   the five tracks and their 355.20px description are unchanged.
+   MEASURED AFTER THE CHANGE: the description track is 422.50px at 901px (from
+   246.30px), 472px at 1000px (from 276px), 522px at 1100x900 (from 306px, +216px) and
+   603.50px at 1263px (from 354.89px); at 390x844 the 760px rule below still gives
+   every control the full 366px of the row. At 1920x1080, 1440x900 and any width at
+   or above 1264px the five tracks and their 355.20px description are unchanged.
 
    The five-track row is a MEASURED WIDTH, not a percentage that scales down
    forever, and the ratio it keeps while it is used is the review's 30/15/15/30/10.
