@@ -977,42 +977,93 @@ textarea {
 /*
  * The copyright and the assessment notice (review item E1).
  *
- * A column, not a row: the notice is a whole sentence and it belongs UNDER the
- * copyright line rather than beside it, so the pair reads as the page's legal
- * footnote on the left of the bar while the live API indicator stays on the
- * right. The wrapper is what keeps the two together - without it the notice
- * would be a third flex child of `.site-footer__bottom` and `justify-content:
- * space-between` would push it into the middle of the row.
+ * ONE LINE, NOT TWO PARAGRAPHS. The notice used to be a second paragraph under
+ * the copyright, so a whole sentence of legal text opened a line of its own
+ * beneath a one-line copyright. The wrapper is now a plain block whose two
+ * paragraphs are inline (`.site-footer__legal p` below), which puts both of them
+ * in ONE line box: the notice follows the copyright's full stop and stays on that
+ * line while the row has room for it, and continues on the next line - still
+ * starting at the left edge of the bottom bar - when it does not. Nothing here
+ * hard-codes a width, so the four translations, which differ by hundreds of
+ * pixels, all wrap by the same rule.
+ *
+ * The wrapper still earns its place as a flex child of `.site-footer__bottom`:
+ * without one element holding both halves of the line, the notice would be a
+ * third flex child and `justify-content: space-between` would push the live API
+ * indicator into the middle of the row. `flex: 1 1 0` gives the block a ZERO flex
+ * basis, so the row still breaks between the legal line and the indicator on the
+ * widths it always did: with `flex-basis: auto` a long sentence would make the
+ * block's hypothetical main size - the whole sentence on one line, ~946px - large
+ * enough to push the indicator onto a line of its own at 1100px, which is a
+ * change to another element, not to this one. `gap` went with the column: an
+ * inline line box carries its own leading, so there is no longer a row gap to
+ * declare.
  */
 .site-footer__legal {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  flex: 1 1 0;
   min-width: 0;
+}
+
+/* Both halves of the legal line flow as text, in document order: the copyright,
+   then the assessment notice. This one declaration is the whole fix for "the
+   notice sits on its own lines": two inline paragraphs share the line box that a
+   block-level pair would each open their own. */
+.site-footer__legal p {
+  display: inline;
 }
 
 /*
  * The academic disclaimer, moved here from the column it used to have.
  *
- * SMALLER, NOT FAINTER THAN THE REST OF THE FOOTER'S TEXT. It is 0.78rem against
- * the bottom bar's 0.85rem, and its colour is #b9d8d2 - the colour
- * `.site-footer p` already paints every paragraph in this footer with, measured
- * at 7.17:1 on the light theme's background and 11.81:1 on the dark theme's. A
- * quieter grey would have to be a NEW colour that also clears 4.5:1 against a
- * dark green block in both themes, and the footer's own muted ink already does
- * the job: the line is set apart by its size and its position, not by being hard
- * to read.
+ * IT IS SMALLER THAN THE COPYRIGHT, AND THAT NEEDS A SECOND CLASS.
+ * The rule this replaces declared `font-size: 0.78rem` on `.site-footer__disclaimer`
+ * alone and measured, on the built page, as 14.72px - exactly the copyright's own
+ * size. The 0.78rem never arrived: the shared `.site-footer p` rule above is a
+ * class plus a type (0,1,1) against this selector's single class (0,1,0), so the
+ * 0.92rem the footer paints EVERY paragraph with won, and the same rule's default
+ * `font-style: normal` came with it. The selector below carries two classes
+ * (0,2,0), one step above `.site-footer p` - the smallest change that makes the
+ * declarations take effect.
+ *
+ * 0.64rem (10.24px) AGAINST THE COPYRIGHT'S 0.92rem (14.72px). It is a 30% step
+ * down - visibly a footnote rather than a second sentence of the copyright - and
+ * it keeps the WHOLE English sentence on the copyright's own line at 1920 and
+ * 1440px in EVERY state of the live indicator. The pair measures 946px. The
+ * bottom bar leaves it 990px while the indicator reads "Event server: online",
+ * the settled state, and 962px while it reads "Checking event server..." - the
+ * 158px string, 28px wider, that the indicator shows at first paint. This value
+ * leaves 16px of that narrower row unused; the next step up, 0.65rem (10.4px),
+ * measures 955px and would fit it by 6.7px. A line break pinned that close is a
+ * reflow waiting for a wider status string, so the step below it is the one to
+ * take. Below 1440px the row runs out of width and the notice wraps onto the next
+ * line, which is the intended fallback and not a fault - see
+ * `.site-footer__legal` above. Chinese is short enough to stay beside the
+ * copyright down to 1100px; Vietnamese and Japanese are longer and already wrap
+ * at 1920px; at 390px the copyright alone fills 332px of the 342px column, so
+ * there - the one width at which nothing can sit beside it - the notice starts on
+ * the next line. At every other width the notice's FIRST line begins on the
+ * copyright's line, whatever the language.
+ *
+ * SMALLER, NOT FAINTER. Its colour is #b9d8d2 - the colour `.site-footer p`
+ * already paints every paragraph in this footer with, measured at 7.17:1 on the
+ * light theme's background and 11.81:1 on the dark theme's. A quieter grey would
+ * have to be a NEW colour that also clears 4.5:1 against a dark green block in
+ * both themes, and the footer's own muted ink already does the job: the line is
+ * set apart by its size, its slant and its position, not by being hard to read.
+ * The slant is the second half of "an aside on this line": size alone left the
+ * notice looking like more copyright text.
  *
  * IT IS NOT HIDDEN FROM ANYTHING. No `display: none`, no `.sr-only`, no
  * `aria-hidden` - the sentence is rendered text and is read in document order
- * after the copyright, which is what an assessment submission needs. `max-width`
- * in `ch` keeps it to a readable measure on a wide screen instead of letting it
- * run the full 1180px container.
+ * after the copyright, which is what an assessment submission needs. The old
+ * `max-width: 68ch` is gone because there is no box left to cap: an inline box
+ * takes its width from the line it is on, and the line is already bounded by the
+ * bottom bar's own `max-width: var(--container)`.
  */
-.site-footer__disclaimer {
-  font-size: 0.78rem;
+.site-footer .site-footer__disclaimer {
+  font-size: 0.64rem;
+  font-style: italic;
   color: #b9d8d2;
-  max-width: 68ch;
 }
 .site-footer__status { color: #b9d8d2; }
 .site-footer__status.is-online { color: #8fe0b6; }
@@ -3352,6 +3403,11 @@ textarea:focus { border-color: var(--brand-500); }
      longer fit, and a squeezed tile breaks a venue name over three lines. */
   .fact-grid { grid-template-columns: 1fr; }
   .site-footer__bottom { flex-direction: column; align-items: flex-start; }
+  /* Stacked bar: the legal line is a row of its own above the indicator, so it
+     takes the full width and its content height. The zero flex basis that keeps
+     the indicator on the same row at desktop is a zero HEIGHT here, because the
+     main axis is vertical - the block would be squashed to nothing. */
+  .site-footer__legal { flex: 0 1 auto; }
   /* A3: the table keeps its column layout and scrolls inside .table-wrap
      instead of collapsing, because a stacked table is unreadable. */
   .data-table { min-width: 560px; font-size: 0.86rem; }

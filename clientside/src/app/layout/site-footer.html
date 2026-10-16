@@ -12,10 +12,12 @@
   The project is an assessment submission, so the notice cannot disappear: the
   line is visible text in the document (not `display: none`, not clipped by
   `.sr-only`, no `aria-hidden`), it keeps both of its dictionary keys, and it is
-  read in document order right after the copyright. Only its position and its
-  size changed - see `.site-footer__disclaimer` in clientside/src/styles.css for
-  the measurement of the colour it is drawn in, which is held to the same 4.5:1
-  as the rest of the footer's body text.
+  read in document order right after the copyright. It is set smaller, muted and
+  italic so that it reads as a note ON that line rather than as a second paragraph
+  under it. Only its placement, its size and its slant changed - see
+  `.site-footer__disclaimer` in clientside/src/styles.css for the measurement of
+  the size it is drawn at and the colour it is drawn in, which is held to the same
+  4.5:1 as the rest of the footer's body text.
 
   WHAT TOOK THE COLUMN'S PLACE. Real content, all of it already on the site: the
   organisation's own mission sentence (`about.mission`, the same string the home
@@ -121,11 +123,17 @@
 
   <div class="site-footer__bottom">
     <!--
-      The copyright and the assessment notice are one block so they sit together on
-      the left of the bottom bar, whatever the viewport does to the row. The notice
-      keeps the two keys it had as a column heading and a paragraph ("Student
-      project: Built for PROG2002 ..."), joined on one line, so no string was lost
-      and no new one was written.
+      The copyright and the assessment notice share ONE BLOCK and ONE LINE, so
+      they read as the page's legal footnote on the left of the bar while the live
+      API indicator stays on the right. The block is what keeps them together
+      whatever the viewport does to the row; the LINE is
+      `.site-footer__legal { display: block }` plus `.site-footer__legal p {
+      display: inline }` in clientside/src/styles.css, which is what puts the
+      notice after the copyright's full stop instead of under the copyright - see
+      the note on `.site-footer__legal` there for the measurement. The notice
+      keeps the two dictionary keys it had as a column heading and a paragraph
+      ("Student project: Built for PROG2002 ..."), joined on one line, so no string
+      was lost and no new one was written.
     -->
     <div class="site-footer__legal">
       <p>&copy; {{ year }} {{ 'nav.siteName' | t }}. {{ 'nav.rights' | t }}</p>
