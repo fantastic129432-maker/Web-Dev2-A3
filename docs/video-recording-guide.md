@@ -233,7 +233,7 @@ timeline in `video-script.md` is 15 minutes:
 | Work progress, testing and closing | 1:30 |
 
 **Record in sections, not in one take.** Stop OBS after each section. Re-record
-only the part you fumbled, then join the parts in Clipchamp. A single 14 minute
+only the part you fumbled, then join the parts in Clipchamp. A single continuous
 take almost always contains one sentence you want back.
 
 **Keep `video-script.md` open on paper or a second screen.** Reading a prepared
@@ -272,7 +272,8 @@ a complete inventory of the site.
 - [ ] Play it back with sound. Your **name and student number** must be audible in
       the first 30 seconds.
 - [ ] Remux to MP4 in OBS, and trim with Clipchamp if needed.
-- [ ] Confirm the total length is under 15 minutes.
+- [ ] Confirm the total length is at most 15 minutes, and aim for **14:30** so a
+      slow section cannot push you over the limit.
 - [ ] Confirm the three question headings are answered out loud, not merely shown.
 - [ ] Confirm the registration page is shown end to end: the validation message
       (with no request sent), the successful submit, and the confirmation card
