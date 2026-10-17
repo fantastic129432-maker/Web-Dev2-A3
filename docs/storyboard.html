@@ -81,7 +81,8 @@
   <p class="lede">
     PROG2002 A3 - Charity Events Website. One screen per page of the two Angular applications.
     Every line below is taken from the delivered components and their templates, the shared
-    TypeScript library and the API, not written from memory.
+    TypeScript library and the API, and re-checked against the running application on
+    17/10/2026 (API on :3000, public site on :4200, admin site on :4300), not written from memory.
   </p>
 
   <section class="screen">
@@ -90,7 +91,7 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Home page</span>
         <span><strong>SCREEN ID:</strong> HOME-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>clientside/src/app/pages/home/home.ts</code> + <code>home.html</code> &middot; route <code>/</code></p>
     </header>
@@ -101,19 +102,72 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Application chrome, shared by both websites: <code>layout/site-header.ts</code> with the brand, the <code>settings-bar</code> (language picker and theme button) and the menu (Home / Search events / Admin site), and <code>layout/site-footer.ts</code></li><li>Hero: h1, lead paragraph and two call-to-action links, one of them a router link to <code>/search</code></li><li>&quot;Next events&quot; aside (<code>hero__panel</code>) listing the next few events, each a router link to <code>/events/:id</code></li><li>Statistics band with a tile per figure</li><li>Events section: a count, a sort <code>&lt;select id=&quot;home-sort&quot;&gt;</code> and a grid of <code>&lt;app-event-card&gt;</code> components</li><li>Error state and empty state for the listing</li><li>About section with two sub-headings, and a contact section with the organisation name</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>Hero is a full-width dark brand panel drawn with a CSS gradient; no image file is loaded for it</li><li>Each event card carries a 16:9 illustration chosen from the nine committed SVGs, resolved from <code>APP_CONFIG.imageBaseUrl</code> plus the event's stored <code>imageUrl</code></li><li>The goal bar is the shared <code>progress-bar</code> component, so the bar and the numbers beside it are computed from one value</li><li>Statistics sit in a responsive grid; the number is large and the label is small</li><li>The event grid is CSS Grid with auto-fit columns; one column on narrow screens</li><li>Icons are inline SVG or text glyphs; no icon font is loaded</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1 and lead from the client dictionary, as every other string on the page is</li><li>Section headings: the hero panel, the statistics band, the events section, About, and the contact details in the footer</li><li>Two call-to-action labels in the hero, and the aside heading</li><li>No sort control on this page: sorting and filtering belong to the search page, which the hero links to</li><li>State badges on each card: upcoming, ongoing or past</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video element on this page.</li><li>The moving parts are states rather than media: the panels show a loading line until the API answers, the sort re-renders the grid, and the language and theme switches repaint the page in place.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>The page is one standalone Angular component in a zoneless application: the template's <code>@if</code> and <code>@for</code> blocks render from the component's signals, so there is no manual DOM update anywhere on the page.</li><li>Three requests feed it - the upcoming events, the statistics and the featured organisation - and all three go through <code>shared/src/api/api.service.ts</code>. No component calls <code>fetch</code> and no component builds a URL.</li><li>The list itself is not sorted in the browser. The component holds the events in a signal and renders whatever order the data is in; the sort control changes that order in the component, which is why there is only one place that decides it.</li><li>The language picker marks the selected <code>&lt;option&gt;</code> itself with <code>[selected]</code> as well as binding the select's value. A value written before a loop has created its options is discarded, and the browser then shows the first option - which is how a Chinese interface once displayed a picker reading &quot;English&quot;. The same fix is in the registration page's ticket-tier picker and in the search page's venue picker.</li><li>The theme is applied before the application loads by a small inline script in <code>index.html</code>, so a dark-theme visitor does not get a white flash on every navigation.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Application chrome, shared by both websites: <code>layout/site-header.ts</code> with the brand, the <code>settings-bar</code> (language picker and one theme button) and the menu (Home / Search events / Admin site), plus <code>layout/site-footer.ts</code>, which carries the contact details.</li>
+            <li>Hero: eyebrow, h1, lead paragraph and two call-to-action links - &quot;Browse upcoming events&quot; (in-page to <code>#upcoming-events</code>) and &quot;Search by date and location&quot; (router link to <code>/search</code>).</li>
+            <li>&quot;Next events at a glance&quot; aside (<code>hero__panel</code>) listing the first four rows of the same upcoming response, each a router link to <code>/events/:id</code>, with a link to the listing below.</li>
+            <li>Statistics band with four tiles: upcoming events, partner charities, raised through events, and the current funding goal. The goal tile carries one sentence naming what it counts.</li>
+            <li>Events section: a count line (&quot;Showing 6 upcoming events.&quot;, a live region) and a grid of <code>&lt;app-event-card&gt;</code> components; there is deliberately no sort control here.</li>
+            <li>Loading, API-error and empty states for the aside, the statistics band and the listing; the statistics fall back to four &quot;-- / Loading&quot; placeholders, then to one explanation if the request fails.</li>
+            <li>About section with two sub-headings (how your donation is used, hosting your own event); the contact details are in the footer, which the About call to action links to.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>Hero is a full-width dark brand panel drawn with a CSS gradient; no image file is loaded for it.</li>
+            <li>Each event card carries a 16:9 illustration chosen from the nine committed SVGs, resolved from <code>APP_CONFIG.imageBaseUrl</code> plus the event's stored <code>imageUrl</code>, with <code>fun-run.svg</code> as the fallback.</li>
+            <li>The goal bar on each card is the shared <code>progress-bar</code> component, so the bar and the numbers beside it are computed from one value.</li>
+            <li>Statistics sit in a responsive grid; the number is large and the label small, and the goal tile adds a quiet scope note under the label.</li>
+            <li>The event grid is CSS Grid with auto-fit columns; one column on narrow screens.</li>
+            <li>Icons are inline SVG or text glyphs (the brand heart, the theme sun/moon); no icon font is loaded.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1 and lead from the client dictionary, as every other string on the page is.</li>
+            <li>Section headings: Where your support goes, Current and upcoming charity events, Who we are, and the footer's contact heading.</li>
+            <li>Hero: the eyebrow &quot;Community charity events&quot;, both call-to-action labels and the aside heading &quot;Next events at a glance&quot;.</li>
+            <li>Count line &quot;Showing {count} upcoming events.&quot; and the state badges on each card: Upcoming, On now or Past event.</li>
+            <li>No sort control on this page: sorting and filtering belong to the search page, which the hero links to.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video element on this page.</li>
+            <li>The moving parts are states rather than media: the aside, the statistics and the grid each show a loading line until the API answers; the language and theme switches repaint the page in place.</li>
+            <li>No media autoplays and nothing is embedded from a third party on this page.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>The page is one standalone Angular component in a zoneless application: the template's <code>@if</code> and <code>@for</code> blocks render from the component's signals, so there is no manual DOM update anywhere on the page.</li>
+            <li>Two requests feed it - <code>GET /api/events/upcoming</code> for both the aside and the grid, and <code>GET /api/stats</code> for the four figures - and both go through <code>shared/src/api/api.service.ts</code>. No component calls <code>fetch</code> and no component builds a URL. <code>GET /api/organization</code> is no longer called: the About mission is site copy in the dictionary, not API content, because the API's English <code>mission</code> used to win over the translated sentence and left a Chinese page with an English paragraph.</li>
+            <li>The list itself is not sorted in the browser. The API is asked for <code>sort=date&amp;direction=asc</code> with a limit of 12, and the component renders whatever order the data is in; the hero panel is the first four rows of that same response, so the two can never disagree.</li>
+            <li>The language picker marks the selected <code>&lt;option&gt;</code> itself with <code>[selected]</code> as well as binding the select's value. A value written before a loop has created its options is discarded, and the browser then shows the first option - which is how a Chinese interface once displayed a picker reading &quot;English&quot;. The register page's ticket-tier picker still uses the same fix; the search page's venue control is now a combobox whose text is a computed label, so the trap cannot recur there.</li>
+            <li>The header is the same height in all four languages - 65.31px from 900px up and 120.09px below, measured at 1440x1000 and 800x1000 - and the language picker and theme button sit at identical coordinates in every one of them; only the menu's translated labels change width, as they should. The interface-only note (&quot;Interface language only; event details stay in English.&quot;) used to be a third child of the settings bar inside the header, which made the header 85.02px tall in the three languages that show it and forced the navigation to wrap; it now lives in a <code>settings-note</code> band below the header, still shown only when the language is not English.</li>
+            <li>The theme is applied before the application loads by a small inline script in <code>index.html</code>, so a dark-theme visitor does not get a white flash on every navigation.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>Public landing page. Static welcome copy at the top, live panels below it, and one shared card component rendering every event.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Next-events aside &lt;- <code>GET /api/events/upcoming</code></li><li>Statistics tiles &lt;- <code>GET /api/stats</code></li><li>Event cards &lt;- <code>GET /api/events/upcoming</code></li><li>Organisation block &lt;- <code>GET /api/organization</code></li><li>Each card shows: illustration, state badge, category, name, short description, date, venue, price from, and goal progress</li><li>Only current and upcoming events appear here, because the upcoming endpoint is defined that way</li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Click a card or its link -&gt; <code>/events/:id</code></li><li>The event grid is not re-sortable here by design: the hero links to the search page for that</li><li>Change language -&gt; every labelled string switches and the choice is stored in <code>localStorage</code> under one key shared by both applications</li><li>Change theme -&gt; light, dark or follow system, persisted and applied before paint</li><li>The page cannot hang: every API call carries a ten-second timeout and every failure becomes one <code>ApiError</code>, so there is a single error shape to render</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>Illustrations: nine hand-authored SVG files, one per category, listed once in <code>shared/src/config/app-config.ts</code> so the public pages and the admin form cannot disagree about which artwork exists</li><li>No stock photography and no external image host, so nothing can 404 at marking time</li><li>Card markup exists once, in <code>shared/event-card.ts</code> and <code>event-card.html</code>; the home page and the search page both render that component</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: the site root, the brand link, or any menu item</li><li>Leaves to: <code>/search</code>, <code>/events/:id</code>, the admin site through the cross-site link, and the in-page sections</li><li>The menu deliberately has no &quot;Register&quot; item: registration is per event, so it starts from an event page</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>Public landing page. Static welcome copy at the top, two live data sources below it, and one shared card component rendering every upcoming event.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Next-events aside &lt;- <code>GET /api/events/upcoming</code> (limit 12; the first four rows are shown in the aside)</li>
+            <li>Statistics tiles &lt;- <code>GET /api/stats</code> (6 upcoming events, 6 organisations, $99,290 raised, $197,000 active goal on the seeded data)</li>
+            <li>Event cards &lt;- the same upcoming response, limit 12</li>
+            <li>Organisation block: not requested. The About copy comes from the dictionary and the contact details are static in the footer, so nothing in that section can be left in English by a failed request</li>
+            <li>Each card shows: illustration, state badge, category, name, short description, date, venue, price from, and goal progress</li>
+            <li>Only current and upcoming events appear here, because the upcoming endpoint is defined that way</li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Click a card or its &quot;View details&quot; link -&gt; <code>/events/:id</code></li>
+            <li>The event grid is not re-sortable here by design: the hero links to the search page for that</li>
+            <li>Change language -&gt; every labelled string switches, the header keeps its height and control positions, and the choice is stored in <code>localStorage</code> under one key shared by both applications</li>
+            <li>Change theme -&gt; light, dark or follow system, persisted and applied before paint</li>
+            <li>The page cannot hang: every API call carries a ten-second timeout and every failure becomes one <code>ApiError</code>, so there is a single error shape to render</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>Illustrations: nine hand-authored SVG files, one per category, listed once in <code>shared/src/config/app-config.ts</code> so the public pages and the admin form cannot disagree about which artwork exists</li>
+            <li>No stock photography and no external image host, so nothing can 404 at marking time</li>
+            <li>Card markup exists once, in <code>clientside/src/app/shared/event-card</code>; the home page and the search page both render that component</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: the site root, the brand link, or any menu item</li>
+            <li>Leaves to: <code>/search</code>, <code>/events/:id</code>, the admin site through the cross-site link, the footer's contact details, and the in-page sections</li>
+            <li>The menu deliberately has no &quot;Register&quot; item: registration is per event, so it starts from an event page</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -123,7 +177,7 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Search events</span>
         <span><strong>SCREEN ID:</strong> SEARCH-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>clientside/src/app/pages/search/search.ts</code> + <code>search.html</code> &middot; route <code>/search</code></p>
     </header>
@@ -134,19 +188,75 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Breadcrumb: <code>&lt;nav aria-label=&quot;Breadcrumb&quot;&gt;</code> with Home / Search events</li><li>Page header: h1 and a one-line lead</li><li>Filter panel with five fieldsets: When, Where, What kind of event, Other options, and Event state</li><li>Date inputs (from and to) with a format hint under each, and a per-field error message that is a live region</li><li>Venue <code>&lt;select id=&quot;filter-location&quot;&gt;</code>, filled from the API rather than typed</li><li>Category checkboxes, generated from the API</li><li>Checkboxes for the Other options group, including free events only</li><li>Event state inputs, so a search can include events that have already finished</li><li>Submit and Clear buttons</li><li>Results region: a count line, an active-filters chip list, a sort control and the event grid</li><li>Four states: loading, API error, no results, and an idle state before the first search</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>Filter panel is a bordered card; each group is a fieldset with its own legend</li><li>Category checkboxes sit in a responsive auto-fit grid</li><li>Results use the same <code>event-card</code> component as the home page, so a card looks the same everywhere</li><li>Each active filter is a chip with a remove control, whose accessible name says which filter it removes</li><li>Error messages sit directly under the field they belong to</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1: the search page title from the client dictionary</li><li>Filter heading with the hint that every criterion is optional</li><li>Five fieldset legends: When, Where, What kind of event, Other options, Event state</li><li>Labels: from date, to date, venue, category group, free events only, include finished events</li><li>Hints: the date format, and what leaving a field blank means</li><li>Results heading, count line, active-filter label, and the idle and no-results headings</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The count line, the results grid and every field message are live regions, so a search that changes the results is announced rather than silently swapped.</li><li>Nothing autoplays and no media is embedded.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>Every criterion is optional and they combine on the server, not in the browser, so the same URL can be replayed and shared.</li><li>The filters are written into the address bar and read back on load. The venue is restored into the picker as well as into the query, because the picker's options carry <code>[selected]</code>: a value written before a loop has created its options is discarded, and the page used to filter by a venue while showing no venue selected.</li><li>The whole filter form is one value held in a signal, so Clear is a single write and every control follows; there is no loop over the DOM.</li><li>The component does not build a URL either. It produces the API's query parameters and hands them to <code>ApiService</code>, which owns the base URL, the timeout and the error shape.</li><li>The search is one request. The count in the results heading comes from the response's <code>meta</code> block, not from a second call.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Breadcrumb: <code>&lt;nav aria-label=&quot;Breadcrumb&quot;&gt;</code> with Home / Search events.</li>
+            <li>Page header: h1 and a one-line lead.</li>
+            <li>Filter panel with five numbered fieldsets: When, Where, What kind of event, Other options, and Event status.</li>
+            <li>Date inputs (from and to) with one format example under the fieldset; each date field has its own error message that is a live region.</li>
+            <li>Venue/town combobox: a text input with <code>role=&quot;combobox&quot;</code>, <code>aria-autocomplete=&quot;list&quot;</code> and its own <code>role=&quot;listbox&quot;</code>. Typing filters the suggestions, the panel always opens downward, and suggestions are grouped under &quot;Cities&quot; and &quot;Venues&quot;; picking one commits the filter.</li>
+            <li>Category checkboxes, generated from the API, each with its active event count.</li>
+            <li>Other options: a &quot;Only free events&quot; checkbox and a keyword search field.</li>
+            <li>Event status radio group: Upcoming and current only / All events / Finished events only.</li>
+            <li>Action row: the sentence that the results update as the filters change, a &quot;Search events&quot; submit button and a &quot;Clear filters&quot; button.</li>
+            <li>Results region: a heading that carries the count (&quot;Matching events (6)&quot;), active-filter chips with remove controls, a six-order sort control, the &quot;results shown in your chosen sort order&quot; line when filters are set, and the event grid.</li>
+            <li>Three states: loading, API error, and done (either cards or the no-results panel). There is no idle state: the page searches as soon as it opens.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>Filter panel is a bordered card; each group is a fieldset with its own numbered legend (1. When, 2. Where, 3. What kind of event, 4. Other options, 5. Event status).</li>
+            <li>The combobox panel is an overlay anchored 4px below its input, with its own border and shadow and two visible group headings; the highlighted option and the committed option are distinct states.</li>
+            <li>Category checkboxes sit in a responsive auto-fit grid; the count is set quietly at the end of each label.</li>
+            <li>Results use the same <code>event-card</code> component as the home page, so a card looks the same everywhere.</li>
+            <li>Each active filter is a chip with a remove control, whose accessible name says which filter it removes.</li>
+            <li>Error messages sit directly under the field they belong to and take no space while empty.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1: &quot;Search charity events&quot;, with the lead explaining that any combination of date, location and category may be chosen.</li>
+            <li>Filter heading &quot;Filter events&quot; with the hint &quot;All criteria are optional. Select one or many.&quot;</li>
+            <li>Five fieldset legends: 1. When, 2. Where, 3. What kind of event, 4. Other options, 5. Event status.</li>
+            <li>Labels: From date, To date, City or town, Keyword, Only free events, and the three status choices; the date hint &quot;Leave blank for any date. Example: 2026-10-01&quot;.</li>
+            <li>Combobox text: the placeholder &quot;Start typing, e.g. Lis&quot;, the hint &quot;Suggestions come from the events in the database.&quot;, the group headings Cities and Venues, and &quot;No matching city or venue.&quot;</li>
+            <li>Results heading and count, &quot;Sort by&quot;, &quot;Active filters:&quot;, the no-results heading and its widening hint, and the Search events / Clear filters labels.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The results heading, the results grid, the count line in it and every field message are live regions, so a search that changes the results is announced rather than silently swapped.</li>
+            <li>The category list and the venue list are both fetched, so each shows a short loading line first; nothing autoplays and no media is embedded.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>Every criterion is optional and they combine on the server, not in the browser, so the same URL can be replayed and shared.</li>
+            <li>The Where field is a combobox rather than a native <code>&lt;select&gt;</code>, for two measured reasons. A native select's popup opens upward when the control is low in the viewport - it covered this field's label and the date filters above - and the browser owns that direction, so the page cannot fix it. The old placeholder also said &quot;Start typing&quot; on a control that could not be typed into. The box is now typeable, filters its own list, and the list is a panel anchored below the input, so it always opens downward.</li>
+            <li>Typing filters the suggestions only and sends no request: a half-typed word is not a filter the visitor has chosen. Picking a suggestion writes the same <code>city:&lt;name&gt;</code> or venue id the select wrote, into the same <code>location</code> query parameter, and applies the search at once, exactly as the select's change did. The groups are the seven distinct towns and eight venues from <code>GET /api/locations</code>.</li>
+            <li>The filters are written into the address bar and read back on load. The combobox's text is a computed label for the committed filter, so a deep link names its own filter on first paint; the old <code>[selected]</code> trap - a value written before a loop had created its options was discarded, and the page filtered by a venue while showing none - cannot recur here.</li>
+            <li>The whole filter form is one value held in a signal, so Clear is a single write and every control follows; there is no loop over the DOM. Typed controls wait 350ms after the last keystroke; checkboxes, radios and a combobox pick apply immediately. The two buttons are an explicit re-run and reset, not the step that makes a filter apply.</li>
+            <li>The component does not build a URL either. It produces the API's query parameters and hands them to <code>ApiService</code>, which owns the base URL, the timeout and the error shape. The search is one request, and the count in the results heading comes from the response's <code>meta</code> block, not from a second call.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>Filter page. Optional criteria, all applied as query parameters on one API call, with the state kept in the URL.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Category checkboxes &lt;- <code>GET /api/categories</code> (name plus active event count)</li><li>Venue list &lt;- <code>GET /api/locations</code> (venues that host at least one active event)</li><li>Results &lt;- <code>GET /api/events</code> with from, to, venue, category, state, free-only and sort parameters</li><li>Count line &lt;- the <code>meta</code> block of the same response</li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Submit the form -&gt; one API call, the grid is replaced and the URL is updated</li><li>Remove a chip -&gt; that one criterion is cleared and the search runs again</li><li>Clear -&gt; all criteria are cleared, the URL is cleaned and the full list is returned</li><li>Click a result -&gt; <code>/events/:id</code></li><li>Open a shared filtered URL -&gt; the same view is restored, including the venue picker</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>No new artwork: the page reuses the event card component and the nine category SVGs</li><li>The numbering and legends are text, not images, so they translate with the rest of the page</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: the menu, the home page's hero button, or a shared filtered URL</li><li>Leaves to: <code>/events/:id</code> for any result, and <code>/</code> through the breadcrumb</li><li>Returning to this page with filters still in the URL restores the same view</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>Filter page. Five optional criteria, all applied as query parameters on one API call, with the state kept in the URL.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Category checkboxes &lt;- <code>GET /api/categories</code> (name plus active event count)</li>
+            <li>Venue and town suggestions &lt;- <code>GET /api/locations</code> (venues that host at least one active event; 8 venues and 7 towns on the seeded data)</li>
+            <li>Results &lt;- <code>GET /api/events</code> with from, to, location, category, state, free-only and sort parameters</li>
+            <li>Count line &lt;- the <code>meta</code> block of the same response</li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Change a control -&gt; the results update: a checkbox, radio or combobox pick immediately; a date or the keyword after 350ms</li>
+            <li>Submit the form -&gt; the applied query is re-run, the grid is refreshed and the URL is unchanged in meaning</li>
+            <li>Remove a chip -&gt; that one criterion is cleared and the search runs again</li>
+            <li>Clear filters -&gt; all criteria are cleared, the URL is cleaned and the full upcoming list is returned</li>
+            <li>Click a result -&gt; <code>/events/:id</code></li>
+            <li>Open a shared filtered URL -&gt; the same view is restored, including the combobox's label</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>No new artwork: the page reuses the event card component and the nine category SVGs</li>
+            <li>The numbering and legends are text, not images, so they translate with the rest of the page</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: the menu, the home page's hero button, or a shared filtered URL</li>
+            <li>Leaves to: <code>/events/:id</code> for any result, and <code>/</code> through the breadcrumb</li>
+            <li>Returning to this page with filters still in the URL restores the same view</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -156,7 +266,7 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Event details</span>
         <span><strong>SCREEN ID:</strong> EVENT-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>clientside/src/app/pages/event-detail/event-detail.ts</code> + <code>event-detail.html</code> &middot; route <code>/events/:id</code></p>
     </header>
@@ -167,19 +277,74 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Breadcrumb: Home / Search events / this event</li><li>Event hero: illustration, state badge, category, h1 with the event name, and the short description</li><li>Fact list: date and time, venue and city, capacity, and the organisation</li><li>Goal panel with the shared progress bar, the amount raised and the target</li><li>Sections for the full description, the purpose of the event and where the money goes</li><li>Weather panel for the event date, present only when a forecast is possible</li><li>Tickets table: tier name, price and availability</li><li>Registrations table (<code>&lt;caption class=&quot;sr-only&quot;&gt;</code> and <code>scope</code> on every heading): attendee, tier, tickets, value and date, with a totals row</li><li>Register control: a router link to <code>/register/:id</code>, or a disabled button carrying the reason when the event is past</li><li>Access and status sections, and an &quot;organised by&quot; block naming the organisation</li><li>Error state for an unknown id, with links back to the home and search pages</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>Hero media is the category SVG in a wide crop, so the page is illustrated even though it is data-driven</li><li>The goal bar is the shared <code>progress-bar</code> component, drawn from two numbers, so it cannot drift from the text beside it</li><li>The fact list is a two-column definition-style layout that stacks on narrow screens</li><li>The state badge colour follows the event state: upcoming, ongoing or past</li><li>The weather panel is a compact row per day with the code's icon and the temperatures</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1 is the event's own name, from the API, not a dictionary key</li><li>Headings: About this event, the purpose, where the money goes, tickets, registrations, weather, access, status, goal, and organised by</li><li>Register button label, and the notice shown instead when the event has finished</li><li>Registrations column headings and the totals label</li><li>Weather lead line and the Open-Meteo attribution</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The page has one loading line, replaced once the detail request answers, and the weather panel has its own later state because it is a second, external request.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>The component reads the id from the route - <code>/events/:id</code>, not a query string - and loads the event with one request.</li><li>The registrations list is <strong>not</strong> sorted in the browser. The API returns them newest purchase first, with the registration id breaking ties, and the page renders them in the order they arrived, so exactly one place owns that rule.</li><li>The weather panel is the optional external API, through <code>shared/src/weather/weather.service.ts</code>. It needs the venue's coordinates and an event date inside the sixteen-day forecast window, so a past event, a venue with no coordinates, or a date outside the window means the panel is not rendered at all.</li><li>When the panel is shown and the request settles with nothing, it now says that no forecast is available instead of displaying a loading line forever: the service resolves <code>null</code> rather than raising an error, and the component distinguishes &quot;still loading&quot; from &quot;there is nothing to show&quot;. A bonus feature is never allowed to break the page it decorates.</li><li>The progress figures come from the database view rather than from arithmetic in the browser, so the page and the admin dashboard cannot disagree.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Breadcrumb inside the hero, directly above the h1: Home / Search events / this event, with <code>aria-current=&quot;page&quot;</code> on the event's name.</li>
+            <li>Event hero: state badge, category chip, price summary, &quot;Get tickets&quot; in-page link (or a disabled &quot;Registration closed&quot; button), h1 with the event name, and the short description.</li>
+            <li>Fact tiles: Date, Time, Venue and Location as primary tiles, then Organised by, Capacity and Availability as secondary ones; Availability names both counts (&quot;3 registrations &middot; 14 tickets sold&quot;).</li>
+            <li>Hero media: the event's category illustration in a wide crop.</li>
+            <li>Goal panel with the shared progress bar and rows for Goal, Raised, Remaining and Donations.</li>
+            <li>Sections for the full description, the purpose of the event and where the money goes.</li>
+            <li>Weather panel, present on every event: a forecast card, or one sentence naming why no forecast is possible, plus loading and a settled-no-forecast note.</li>
+            <li>Tickets panel (sticky inside its rail): tier name, description, availability and price, then Register, or a disabled button when registration is closed.</li>
+            <li>Registrations table (<code>&lt;caption class=&quot;sr-only&quot;&gt;</code> and <code>scope</code> on every heading): masked attendee name, tier, tickets, value and purchase date, with a totals row and a privacy sentence above it.</li>
+            <li>Access and status sections, and an &quot;organised by&quot; panel naming the organisation with a link to more of its events.</li>
+            <li>Loading state for the one request, and an error state for an unknown id with links back to the home and search pages.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>Hero media is the category SVG at a 16:10 crop (720 x 450), so the page is illustrated even though it is data-driven.</li>
+            <li>The goal bar is the shared <code>progress-bar</code> component, drawn from two numbers, so it cannot drift from the text beside it.</li>
+            <li>The fact list is a grid of tiles with inline SVG icons, split into two weights: the four facts a visitor needs to turn up are darker than the three that describe the event.</li>
+            <li>The state badge colour follows the event state: upcoming, ongoing or past.</li>
+            <li>The weather card is a compact row with the condition glyph, the code's label, the temperatures, the chance of rain and the maximum wind, with the hints and the Open-Meteo credit in a footer inside the card.</li>
+            <li>The tickets panel follows the scroll inside its own rail, so the prices and the Register button stay reachable while the description is read.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1 is the event's own name, from the API, not a dictionary key.</li>
+            <li>Headings: About this event, the purpose, where the money goes, registrations, weather, access, status, goal, tickets, and organised by.</li>
+            <li>Register button label, and the disabled &quot;Registration closed&quot; label shown instead when the event is past or every tier has sold out.</li>
+            <li>Registrations column headings and the totals label, plus the privacy sentence &quot;Names are shown in short form to protect our supporters' privacy.&quot;</li>
+            <li>Weather lead line naming the venue, city and date, the four reason sentences, the no-forecast note, and the Open-Meteo attribution.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The page has one loading line, replaced once the detail request answers, and the weather panel has its own later state because it is a second, external request. The weather section is <code>aria-live=&quot;polite&quot;</code>, so the forecast or its reason is announced when it replaces the loading line.</li>
+            <li>No media autoplays and nothing is embedded from a third party.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>The component reads the id from the route - <code>/events/:id</code>, not a query string - and loads the event with one request. That response also carries every ticket tier and every registration for the event, which is why the registrations table has no spinner of its own.</li>
+            <li>The registrations list is <strong>not</strong> sorted in the browser. The API returns them newest purchase first, with the registration id breaking ties, and the page renders them in the order they arrived, so exactly one place owns that rule.</li>
+            <li>The weather panel is on every event now. It used to be wrapped in <code>@if (weatherPossible())</code>, so with the seeded data exactly one event - the earliest, the only one inside Open-Meteo's 16-day window - carried a weather module, and the other nine event pages said nothing at all; a visitor cannot tell that from a broken page. The module is always rendered: a live forecast, or one sentence naming the four cases - the event has already finished, the venue has no map coordinates, the date cannot be read, or the date is beyond the daily forecast horizon - plus a loading line and a settled &quot;No forecast is available for this venue and date.&quot; note. A bonus feature is still never allowed to break the page it decorates: the service resolves <code>null</code> rather than raising an error.</li>
+            <li>The public registrations table shows a masked attendee name (&quot;Grace T.&quot;) and no email address or phone number. The API omits those two keys from the public response and sends <code>attendeeDisplayName</code> instead, and the page prints only that label; the full contact details remain available on the admin screens, which ask for them explicitly. This is data minimisation on a public page, not a display choice the template could quietly undo.</li>
+            <li>The progress figures come from the database view rather than from arithmetic in the browser, so the page and the admin dashboard cannot disagree.</li>
+            <li>One computed rule decides whether registration is open - the event is not past and not every published tier has sold out - and the hero's action, the status sentence and the tickets button all read it, so the three cannot contradict each other.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>One event in full: the story, the numbers, the ticket tiers, the registrations so far, and the way in to registration.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Event, tiers, progress and registrations &lt;- <code>GET /api/events/:id</code>, all in one response</li><li>Weather &lt;- the Open-Meteo forecast API with the venue's coordinates (external, optional, no key required)</li><li>Ticket availability and the sold count come from the same response as the event itself</li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Register -&gt; <code>/register/:id</code></li><li>A past event shows a disabled button and explains why, rather than offering an action the API would refuse</li><li>The weather panel appears only when the venue has coordinates and the date is inside the forecast window, and says so when a forecast was expected but none came back</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>Artwork is the category SVG, the same file the card used, shown at a larger crop</li><li>The progress bar is drawn with CSS from two numbers, so it cannot drift from the text beside it</li><li>The map-style venue illustration on the card and here is the same asset, so the two screens agree</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: any event card on the home page or the search results</li><li>Leaves to: <code>/register/:id</code>, <code>/search</code>, or <code>/</code> through the breadcrumb</li><li>This is the only route into registration, by design</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>One event in full: the story, the numbers, the ticket tiers, the masked list of registrations, and the way in to registration. The weather module appears on every event and explains itself when no forecast is possible.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Event, tiers, progress and registrations &lt;- <code>GET /api/events/:id</code>, all in one response</li>
+            <li>Weather &lt;- the Open-Meteo forecast API with the venue's coordinates (external, optional, no key required; a 16-day daily window)</li>
+            <li>The public response omits attendee email and phone and adds <code>attendeeDisplayName</code>; the admin endpoint keeps the full row</li>
+            <li>Ticket availability and the sold count come from the same response as the event itself</li>
+            <li>On the seeded event 2 the two tiers are Single Seat ($185) and Table of Ten ($1,650); its page shows 3 registrations and 14 tickets sold, and a forecast is available for its 24 October 2026 date</li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Register -&gt; <code>/register/:id</code></li>
+            <li>A past or sold-out event shows a disabled button and explains why, rather than offering an action the API would refuse</li>
+            <li>The weather panel always says something: a forecast, a loading line, one of four reasons, or a no-forecast note; it never leaves a loading line behind</li>
+            <li>&quot;Get tickets&quot; scrolls to the tickets panel instead of navigating, so the reader does not lose their place</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>Artwork is the category SVG, the same file the card used, shown at a larger 16:10 crop</li>
+            <li>The progress bar is drawn with CSS from two numbers, so it cannot drift from the text beside it</li>
+            <li>No map or stock photography: the venue is described in the fact tiles and the illustration is the category artwork</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: any event card on the home page or the search results</li>
+            <li>Leaves to: <code>/register/:id</code>, <code>/search</code>, or <code>/</code> through the breadcrumb</li>
+            <li>This is the only route into registration, by design</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -189,7 +354,7 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Event registration</span>
         <span><strong>SCREEN ID:</strong> REGISTER-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>clientside/src/app/pages/register/register.ts</code> + <code>register.html</code> &middot; route <code>/register/:id</code></p>
     </header>
@@ -200,19 +365,72 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Breadcrumb: Home / Search events / this event / Register for an event</li><li>Event summary panel: the event being registered for, with its date and venue, so the visitor can see what they are registering for before typing anything</li><li>h1 and a lead line</li><li>Form group &quot;your details&quot;: name, email, optional phone, and a notes field</li><li>Form group &quot;booking&quot;: ticket tier and number of tickets</li><li>A running total computed from the chosen tier and the quantity</li><li>Per-field error messages and a summary that is announced and takes focus</li><li>Submit button with a busy state, and a cancel link back to the event</li><li>Success panel built from the API response, listing what was booked</li><li>A &quot;no event chosen&quot; state, and an error state if the event cannot be loaded</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>The form is a single-column card, so the reading line stays short</li><li>Required fields are marked with an asterisk in the label, not with colour alone</li><li>Error messages sit directly under the field they belong to and name the field</li><li>The success panel uses the same panel styling as the rest of the site</li><li>There is no artwork on this page beyond the shared header and footer: it is a task page, so the form is the content</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1: the registration title from the client dictionary</li><li>Group headings: your details, and booking</li><li>Labels: your name, email address, phone (optional), ticket type, number of tickets, and anything we should know (optional)</li><li>Submit label, and the cancel link label</li><li>Success heading and the receipt labels, including the total paid</li><li>The &quot;no event chosen&quot; heading and its instruction</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The submit button carries a busy state while the request is in flight, and the error summary is announced rather than only shown.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>Validation runs three times over the same rules: in the browser for an immediate, specific message, again in the API, and a third time in the database through the unique key and the CHECK constraints. The browser is a convenience, not the authority.</li><li>The ticket-tier options carry <code>[selected]</code> as well as the select's bound value. The options are created by a loop, so a value written before they exist is discarded and the browser shows the first option instead - which made the picker display one tier while the running total and the POST used another. Marking the option itself selected fixes the first paint.</li><li>A duplicate registration is refused with a 409 and is shown next to the email field using the project's own translated sentence, so a visitor reading the site in any of the four languages does not get the API's English message. The dictionary key exists in all four languages for exactly this case.</li><li>The confirmation is built from the API response, not from what the form thought it sent, so the receipt on screen is the row the database holds.</li><li>The running total is a computed signal over the form, so it cannot go stale: nothing has to remember to update it.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Page banner whose first line is the breadcrumb: Home / Search events / this event / Register for an event.</li>
+            <li>Banner content: eyebrow &quot;Event registration&quot;, h1 and a lead line.</li>
+            <li>Two-column layout: an event summary card in a sticky rail on the left, and the form card on the right.</li>
+            <li>Summary card: event name, illustration, state badge, category, short description, date, time, venue, location, places left, and a &quot;View details&quot; link.</li>
+            <li>&quot;Your details&quot; group: full name, email address (with a hint that the confirmation is sent there), optional phone, and a notes field.</li>
+            <li>&quot;Your tickets&quot; group: ticket-type select and a stepper for the number of tickets (1-20, with disabled ends), followed by a running total.</li>
+            <li>Per-field error messages that are live regions, and one summary alert under the submit button after a failed submit.</li>
+            <li>Submit button with a busy label while the request is in flight; there is no cancel link in the form because the summary card already has the way back to the event.</li>
+            <li>Confirmation panel built from the API response: receipt rows and two actions (view the event, browse more).</li>
+            <li>Loading, no-event and problem states, each with its own heading and way out.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>The page is a two-column card layout: a brand-coloured event summary and a white form card, so the visitor can see what they are booking while typing.</li>
+            <li>Required fields are marked with an asterisk in the label, not with colour alone.</li>
+            <li>Error messages sit directly under the field they belong to and name the field.</li>
+            <li>The quantity stepper is two large buttons around a value, not a native number spinner.</li>
+            <li>There is no artwork on this page beyond the shared header, footer and the event's own illustration: it is a task page, so the form is the content.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>Eyebrow &quot;Event registration&quot;, h1 &quot;Register for an event&quot; and the lead asking for the form to be completed.</li>
+            <li>Group headings: Your details, Your tickets.</li>
+            <li>Labels: Full name, Email address, Phone number, Ticket type, Number of tickets, and Notes, with their hints and placeholders.</li>
+            <li>Running total line (&quot;Total: 1 x $185.00 = $185&quot;), submit label and busy label.</li>
+            <li>Success heading, its lead and email sentence, the receipt labels including the total paid, and the two actions.</li>
+            <li>The no-event heading and instruction, and the problem panel's heading and details.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The submit button carries a busy state while the request is in flight, the error summary is announced with <code>role=&quot;alert&quot;</code>, and the running total is a live region.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>Validation runs three times over the same rules: in the browser for an immediate, specific message, again in the API, and a third time in the database through the unique key and the CHECK constraints. The browser is a convenience, not the authority.</li>
+            <li>The ticket-tier options carry <code>[selected]</code> as well as the select's bound value. The options are created by a loop, so a value written before they exist is discarded and the browser shows the first option - which once made the picker display one tier while the running total and the POST used another. Marking the option itself selected fixes the first paint.</li>
+            <li>A duplicate registration is refused with a 409 and is shown next to the email field using the project's own translated sentence, so a visitor reading the site in any of the four languages does not get the API's English message. The dictionary key exists in all four languages for exactly this case.</li>
+            <li>The confirmation is built from the API response, not from what the form thought it sent, so the receipt on screen is the row the database holds; the total and the tier in it come back from the same POST.</li>
+            <li>The running total is a computed signal over the form, so it cannot go stale; the quantity stepper clamps at 1 and 20 and disables the button at each end rather than letting the number run past them.</li>
+            <li>One <code>@switch</code> over the page state chooses between loading, no-event, problem, confirmation and the form, so impossible combinations cannot be expressed. There is no route for a bare <code>/register</code>; the catch-all route shows the not-found page instead.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>The write path. A form that validates in the browser and then creates a registration row through the API.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Event being registered for, and its ticket tiers &lt;- <code>GET /api/events/:id</code></li><li>Submit -&gt; <code>POST /api/events/:id/registrations</code></li><li>On success the response carries the new registration id and the computed total, which the receipt uses</li><li>A device-registration page is impossible by construction: there is no route for a bare <code>/register</code>, and the catch-all route shows the not-found page instead</li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Submit with empty required fields -&gt; nothing is sent, each field is marked and the summary takes focus</li><li>Submit a valid form -&gt; one POST, a busy button, then either the receipt or the API's field errors</li><li>Cancel -&gt; back to the event page without writing anything</li><li>A duplicate email for the same event -&gt; 409, shown beside the email field in the visitor's language</li><li>Change the tier or the quantity -&gt; the running total updates immediately, with no request</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>No artwork of its own: the page reuses the shared header, footer and card styling</li><li>All messages come from the dictionary, so the whole form translates, including the failure messages</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: the Register control on an event page, which is the only way in</li><li>Leaves to: <code>/events/:id</code> on success or on cancel</li><li>The menu has no link to this page, because registration without a chosen event has no meaning</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>The write path, with the event beside the form. A form that validates in the browser and then creates a registration row through the API.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Event being registered for, and its ticket tiers &lt;- <code>GET /api/events/:id</code></li>
+            <li>Submit -&gt; <code>POST /api/events/:id/registrations</code></li>
+            <li>On success the response carries the new registration id and the computed total, which the receipt uses</li>
+            <li>The places-left figure on the summary card comes from the same event response; the tier select shows each tier's remaining quantity</li>
+            <li>A device-registration page is impossible by construction: there is no route for a bare <code>/register</code>, and the catch-all route shows the not-found page instead</li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Submit with empty required fields -&gt; nothing is sent, each field is marked and the summary is announced</li>
+            <li>Submit a valid form -&gt; one POST, a busy button, then either the receipt or the API's field errors</li>
+            <li>Change the tier or the quantity -&gt; the running total updates immediately, with no request</li>
+            <li>A duplicate email for the same event -&gt; 409, shown beside the email field in the visitor's language</li>
+            <li>Use the summary card's View details link -&gt; back to the event without writing anything</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>No artwork of its own: the page reuses the shared header, footer, event illustration and card styling</li>
+            <li>All messages come from the dictionary, so the whole form translates, including the failure messages</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: the Register control on an event page, which is the only way in</li>
+            <li>Leaves to: <code>/events/:id</code> on success or through the summary link, and <code>/search</code> from the receipt</li>
+            <li>The menu has no link to this page, because registration without a chosen event has no meaning</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -222,30 +440,80 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Admin dashboard</span>
         <span><strong>SCREEN ID:</strong> ADMIN-DASH-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>adminside/src/app/pages/dashboard/dashboard.ts</code> + <code>dashboard.html</code> &middot; route <code>/</code> on the admin application</p>
     </header>
 
     <div class="sketch">
       <span class="sketch__label">&#9312; ELEMENTS:</span>
-      <figure class="shot"><img src="storyboard-shots/screen-05.png" alt="Admin dashboard screenshot" /><figcaption>Admin dashboard &mdash; route <code>/</code></figcaption></figure>
+      <figure class="shot"><img src="storyboard-shots/screen-05.png" alt="Admin dashboard screenshot" /><figcaption>Admin dashboard &mdash; route <code>/ (admin application)</code></figcaption></figure>
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Admin header, <code>layout/admin-header/admin-header.ts</code>: brand, a &quot;Staff area&quot; badge, a link to the public site, the language picker and the theme button; the menu is part of the same shell, so no page can forget it</li><li>Page header: h1 and a lead line</li><li>Feedback banner (<code>shared/feedback-banner/</code>) when a write has something to report</li><li>Statistic tiles: a value and a label per tile, with a tone that groups them</li><li>An API and database health panel, rendered as a two-column label/value table, or an offline message when the API cannot be reached</li><li>A quick-links panel with three cards that are router links: add an event, open the events list, review the registrations</li><li>Most-recent registrations table: attendee with the email under it, event, tickets, value and date</li><li>Loading state with a spinner, announced to assistive technology</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>The admin header is a solid brand bar and the menu sits beneath it</li><li>Stat tiles use a left border tone to separate groups at a glance</li><li>The layout is a wider container than the public site, because tables need room</li><li>No illustrations on this page: it is a working surface, so colour and typography carry the meaning</li><li>The quick-link cards are large hit targets with a heading and a hint, not icons</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1 and lead from the admin dictionary, which is separate from the public one</li><li>Tile labels: counts by status, by time, registrations, tickets sold and the value of tickets sold</li><li>Health heading, and the row labels for the data source, the environment, the schema, the server version and the table count</li><li>Quick-link headings and their hints</li><li>Recent-registrations heading and its column labels, which are the same keys the registrations page uses</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The loading state and the feedback banner are live regions, so a refresh is announced rather than silently swapped.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>This is the page that shows the admin site sees more than the public one: the counts include events the public view excludes, and the recent list covers every event rather than one event's registrations.</li><li>The health panel renders the API's own health response, so the data source, the environment and the database connection are visible from the interface. It is the fastest way to tell a configuration problem from a code problem, and it is what the deployment check looks at first.</li><li>The counts are produced by the API, not by the browser: the dashboard does not download every event in order to count them, so eleven events with their registration totals still costs two requests rather than twelve.</li><li>The menu, the language picker and the theme button live in the shell, so every admin page carries an identical header and the two sites share one stored language choice.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Admin header, <code>layout/admin-header/admin-header.ts</code>: brand, &quot;Staff area&quot; badge, a link to the public site that opens in a new tab, the language picker and the theme button. The menu is rendered by <code>admin-nav</code> directly below it, so no page can forget it.</li>
+            <li>Page header: h1 and a lead line.</li>
+            <li>Feedback banner (<code>shared/feedback-banner/</code>) when a write has something to report.</li>
+            <li>Six statistic tiles in a 3x2 grid: Upcoming, Categories, Organisations, Total raised, Registrations, Tickets sold.</li>
+            <li>A two-column row: &quot;Needs attention&quot; lists up to four events with the reason and a link to each event's edit page, and &quot;System health&quot; shows a status line, three facts and a &quot;Developer details&quot; disclosure holding the full report.</li>
+            <li>Most recent registrations table (five rows): attendee with the email under it, event, tickets, value, registered, and View / Cancel registration actions.</li>
+            <li>Loading state with a spinner, confirmed by a live region; a confirmation dialog for cancelling a registration.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>The admin header is a solid brand bar and the menu sits beneath it, with the current page underlined; the menu is sticky, so it survives a long table.</li>
+            <li>Stat tiles are a 3x2 grid with no coloured accent bar: the six figures are told apart by their labels, and three columns give a value like $99,290 room.</li>
+            <li>Needs-attention entries are cards with an inline icon, the event name, the reason and a trailing arrow; the two columns in the row are the same height.</li>
+            <li>The health card uses a coloured dot AND a sentence for its state, so the state is never carried by colour alone.</li>
+            <li>The recent-registrations table is zebra-striped with fixed column widths, so a row can be followed across.</li>
+            <li>No illustrations on this page: it is a working surface, so colour and typography carry the meaning.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1 &quot;Overview&quot; and the lead &quot;Every event in the system, whatever its publishing status.&quot;</li>
+            <li>Tile labels: Upcoming, Categories, Organisations, Total raised, Registrations, Tickets sold.</li>
+            <li>Section headings: Needs attention, System health, Most recent registrations.</li>
+            <li>Attention reasons: At capacity, Suspended / Cancelled, and Starting soon with no registrations, each with a detail sentence.</li>
+            <li>Health: status sentence, data source, database connected, tables, and the Developer details disclosure with the full label/value report.</li>
+            <li>Recent-registrations column labels, which are the same keys the registrations page uses, and the View / Cancel registration actions.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The loading state and the feedback banner are live regions, so a refresh or a failed cancellation is announced rather than silently swapped.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>This page shows what the public site cannot, but the six figures do not all use one scope: upcoming events, categories, organisations and total raised come from the public view (so a suspended event and its money are excluded), while registrations and tickets sold come from the registrations table, which has no status filter and therefore includes bookings taken before an event was suspended. The needs-attention list is built from <code>GET /api/admin/events</code>, the endpoint that includes suspended and cancelled rows.</li>
+            <li>The quick-action block is gone. Its three cards pointed at Add event, Events and Registrations - the same three destinations as the admin menu less than 200px above them - so it repeated navigation as content while occupying the prime space under the statistics. That space now carries the needs-attention list, which the menu cannot give.</li>
+            <li>The health report is a compact card, not a full-width table: a status line, three facts (data source, connected, table count) and the complete report one disclosure away. The table it replaced stopped around 45% of the card's width and left half the card empty.</li>
+            <li>The counts are produced by the API, not by the browser: the dashboard does not download every event in order to count it. It makes four requests in all - statistics, the admin event list, the five most recent registrations, and health - and the health request is separate so a dead <code>/health</code> cannot blank a page whose figures loaded.</li>
+            <li>The header, menu, language picker and theme button live in the shell, so every admin page carries an identical header and the two sites share one stored language choice. Switching language does not change the header's height or move its controls; the public site's interface-only note is a band below its header, not inside it.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>Staff landing page. Counts across every event whatever its publishing status, the health of the API, and the most recent registrations.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Tiles &lt;- <code>GET /api/admin/events</code> and <code>GET /api/registrations</code>, counted by the API</li><li>Health rows &lt;- <code>GET /api/health</code> (data source, environment, database, server version, table count, and whether the registration table exists)</li><li>Recent rows &lt;- <code>GET /api/registrations</code>, newest first</li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Any tile or quick-link card leads to the page that acts on it</li><li>Language picker switches the whole admin interface, and the choice is shared with the public site</li><li>Theme button cycles follow-system, light and dark, and persists the choice</li><li>The recent table is sorted newest first</li><li>If the API is unreachable the page says so in the health panel instead of rendering empty tiles</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>No artwork: the visual language is typography, spacing and the brand bar</li><li>The three quick-link cards use plain text headings and hints, which keeps them translatable</li><li>Tile tones are CSS classes, so a new grouping needs no new image</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry point: the admin menu, or the Admin site item on the public site</li><li>Leaves to: <code>/events</code>, <code>/events/new</code>, <code>/registrations</code>, and back to the public site</li><li>The admin application is a separate application with its own routing table, not a folder of pages inside the public site</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>Staff landing page. Counts across every event whatever its publishing status, the events that need a decision, the health of the API, and the five most recent registrations.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Tiles &lt;- <code>GET /api/stats</code>: 6 upcoming, 8 categories, 6 organisations, $99,290 total raised, 20 registrations, 49 tickets sold</li>
+            <li>Needs attention &lt;- <code>GET /api/admin/events</code> (all statuses), filtered in the component by the three rules</li>
+            <li>Health &lt;- <code>GET /api/health</code> (data source, database, connected, table count, registration table, server version)</li>
+            <li>Recent rows &lt;- <code>GET /api/registrations?limit=5</code>, newest first</li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>A needs-attention card -&gt; that event's admin edit page, where the status, capacity or registrations can be changed</li>
+            <li>View on a recent registration -&gt; <code>/registrations?eventId=N</code>, the existing filtered page</li>
+            <li>Cancel registration -&gt; confirmation naming the attendee, then the row disappears and every figure is reloaded</li>
+            <li>Language picker switches the whole admin interface, and the choice is shared with the public site</li>
+            <li>Theme button cycles follow-system, light and dark, and persists the choice</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>No artwork: the visual language is typography, spacing and the brand bar</li>
+            <li>Every icon is inline SVG, so the page loads no icon font and both themes inherit the stroke colour</li>
+            <li>The six tiles need no new image when a grouping changes: tone is no longer part of the design</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry point: the admin menu, or the Admin site item on the public site</li>
+            <li>Leaves to: <code>/events</code>, <code>/events/new</code>, <code>/registrations</code>, an event's edit page, and back to the public site</li>
+            <li>The admin application is a separate application with its own routing table, not a folder of pages inside the public site</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -255,7 +523,7 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Admin - all events</span>
         <span><strong>SCREEN ID:</strong> ADMIN-EVENTS-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>adminside/src/app/pages/event-list/event-list.ts</code> + <code>event-list.html</code> &middot; route <code>/events</code></p>
     </header>
@@ -266,19 +534,69 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Events marked as the current page, and a shortcut link to the registrations page</li><li>Page header: h1 and a lead explaining that events the public site excludes appear here</li><li>Filter row: a status select, a time select, a keyword input, and Apply and Clear buttons</li><li>A count line, announced as a live region</li><li>Table with an <code>sr-only</code> caption: ID, name, status, when, venue, registrations, tickets, raised and actions; numeric columns are right-aligned</li><li>Row actions: view on the public site, edit, and delete</li><li>When the delete rule blocks a row, that row's Delete button is disabled and carries the reason as its title</li><li>Delete confirmation dialog, and a feedback banner for the outcome</li><li>Empty and loading states</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>Status is shown as a coloured pill, so a suspended row is obvious while scanning</li><li>Long cells stack a primary line over a secondary line instead of wrapping awkwardly</li><li>The table scrolls horizontally rather than squashing on a narrow screen</li><li>The actions column holds text links, not icons, so nothing depends on an icon font</li><li>The status pill colours are defined once in CSS and reused by the dashboard</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1 and a lead naming the rule: this list includes the events the public site hides</li><li>Filter labels: status, time, and search</li><li>Column headings: ID, name, status, when, venue, registrations, tickets, raised, actions</li><li>Row action labels: view, edit, delete, and the blocked-delete label and reason</li><li>The count line, and the confirmation dialog's own heading and body</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The count line and the feedback banner are live regions, so a filter change or a failed delete is announced.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>This page reads the admin endpoint, which is the whole reason a second endpoint exists: every event regardless of publishing status, which the public view excludes.</li><li>Registration and ticket counts come with each row from the database view, so the table is one query rather than one per row.</li><li>The delete action is the visible half of the data-integrity rule. When an event has registrations the API answers 409, and the page explains it: it names the event and the number of registrations, offers the API's <code>suggestion</code> (suspend it instead), links to the registrations, and disables and relabels that row's button so the rule stays visible next to the data after the banner has been dismissed.</li><li>The filters live in the address bar - status, time and keyword - so a filtered view can be refreshed or shared. All three are written back, not just some of them: dropping one silently would make a refresh show a wider list than the one on screen.</li><li>The row's &quot;view on the public site&quot; link is a plain href to the other application rather than a router link, because the router for this application knows nothing about the other site's routes.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Admin header and menu, with Events marked as the current page.</li>
+            <li>Page header: h1 &quot;All events&quot; and a lead explaining that events the public site excludes appear here.</li>
+            <li>Feedback banner above the filters; when a delete is refused it names the event and the registration count, offers the API's suggestion (suspend it instead) and adds a link to the registrations page.</li>
+            <li>Filter row: a status select, a time select, a keyword input, and Apply and Clear buttons.</li>
+            <li>A count line, announced as a live region (&quot;11 of 11 events&quot;).</li>
+            <li>Table with an <code>sr-only</code> caption: ID, event (name over category and organisation), status (publishing status and time state as two badges), dates, venue (venue over city and state), registrations (count over capacity), tickets, raised over goal, and actions.</li>
+            <li>Row actions: edit (icon), view on the public site (icon), and delete (icon), or a disabled &quot;Deletion blocked&quot; button carrying the reason as its title.</li>
+            <li>A totals row summing registrations, tickets, raised and goal for the rows on screen, with a note naming the goal's scope.</li>
+            <li>Delete confirmation dialog, and loading and empty states.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>Status is shown as a coloured pill, with the publishing status and the derived time state side by side, so a suspended row is obvious while scanning.</li>
+            <li>Long cells stack a primary line over a secondary line instead of wrapping awkwardly.</li>
+            <li>The table scrolls horizontally rather than squashing on a narrow screen.</li>
+            <li>Row actions are compact icon buttons on one line, with the accessible name in an <code>sr-only</code> span and the tooltip on <code>title</code>; the blocked state stays a wider text button because it is a refusal a staff member has to notice.</li>
+            <li>The destructive control is neutral at rest and warns on hover and keyboard focus, so it is not the loudest thing in every row.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1 &quot;All events&quot; and a lead naming the rule: this list includes the events the public site hides.</li>
+            <li>Filter labels: status, time, and search; the keyword placeholder names event name, venue and city.</li>
+            <li>Column headings: ID, Event, Status, Dates, Venue, Registrations, Tickets, Raised / Goal, Actions.</li>
+            <li>Row action names (Edit, View, Delete), the blocked label &quot;Deletion blocked&quot;, and the capacity line under each registration count.</li>
+            <li>The count line, the totals row labels, the goal-scope note, and the confirmation dialog's own heading and body.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The count line and the feedback banner are live regions, so a filter change or a failed delete is announced.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>This page reads the admin endpoint, which is the whole reason a second endpoint exists: every event regardless of publishing status. On the seeded data that is 11 rows against 6 upcoming events on the public home page - the extra rows are four past events and one suspended event.</li>
+            <li>Registration and ticket counts come with each row from the database view, so the table is one query rather than one per row; the totals row sums the rows the filter returned.</li>
+            <li>The delete action is the visible half of the data-integrity rule. When an event has registrations the API answers 409, and the page explains it: the banner names the event and the number of registrations, offers the API's <code>suggestion</code> (suspend it instead), links to the registrations, and disables and relabels that row's button so the rule stays visible next to the data after the banner has been dismissed.</li>
+            <li>The filters live in the address bar - status, time and keyword - so a filtered view can be refreshed or shared. All three are written back, not just some of them: dropping one silently would make a refresh show a wider list than the one on screen.</li>
+            <li>The row's &quot;view on the public site&quot; link is a plain href to the other application rather than a router link, because the router for this application knows nothing about the other site's routes. It opens in the same tab on purpose: Back returns to this list with its filters intact, since the filters are in the URL.</li>
+            <li>The three row actions are icons rather than labelled buttons because the labelled set wrapped in this column: Edit and View on one line, Delete on a second, so the actions cell - not the data - set every row's height. The icon is decorative and the accessible name is unchanged, so nothing is lost to a screen reader.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>The management table: every event, any status, with filters and a row action for each.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Rows &lt;- <code>GET /api/admin/events</code> with publish status, state and keyword parameters</li><li>Registration and ticket counts arrive with each row, so the table needs one request</li><li>Delete -&gt; <code>DELETE /api/events/:id</code>, which answers 409 when registrations exist</li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Apply -&gt; refilter the table through the API, and write all three filters into the URL</li><li>Clear -&gt; every filter cleared, full list returned, URL cleaned</li><li>View -&gt; opens the event on the public site, in the other application</li><li>Edit -&gt; <code>/events/:id/edit</code></li><li>Delete -&gt; confirmation first, then either the row disappears or the refusal is explained with the registration count</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>No artwork; the table is the content</li><li>The status pill colours are defined once in CSS and reused by the dashboard tiles</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, or the dashboard's quick-link card</li><li>Leaves to: <code>/events/:id/edit</code>, the public event page, or <code>/registrations</code></li><li>Arriving with filters in the URL restores the same view</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>The management table: every event, any status, with filters, a totals row and a row action for each.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Rows &lt;- <code>GET /api/admin/events</code> with publish status, state and keyword parameters (limit 100)</li>
+            <li>Registration and ticket counts arrive with each row, so the table needs one request</li>
+            <li>Totals row &lt;- summed from the returned rows: registrations and tickets for all of them, raised for the published ones, with the goal-scope note</li>
+            <li>Delete -&gt; <code>DELETE /api/events/:id</code>, which answers 409 when registrations exist</li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Apply -&gt; refilter the table through the API, and write all three filters into the URL</li>
+            <li>Clear -&gt; every filter cleared, full list returned, URL cleaned</li>
+            <li>View -&gt; opens the event on the public site, in the other application and the same tab</li>
+            <li>Edit -&gt; <code>/events/:id/edit</code></li>
+            <li>Delete -&gt; confirmation first, then either the row disappears or the refusal is explained with the registration count</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>No artwork; the table is the content</li>
+            <li>The status pill colours are defined once in CSS and reused by the dashboard's state language</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: the admin menu, or the dashboard's needs-attention card</li>
+            <li>Leaves to: <code>/events/:id/edit</code>, the public event page, or <code>/registrations</code></li>
+            <li>Arriving with filters in the URL restores the same view</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -288,9 +606,9 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Admin - add event</span>
         <span><strong>SCREEN ID:</strong> ADMIN-NEW-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
-      <p class="screen__meta"><code>adminside/src/app/pages/event-new/event-new.ts</code> + <code>event-new.html</code> &middot; route <code>/events/new</code>, rendering <code>shared/event-form/</code></p>
+      <p class="screen__meta"><code>adminside/src/app/pages/event-new/event-new.ts</code> + <code>event-new.html</code> &middot; route <code>/events/new</code>, rendering <code>adminside/src/app/shared/event-form/</code></p>
     </header>
 
     <div class="sketch">
@@ -299,19 +617,74 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Add event marked as current</li><li>Page header: h1 and a lead that says the form is validated before anything is sent</li><li>The shared <code>event-form</code> component, built from one reactive form definition, in sections: event basics, money and capacity, and ticket types</li><li>Selects for organisation, category and venue, each filled from the reference data</li><li>An artwork picker listing the nine committed illustrations, with a live preview beside it</li><li>Date and time inputs, with a single-date shortcut</li><li>A free-event checkbox that disables the price fields</li><li>Repeatable ticket-tier rows with an add and a remove control</li><li>A weather preview for the chosen venue and date</li><li>Save and reset controls, with the save button showing a busy state</li><li>An error summary above the form, and success feedback naming the created event</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>Sections are separated by headings and spacing rather than by boxes, which keeps a long form calm</li><li>Ticket-tier rows are a grid that stacks on narrow screens</li><li>Hints sit under the field they explain, in smaller type</li><li>Required fields carry an asterisk in the label</li><li>The artwork preview shows the illustration the card will use, so the choice is not a filename to a staff member</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1 and a lead stating that fields marked with an asterisk are required and that the form is validated before submission</li><li>Section headings: event basics, money and capacity, ticket types</li><li>A hint explaining that ticket types are what visitors actually buy, and where the website's prices come from</li><li>Field labels and per-field hints, including the note that only venues with coordinates can show a weather forecast</li><li>Save and reset labels, the artwork label, and the success message</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The save button shows a busy label while the request is in flight; the error summary is announced; the weather preview has its own loading state because it is a separate external request.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>The form is defined once, in <code>adminside/src/app/core/event-form.ts</code>, and rendered by one shared component, so the create page and the update page cannot drift apart: a field can only be defined in one place.</li><li>The reference data is a single request, and the form is only drawn once those lists have arrived. That is what stops a free-text typo becoming a foreign-key error in the database.</li><li>The artwork picker lists the nine SVGs that the project actually ships, because that list is the same constant the public pages resolve images from. A staff member therefore cannot point an event at a file that does not exist.</li><li>The weather preview is the same service the public event page uses, used here before the event exists in the database. That is the point of it: staff can see that an outdoor event is forecast to be wet while it is still a draft.</li><li>Validation is duplicated on purpose. The browser gives an instant, specific message; the API remains the authority, and the database enforces its own constraints afterwards.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Admin header and menu, with Add event marked as current.</li>
+            <li>Page header: h1 and a lead that says the form is validated before anything is sent; the heading and the form share one left edge.</li>
+            <li>The shared <code>event-form</code> component, in two columns. The left column holds Event basics, When, and Money and capacity; the right column is a sticky card holding publishing status, artwork, the save action and the weather preview.</li>
+            <li>Left column fields: event name; organisation and category; venue (with the note that only venues with coordinates can show a forecast); short description; full description textarea; purpose; a single-day switch with start and end dates; start and end times; goal and capacity.</li>
+            <li>Right column: publishing status select with its hint, artwork select with a live preview, and the Save event button at the head of the card.</li>
+            <li>Ticket block below both columns and spanning the full form width: the free-event toggle and its hint, repeatable five-column rows (ticket name, price, quantity, description, remove), and an Add tier button.</li>
+            <li>Weather preview: a prompt before a venue and date are chosen; then a loading line, a forecast card (high/low, chance of rain, maximum wind, wet note), or a quiet &quot;No forecast is available&quot; note; the Open-Meteo credit is always present.</li>
+            <li>An error summary when a submit is refused, per-field messages, and a success feedback banner naming the created event.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>The page title, banner and form sit in the same 76rem column, and the first control in each column starts on the same line.</li>
+            <li>Sections are separated by headings and spacing rather than by boxes, which keeps a long form calm; hints sit under the field they explain, in smaller type.</li>
+            <li>Ticket-tier rows are a five-column grid that spans the form's full width and folds to two-by-two, then one column, on narrower screens.</li>
+            <li>The right column is a sticky card bounded by its own rail, so the save action stays on screen while the long left column is scrolled.</li>
+            <li>The artwork preview shows the illustration the card will use, so the choice is not a filename to a staff member.</li>
+            <li>The description textarea resizes vertically only; the drag handle cannot pull it sideways out of the grid.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1 and a lead saying that fields marked with an asterisk are required and that the form is validated before submission.</li>
+            <li>Section headings: Event basics, When, Money and capacity, Artwork and publishing, Ticket types.</li>
+            <li>A hint explaining that ticket types are what visitors actually buy, and where the website's prices come from; the free-event hint that locks the goal and every tier price.</li>
+            <li>Field labels and per-field hints, including the note that only venues with coordinates can show a weather forecast.</li>
+            <li>Weather prompt &quot;Choose a venue and a date to see the forecast.&quot;, the forecast labels (high/low, chance of rain, maximum wind) and the credit &quot;Forecast data by Open-Meteo.com&quot;.</li>
+            <li>Save event label, the artwork label, the free-event label, the Add tier and Remove labels, and the success message.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The save button shows a busy label while the request is in flight; the error summary is announced; the weather preview has its own loading state because it is a separate external request.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>The form is defined once, in <code>adminside/src/app/core/event-form.ts</code>, and rendered by one shared component, so the create page and the update page cannot drift apart: a field can only be defined in one place.</li>
+            <li>The reference data is a single request, and the form is only drawn once those lists have arrived. That is what stops a free-text typo becoming a foreign-key error in the database.</li>
+            <li>The artwork picker lists the nine SVGs that the project actually ships, because that list is the same constant the public pages resolve images from. A staff member therefore cannot point an event at a file that does not exist.</li>
+            <li>The page title and the form share one left edge, and the two columns' first controls align: the heading block and the banner use the form's 76rem column. Before that, the title sat flush with the shell while the form started 112px further right at 1920x1080 and 88px at 1440x900.</li>
+            <li>The ticket block is deliberately below both columns, not inside the left one, because a five-column row squeezed into two-thirds of the form collapsed to unusable widths; at 1920 it gets the whole 1216px row. The free-event toggle moved from the end of the money section to the head of the ticket block, immediately above the price boxes it locks.</li>
+            <li>Save event sits at the head of the sticky right column, so it is reachable at every scroll position; it used to sit 1,660.69px below the top of the form at 1920x1080. &quot;Clear the form&quot; is gone: it sat next to Save and one misclick destroyed everything typed. The reset code path remains because the edit page calls it after a save, and the dictionary key was kept in all four languages.</li>
+            <li>The description textarea resizes vertically only. Its native both-directions handle was dragged out over the gap and under the right column, and the two-column grid read as broken; <code>resize: vertical</code> keeps the one dimension a description needs and leaves the minimum, maximum and scroll width unchanged.</li>
+            <li>The weather preview opens with a prompt, not with &quot;unavailable&quot;. It used to show a grey two-sentence note about coordinates and the forecast window on a form where neither a venue nor a date had been chosen - nothing was wrong, nobody had asked for a forecast yet. The prompt is tested first; after that a forecast or the unavailable note, and the form works without either.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>Create form. Validates in the browser, then posts once and reports the new event.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Organisation, category and venue lists &lt;- <code>GET /api/admin/reference-data</code></li><li>Artwork list &lt;- the committed illustration constant, so the form and the public pages cannot disagree about which artwork exists</li><li>Weather preview &lt;- the Open-Meteo forecast API with the chosen venue's coordinates</li><li>Submit -&gt; <code>POST /api/events</code></li><li>On success the response carries the new event, which the feedback names and links</li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Pick a single date -&gt; the start and end dates are filled for you</li><li>Tick &quot;this is a free event&quot; -&gt; the price inputs are disabled and cleared</li><li>Add a tier -&gt; one more row; remove -&gt; that row disappears</li><li>Save with problems -&gt; nothing is sent, the summary lists each field and the first problem is focused</li><li>Save a valid form -&gt; one POST, then the success feedback</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>The artwork dropdown lists the nine committed SVGs by name, with a preview, so choosing artwork needs no design skill and produces no broken image</li><li>No rich-text editor: the description is plain text, which keeps the stored data predictable and the rendering safe</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, or the dashboard's quick-link card</li><li>Leaves to: the created event's page on the public site, or back to the events list</li><li>The form component is the same one the update route uses, so a change here is a change there</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>Create form in two columns. Validates in the browser, then posts once and reports the new event.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Organisation, category and venue lists &lt;- <code>GET /api/admin/reference-data</code></li>
+            <li>Artwork list &lt;- the committed illustration constant (nine SVGs), so the form and the public pages cannot disagree about which artwork exists</li>
+            <li>Weather preview &lt;- the Open-Meteo forecast API with the chosen venue's coordinates (16-day daily window)</li>
+            <li>Submit -&gt; <code>POST /api/events</code></li>
+            <li>On success the response carries the new event, which the feedback names and links</li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Turn the single-day switch on -&gt; the End date control is removed (with a short height animation) and the start date becomes the event's date</li>
+            <li>Tick &quot;this is a free event&quot; -&gt; the goal and every tier price are disabled and zeroed; clearing it restores the stashed prices</li>
+            <li>Add a tier -&gt; one more row; remove -&gt; that row disappears</li>
+            <li>Save with problems -&gt; nothing is sent, the summary lists the problem and the first invalid field is focused</li>
+            <li>Save a valid form -&gt; one POST, then the success feedback</li>
+            <li>Resize the description -&gt; only its height changes; the width stays inside its column</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>The artwork select lists the nine committed SVGs by name, with a preview, so choosing artwork needs no design skill and produces no broken image</li>
+            <li>No rich-text editor: the description is plain text, which keeps the stored data predictable and the rendering safe</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: the admin menu, or the dashboard's needs-attention card</li>
+            <li>Leaves to: the created event's page on the public site, or back to the events list</li>
+            <li>The form component is the same one the update route uses, so a change here is a change there</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -321,7 +694,7 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Admin - update event</span>
         <span><strong>SCREEN ID:</strong> ADMIN-UPDATE-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>adminside/src/app/pages/event-edit/event-edit.ts</code> + <code>event-edit.html</code> &middot; route <code>/events/:id/edit</code></p>
     </header>
@@ -332,19 +705,67 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Events marked as current</li><li>Page header: h1 and a lead explaining that only the changed fields are sent</li><li>A panel naming the event being edited: its id, name, organisation, venue, status and registration count</li><li>The same shared <code>event-form</code> component as the add page, pre-filled from the loaded event</li><li>Save control, and a feedback banner for the outcome</li><li>A registrations panel for this event: id, attendee, tier, tickets, value, when, and a delete action per row</li><li>A confirmation dialog that names the attendee before a registration is deleted</li><li>A not-found state when the id in the route does not exist</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>The identity panel sits above the form, so it is always clear which event is being edited</li><li>The form is visually identical to the add page, because it is the same component</li><li>The registrations table reuses the shared table styling, and money is shown to two decimals</li><li>Stored ticket tiers are listed quietly, to signal that they are reference rather than editable fields</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1 and a lead stating that only changed fields are submitted</li><li>The identity line: event id and name</li><li>The registrations heading, and its column labels</li><li>A hint explaining what happens to ticket tiers on an update</li><li>Save label, the nothing-changed message, and the delete confirmation's heading and body</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The form and the registrations panel have separate loading states, because they come from one request whose sections can be read independently.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>There is no event picker on this page. The id is in the route - <code>/events/:id/edit</code> - so the page loads exactly one event and there is no second control that could get out of step with the address bar.</li><li>Only changed fields are sent. The component compares the form against the event it loaded, so the API receives a partial update and a stale value cannot overwrite a change somebody else made. Saving with nothing changed is refused with a message rather than sending an empty request.</li><li>The admin detail endpoint returns an event whatever its publishing status, which is what keeps a suspended event editable where the public route would refuse it.</li><li>The registrations are listed beside the form because they are the data that blocks a delete: the rule is made visible in the interface, not only in the API, and each row can be removed from here to unblock the event.</li><li>The delete is confirmed with the attendee's name, so the destructive action is never ambiguous.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Admin header and menu, with Events marked as current.</li>
+            <li>Page header: h1 and a lead explaining that only the changed fields are sent.</li>
+            <li>A panel naming the event being edited: its id, name, organisation, venue, city, publishing status and registration count.</li>
+            <li>The same shared <code>event-form</code> component as the add page, pre-filled from the loaded event: the same two columns, the same sticky save card and the same weather preview.</li>
+            <li>Because the event already has ticket tiers, the ticket block shows them as a read-only table rather than editable rows, with a hint saying that an update cannot add tiers. The free-event toggle is still shown.</li>
+            <li>Save changes in the sticky right column, and a feedback banner for the outcome.</li>
+            <li>A registrations panel for this event: id, attendee (email and phone under the name), tier, tickets, value, registered date, and a delete action per row; a warning banner states why these rows block deletion of the event.</li>
+            <li>A confirmation dialog that names the attendee before a registration is deleted.</li>
+            <li>A not-found state when the id in the route does not exist, and a loading state.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>The identity panel sits above the form, so it is always clear which event is being edited.</li>
+            <li>The form is visually identical to the add page, because it is the same component.</li>
+            <li>The registrations table reuses the shared table styling, and money is shown to two decimals.</li>
+            <li>Stored ticket tiers are listed quietly, to signal that they are reference rather than editable fields.</li>
+            <li>The delete control is neutral at rest and warns on hover or keyboard focus, like the registrations page's delete.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1 and a lead stating that only changed fields are submitted.</li>
+            <li>The identity line: &quot;#id &middot; name&quot;, followed by organisation, venue, city, status and the registration count.</li>
+            <li>The registrations heading, its column labels, and the blocked warning that explains the delete rule.</li>
+            <li>A hint explaining what happens to ticket tiers on an update.</li>
+            <li>Save changes, the nothing-changed message, and the delete confirmation's heading and body.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The page and the save button have their own loading states: the form is filled from one request and the button reports its own busy state while the PUT is in flight.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>There is no event picker on this page. The id is in the route - <code>/events/:id/edit</code> - so the page loads exactly one event and there is no second control that could get out of step with the address bar.</li>
+            <li>Only changed fields are sent. The component compares the form against the event it loaded, so the API receives a partial update and a stale value cannot overwrite a change somebody else made. Saving with nothing changed is refused with a message rather than sending an empty request.</li>
+            <li>The admin detail endpoint returns an event whatever its publishing status, which is what keeps a suspended event editable where the public route would refuse it.</li>
+            <li>The registrations are listed beside the form because they are the data that blocks a delete: the rule is made visible in the interface, not only in the API, and each row can be removed from here to unblock the event. The warning banner states the count in words.</li>
+            <li>The delete is confirmed with the attendee's name, and it uses the same dialog and the same wording as the registrations page, so a destructive action behaves the same wherever it is taken.</li>
+            <li>Save changes lives in the same sticky rail as the add page, so the form can be long without burying its only primary action.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
       <tr><th>Description:</th><td><p>Edit one event, with its registrations beside the form so the delete rule is visible where the data is.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Event &lt;- <code>GET /api/admin/events/:id</code>, which includes its ticket tiers and its registrations</li><li>Save -&gt; <code>PUT /api/events/:id</code> with only the changed fields</li><li>Delete a row -&gt; <code>DELETE /api/registrations/:id</code></li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Open the route -&gt; the event, its tiers and its registrations load together</li><li>Edit and save -&gt; one partial PUT, then feedback naming the event</li><li>Save without changing anything -&gt; the page says so instead of sending a pointless request</li><li>Delete a registration -&gt; confirmation naming the attendee, then the row goes and the counts update</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>No new artwork</li><li>The form reuses the add page component, so the two pages cannot drift apart visually or in behaviour</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, the dashboard, or a row's Edit action on the events list</li><li>Leaves to: the event on the public site, or back to <code>/events</code></li><li>The route carries the id, so a link from the events table opens the intended event directly</li></ul></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Event &lt;- <code>GET /api/admin/events/:id</code>, which includes its ticket tiers and its registrations</li>
+            <li>Save -&gt; <code>PUT /api/events/:id</code> with only the changed fields</li>
+            <li>Delete a registration row -&gt; <code>DELETE /api/registrations/:id</code></li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Open the route -&gt; the event, its tiers and its registrations load together</li>
+            <li>Edit and save -&gt; one partial PUT, then feedback naming the event</li>
+            <li>Save without changing anything -&gt; the page says so instead of sending a pointless request</li>
+            <li>Delete a registration -&gt; confirmation naming the attendee, then the row goes and the counts and totals update</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>No new artwork</li>
+            <li>The form reuses the add page component, so the two pages cannot drift apart visually or in behaviour</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: the admin menu, the dashboard, or a row's Edit action on the events list</li>
+            <li>Leaves to: the event on the public site, or back to <code>/events</code></li>
+            <li>The route carries the id, so a link from the events table opens the intended event directly</li>
+          </ul></td></tr>
     </table>
   </section>
 
@@ -354,7 +775,7 @@
       <p class="screen__meta">
         <span><strong>TITLE:</strong> Admin - registrations</span>
         <span><strong>SCREEN ID:</strong> ADMIN-REG-01</span>
-        <span><strong>DATE:</strong> 15/10/2026</span>
+        <span><strong>DATE:</strong> 17/10/2026</span>
       </p>
       <p class="screen__meta"><code>adminside/src/app/pages/registrations/registrations.ts</code> + <code>registrations.html</code> &middot; route <code>/registrations</code></p>
     </header>
@@ -365,19 +786,70 @@
     </div>
 
     <table class="fields">
-      <tr><th>ELEMENTS:</th><td><ul><li>Admin header and menu, with Registrations marked as current</li><li>Page header: h1 and a lead</li><li>Filter row: an event select whose default is all events, a keyword input, and Apply and Clear buttons</li><li>A count line reporting how many registrations are shown out of the total, and a totals footer</li><li>Table with an <code>sr-only</code> caption: ID, attendee with the email under it, event, tickets, value, registered date, and actions</li><li>A totals row summing the tickets and the value of the rows on screen</li><li>A row action to delete, with a confirmation naming the attendee</li><li>Empty and loading states</li></ul></td></tr>
-      <tr><th>GRAPHICS:</th><td><ul><li>The attendee cell stacks the name over the email, which keeps the column narrow and scannable</li><li>Numeric columns are right-aligned, and money is shown to two decimals</li><li>The totals row is part of the table, so the figures line up with the columns they total</li><li>No artwork: the table is the content</li></ul></td></tr>
-      <tr><th>TEXT:</th><td><ul><li>h1 and a lead describing the page: every registration, newest first, filterable by event and searchable by attendee</li><li>Filter labels: event, with an all-events default, and search, with a placeholder</li><li>Column headings: ID, attendee, event, tickets, value, registered, actions</li><li>The count line and the totals row labels</li><li>The delete confirmation's heading and body</li></ul></td></tr>
-      <tr><th>AUDIO/VIDEO:</th><td><ul><li>No audio and no video.</li><li>The loading state is announced, and the table is captioned for assistive technology.</li></ul></td></tr>
-      <tr><th>NOTES</th><td><ul><li>Newest first is the default because the useful question is almost always &quot;what came in recently&quot;.</li><li>This is where every registration is visible in one place, which is also what makes the delete rule on the events page demonstrable: the rows that block a delete can be inspected and removed here.</li><li>Searching covers the attendee's name and email together, because a staff member may have either one to hand.</li><li>The count line reports the rows shown against the total the API reported, so a filtered view never looks like the whole table.</li><li>Deleting a registration removes the row and updates the totals, and it is the only way to unblock an event that has registrations.</li></ul></td></tr>
+      <tr><th>ELEMENTS:</th><td><ul>
+            <li>Admin header and menu, with Registrations marked as current.</li>
+            <li>Page header: h1 and a lead.</li>
+            <li>Filter row: an event select whose default is all events, a keyword input, and Apply and Clear buttons.</li>
+            <li>A count line reporting how many registrations are shown out of the total (&quot;Showing 10 of 20 registrations&quot;), as a live region.</li>
+            <li>Table with an <code>sr-only</code> caption: ID, attendee (name over email and phone), event (name over tier), tickets, value, registered date, and actions.</li>
+            <li>Row actions: an Edit link to the event and a compact delete icon button.</li>
+            <li>A totals row summing the tickets and value of the rows on this page, and a note naming what the money is.</li>
+            <li>A pager under the table: Previous, a bounded window of page numbers, Next, and a status line stating the page position.</li>
+            <li>Delete confirmation dialog naming the attendee; feedback banner; loading and empty states.</li>
+          </ul></td></tr>
+      <tr><th>GRAPHICS:</th><td><ul>
+            <li>The attendee cell stacks the name over the contact line, which keeps the column narrow and scannable.</li>
+            <li>Numeric columns are right-aligned, and money is shown to two decimals.</li>
+            <li>The totals row is part of the table, so the figures line up with the columns they total, on the table's tinted footer.</li>
+            <li>The pager is a row of outlined buttons; the current page is filled and marked with <code>aria-current=&quot;page&quot;</code>.</li>
+            <li>The delete icon is neutral at rest and warns on hover or focus, so the destructive action is not the loudest thing in the row.</li>
+          </ul></td></tr>
+      <tr><th>TEXT:</th><td><ul>
+            <li>h1 &quot;Registrations&quot; and a lead describing the page: every registration, newest first, filterable by event and searchable by name and email.</li>
+            <li>Filter labels: event (default &quot;All events&quot;) and search (placeholder &quot;Attendee name or email&quot;).</li>
+            <li>Column headings: ID, Attendee, Event, Tickets, Value, Registered, Actions.</li>
+            <li>The count line, the totals label (&quot;Total for all 10 registrations&quot;), the money-scope note, and the pager labels and position.</li>
+            <li>The delete confirmation's heading and body, which state what the delete releases.</li>
+          </ul></td></tr>
+      <tr><th>AUDIO/VIDEO:</th><td><ul>
+            <li>No audio and no video.</li>
+            <li>The loading state is announced, the count line is a live region, and the pager's status line states the page position; the table is captioned for assistive technology.</li>
+          </ul></td></tr>
+      <tr><th>NOTES</th><td><ul>
+            <li>Newest first is the default because the useful question is almost always &quot;what came in recently&quot;. The API orders by purchase time with the registration id breaking ties.</li>
+            <li>The page shows one API page of 10 rows at a time: the request carries <code>limit</code> and <code>offset</code>, and the size of the matched set comes from <code>meta.total</code>, so the count line, the pager and the totals row all describe the same page. It used to request up to 100 rows and slice them in the browser, which stops being true as soon as a filter matches more than 100.</li>
+            <li>This is the staff view, so it shows the full contact details - name, email and phone. The public event page deliberately does not: it prints only a masked name (&quot;Grace T.&quot;) and the API omits email and phone from that response. The difference is data minimisation, not an inconsistency, and the two screens read from different endpoints for exactly that reason.</li>
+            <li>Searching covers the attendee's name and email together, because a staff member may have either one to hand; the API's keyword filter is two separate LIKEs, one per field, so a keyword cannot match across the boundary between them.</li>
+            <li>The totals row sums the rows on this page - 18 tickets and $1,470 on page 1 - and the note under the table says the money is ticket sales. Across all 20 rows the figures are 49 tickets and $20,575 of ticket sales, while the dashboard's &quot;Total raised&quot; figure ($99,290) is the events' donation total. Both are correct for their own scope, and the note is there so they are not read as one mistake.</li>
+            <li>Deleting a registration removes the row and updates the totals; it is also the way to unblock an event that cannot be deleted while it has registrations.</li>
+          </ul></td></tr>
     </table>
 
     <table class="fields">
-      <tr><th>Description:</th><td><p>Every registration in one table, newest first, filterable by event and searchable by attendee.</p></td></tr>
-      <tr><th>Content:</th><td><ul><li>Event filter list &lt;- <code>GET /api/admin/events</code></li><li>Rows &lt;- <code>GET /api/registrations</code> with the event and keyword parameters</li><li>Each row carries the attendee, the event, the ticket count, the computed value and the date</li><li>Delete -&gt; <code>DELETE /api/registrations/:id</code></li></ul></td></tr>
-      <tr><th>Interactions:</th><td><ul><li>Apply -&gt; one API call with the chosen event and keyword</li><li>Clear -&gt; back to every registration, newest first</li><li>Delete -&gt; confirmation first, then the row goes and the count and totals update</li><li>An empty result shows the empty state rather than an empty table</li></ul></td></tr>
-      <tr><th>Media Creation:</th><td><ul><li>No artwork</li><li>The money column is formatted by one shared helper, so the value here matches the dashboard's figure for the same registration</li></ul></td></tr>
-      <tr><th>Navigation:</th><td><ul><li>Entry points: the admin menu, the dashboard's quick-link card, or the shortcut on the events list</li><li>Leaves to: the event on the public site, or back to the dashboard</li><li>The registrations page and the events list are the two halves of the same rule, so each links to the other</li></ul></td></tr>
+      <tr><th>Description:</th><td><p>Every registration in one table, newest first, paged ten rows at a time, filterable by event and searchable by attendee.</p></td></tr>
+      <tr><th>Content:</th><td><ul>
+            <li>Event filter list &lt;- <code>GET /api/admin/events</code> (all statuses)</li>
+            <li>Rows &lt;- <code>GET /api/registrations</code> with <code>limit=10</code>, <code>offset</code>, the event and the keyword</li>
+            <li>Each row carries the attendee and their contact details, the event and tier, the ticket count, the computed value and the purchase time</li>
+            <li>Total &lt;- <code>meta.total</code> from the same response, which is what the count line and the pager report</li>
+            <li>Delete -&gt; <code>DELETE /api/registrations/:id</code></li>
+          </ul></td></tr>
+      <tr><th>Interactions:</th><td><ul>
+            <li>Apply -&gt; one API call with the chosen event and keyword, back to page 1</li>
+            <li>Clear -&gt; back to every registration, newest first</li>
+            <li>Page -&gt; the API is asked for that page of rows; the pager cannot go past the last match</li>
+            <li>Delete -&gt; confirmation naming the attendee, then the row goes and the count and totals update</li>
+            <li>An empty result shows the empty state rather than an empty table</li>
+          </ul></td></tr>
+      <tr><th>Media Creation:</th><td><ul>
+            <li>No artwork</li>
+            <li>The money column is formatted by one shared helper, so the value here matches the dashboard's figure for the same registration</li>
+          </ul></td></tr>
+      <tr><th>Navigation:</th><td><ul>
+            <li>Entry points: the admin menu, a recent registration's View action, or the shortcut on the events list</li>
+            <li>Leaves to: the event's admin edit page, or back to the dashboard</li>
+            <li>The registrations page and the events list are the two halves of the same rule, so each links to the other</li>
+          </ul></td></tr>
     </table>
   </section>
 
