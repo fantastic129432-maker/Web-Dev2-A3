@@ -218,19 +218,24 @@ panel.
 ## 6. Length and structure
 
 The limit is **15 minutes** and the brief marks three specific questions. There are
-two role scripts, and each one's timeline is **14:30** - 30 seconds of slack:
+two role scripts, and each one's timeline is computed from the words it asks you to
+say plus the screen actions each beat needs: **13:34** for the client-side script
+(1,267 spoken words) and **13:30** for the server-side one (1,262), leaving about
+90 seconds of slack under the limit:
 
 | Section | Client-side script | Server-side script |
 | --- | --- | --- |
-| Introduction, with your name and student number | 0:50 | 0:45 |
-| Question 1 - database and API architecture | 2:30 | 8:45 |
-| Question 2 - data flow between API and website | 3:30 | 2:15 |
-| Question 3 - the pages, live | 5:00 | 1:30 |
-| The shared layer both applications run on | 1:30 | - |
-| Closing | 1:10 | 1:15 |
+| Introduction, with your name and student number | 0:41 | 0:43 |
+| Question 1 - database and API architecture | 2:26 | 8:26 |
+| Question 2 - data flow between API and website | 2:38 | 2:29 |
+| Question 3 - the pages, live | 6:04 | 1:33 |
+| The shared layer both applications run on | 1:25 | - |
+| Closing | 0:20 | 0:19 |
 
-Both columns add to 14:30. Record the one that matches your half; the client
-timeline puts its depth in Q2 and Q3, the server timeline in Q1.
+Both columns add to about 13:30. Record the one that matches your half; the client
+timeline puts its depth in Q2 and Q3, the server timeline in Q1. If a step runs long,
+the beats marked **✂ skip if long** in the script can be dropped without losing a
+question.
 
 **Record in sections, not in one take.** Stop OBS after each section. Re-record
 only the part you fumbled, then join the parts in Clipchamp. A single continuous
@@ -272,7 +277,7 @@ a complete inventory of the site.
 - [ ] Play it back with sound. Your **name and student number** must be audible in
       the first 30 seconds.
 - [ ] Remux to MP4 in OBS, and trim with Clipchamp if needed.
-- [ ] Confirm the total length is at most 15 minutes, and aim for **14:30** so a
+- [ ] Confirm the total length is at most 15 minutes, and aim for **13:30** so a
       slow section cannot push you over the limit.
 - [ ] Confirm the three question headings are answered out loud, not merely shown.
 - [ ] Confirm the registration page is shown end to end: the validation message
