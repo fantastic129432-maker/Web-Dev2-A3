@@ -331,15 +331,15 @@ create request made with `goalAmount: 8000` and `capacity: 180`.
   (`active, suspended, cancelled, all`). It used to be accepted and silently
   treated as "all", which told the caller that every event had a status none of
   them had. `?audience=publicly` is refused the same way, naming `public, admin`.
-- The `Validation of the ticket allocation` folder creates a small event and then
-  asks for more tickets than its tier has: **400**, *Only 3 tickets of "Single
-  seat" remain, but 4 were requested.* The check runs again inside the write
-  transaction with the tier row locked, so two people buying the last ticket at
-  the same moment cannot both succeed. And two ticket tiers that differ only by
-  an accent - `Café` and `Cafe` - are refused with a **409**, because the
-  column's collation is accent-insensitive; that rule lives in
-  `api/src/repositories/ticket-names.ts` so the offline mirror and MySQL give the
-  same answer.
+- The `Validation of the ticket allocation` folder creates a small event whose
+  only tier has a single place, then asks for 20 tickets: **400**, *Only 1
+  ticket of "Last place" remain, but 20 were requested.* The check runs again
+  inside the write transaction with the tier row locked, so two people buying
+  the last ticket at the same moment cannot both succeed. And two ticket tiers
+  that differ only by an accent - `Café` and `Cafe` - are refused with a
+  **409**, because the column's collation is accent-insensitive; that rule
+  lives in `api/src/repositories/ticket-names.ts` so the offline mirror and
+  MySQL give the same answer.
 - Point at Postman's **Headers** tab: every response carries
   `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`, the reset
   included on the first response of a window and not only the later ones.
@@ -426,9 +426,12 @@ event. Nothing else changed, which is the point.
 > One more point about the block. Suppose I deleted that check from the code
 > entirely. MySQL would still refuse, because the foreign key is
 > `ON DELETE RESTRICT`: the registration rows point at the event, so the event
-> cannot disappear. The driver error `ER_ROW_IS_REFERENCED_2` is translated into
-> exactly the same 409, so a caller cannot tell which defence stopped it - and
-> does not need to."
+> cannot disappear. The answer would change, though: the delete path does not
+> translate the driver error `ER_ROW_IS_REFERENCED_2`, so that refusal would
+> come back as a 500 rather than the 409 the count check produces. The data is
+> protected either way - only the response differs. As the code stands, the API
+> never reaches the foreign key: the count and the delete share the transaction
+> that holds the event row locked, so no registration can appear between them."
 
 ---
 

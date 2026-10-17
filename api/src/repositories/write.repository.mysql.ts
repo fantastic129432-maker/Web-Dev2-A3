@@ -16,8 +16,11 @@
  *     registration cannot slip in between them.
  *   * MySQL is the last line of defence: the foreign key
  *     fk_registration_event is ON DELETE RESTRICT, so the DELETE would be
- *     refused even if this check were removed. The mysql error code
- *     ER_ROW_IS_REFERENCED_2 is translated into the same 409 the check emits.
+ *     refused even if this check were removed. That refusal is a raw driver
+ *     error (ER_ROW_IS_REFERENCED_2): deleteEvent() has no catch that would
+ *     translate it, so a caller would receive a 500 rather than the 409 the
+ *     check emits. The case for this code in translateMysqlError() is called
+ *     only by the insert and update paths, which cannot produce it.
  *   * A foreign key value that does not exist (organisation, category, venue,
  *     ticket tier) is refused by the database and translated into a clear 400,
  *     so a typo in the admin form never becomes a 500.
@@ -343,8 +346,13 @@ const writeRepository: EventWriteRepository = {
    * orphaned or silently destroyed. `SELECT ... FOR UPDATE` locks the event row
    * for the same reason, so two concurrent deletes cannot both see it as present.
    * MySQL remains the last line of defence, because
-   * fk_registration_event is ON DELETE RESTRICT and its
-   * ER_ROW_IS_REFERENCED_2 is translated into the same 409 this check emits.
+   * fk_registration_event is ON DELETE RESTRICT. Its ER_ROW_IS_REFERENCED_2 is
+   * not translated on this path: deleteEvent() has no catch, and
+   * event_db.transaction() rethrows the driver error unchanged, so a caller
+   * would receive a 500 rather than the 409 the count check returns above.
+   * Through the API that refusal is unreachable anyway: the count and the
+   * DELETE share the transaction that holds the event row locked, so no
+   * registration can appear between them.
    * Child rows that are allowed to disappear with the event (ticket_types,
    * donations) are removed by ON DELETE CASCADE.
    *

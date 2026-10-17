@@ -395,11 +395,15 @@ With `DATA_SOURCE=local` the API serves exactly the same data. The offline mirro
 is generated from `database/02_seed.sql` by `tools/generate-local-data.js`, so it
 cannot drift away from the SQL the marker runs.
 
-> **`api/.env.example` is up to date.** Its `CORS_ORIGIN` lists the deployed
-> origin plus the development origins of both Angular applications (4200 and
-> 4300), and its database comment explains that Assessment 3 needs
-> `INSERT, UPDATE, DELETE` in addition to the `SELECT` Assessment 2 required -
-> which the `GRANT` line below it already includes.
+> **`api/.env.example` is up to date.** Its `CORS_ORIGIN` carries a placeholder
+> host (`https://your-cpanel-host.example`) rather than one member's deployed
+> origin, plus the development origins of both Angular applications (4200 and
+> 4300). The deployment tool (`npm run deploy:configure`) rewrites that line for
+> the host being deployed, so a marker or the other member never inherits
+> someone else's origin and has every request blocked by the browser. Its
+> database comment explains that Assessment 3 needs `INSERT, UPDATE, DELETE` in
+> addition to the `SELECT` Assessment 2 required - which the `GRANT` line below
+> it already includes.
 
 Assessment 3 had to extend this fallback rather than leave it behind: the write
 endpoints are implemented twice, once per data source, so the offline mode can
@@ -766,8 +770,14 @@ The rule worth reading the code for is the delete: the existence check and the
 registration cannot slip in between them. When the event does have registrations
 the answer is `409` with a message naming the event and the count, and
 `details.suggestion = "suspend-instead"`. MySQL's `ON DELETE RESTRICT` foreign
-key refuses the delete as well, and the driver error `ER_ROW_IS_REFERENCED_2` is
-translated into the same 409.
+key refuses the delete as well, but the delete path does not translate the
+resulting driver error: `deleteEvent` has no `try/catch`,
+`eventWriteService.deleteEvent` only maps the returned outcome, and
+`event_db.transaction` rethrows raw, so `errorHandler` would turn an unmapped
+`ER_ROW_IS_REFERENCED_2` into a **500**, not the 409 the count check produces.
+Through the API that refusal is unreachable: the count and the `DELETE` share the
+transaction that holds the event row locked, so a registration cannot commit
+between them. The data is protected either way - only the response would differ.
 
 Example search:
 

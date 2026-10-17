@@ -737,10 +737,15 @@ check above were removed or bypassed - by a direct SQL client, by a future
 endpoint, or by a bug - MySQL itself refuses to delete an event that still has
 registration rows. The schema, not the application, is the last line of defence.
 
-That refusal arrives as the driver error `ER_ROW_IS_REFERENCED_2`, which
-`translateMysqlError()` converts into **the same 409** with the same shape of
-message. So the caller cannot tell which of the two defences stopped the delete,
-and does not need to: the rule is what matters.
+That refusal arrives as the driver error `ER_ROW_IS_REFERENCED_2`, but the delete
+path does not translate it: `translateMysqlError()` has a case for that code, yet
+only the insert and update paths call the helper, and `event_db.transaction()`
+rethrows whatever the callback threw. A foreign-key refusal reaching the error
+middleware would therefore be a **500**, not the 409 the count check produces -
+the rule is enforced either way, but the caller would see a different status and
+message. Through the API the foreign key is not reached at all: the count and the
+DELETE run in one transaction that holds the event row locked, so no registration
+can appear between them.
 
 ### Why this matters for the seed data
 

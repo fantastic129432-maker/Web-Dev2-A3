@@ -569,8 +569,12 @@ SELECT registration_id, attendee_name, registered_at
 
 > "The confirmation dialog is my own component, not the browser's `confirm()`, so it
 > can explain what is about to happen. It calls `DELETE /api/events/1` and the API
-> answers **409** — that is the `ON DELETE RESTRICT` rule from the schema arriving
-> in the interface.
+> answers **409** — that is the count check, run inside the delete's transaction,
+> arriving in the interface, not the `ON DELETE RESTRICT` rule from the schema. The
+> delete path does not translate that driver error, so that refusal would come back
+> as a **500** instead; the API never reaches it anyway, because the count and the
+> delete share the transaction that locks the event row. The data is protected
+> either way.
 
 > The banner renders the API's own message, naming the event and the number of
 > registrations, and then turns the structured part of that response into

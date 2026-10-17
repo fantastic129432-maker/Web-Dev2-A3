@@ -222,15 +222,15 @@ panel.
 ## 6. Length and structure
 
 The limit is **15 minutes** and the brief marks three specific questions. The
-timeline in `video-script.md` is 13 minutes 30 seconds:
+timeline in `video-script.md` is 15 minutes:
 
 | Section | Length |
 | --- | --- |
 | Introduction, with your name and student number | 0:40 |
-| Question 1 - database and API architecture | 4:20 |
-| Question 2 - data flow between API and website | 3:30 |
-| Question 3 - the pages, live | 4:00 |
-| Work progress, testing and closing | 1:00 |
+| Question 1 - database and API architecture | 5:20 |
+| Question 2 - data flow between API and website | 3:00 |
+| Question 3 - the pages, live | 4:30 |
+| Work progress, testing and closing | 1:30 |
 
 **Record in sections, not in one take.** Stop OBS after each section. Re-record
 only the part you fumbled, then join the parts in Clipchamp. A single 14 minute

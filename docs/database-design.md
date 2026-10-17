@@ -490,9 +490,15 @@ application were the only guard, though, then any other route into the database
 registration rows. `ON DELETE RESTRICT` makes the rule a property of the schema:
 
 * the delete is refused by MySQL even when the application check is bypassed;
-* the driver error `ER_ROW_IS_REFERENCED_2` is translated by the API into the
-  **same 409 Conflict** that the check itself produces, so the caller sees one
-  behaviour and one message either way;
+* the refusal is the raw driver error `ER_ROW_IS_REFERENCED_2`, and the delete
+  path does not translate it: `deleteEvent()` has no `try/catch`,
+  `eventWriteService.deleteEvent()` only maps the returned outcome, and
+  `event_db.transaction()` rethrows the driver error unchanged, so it would
+  reach `errorHandler` as a **500**, not the 409 Conflict the count check
+  produces. Through the API it is unreachable anyway: the count and the DELETE
+  share the transaction that holds the event row locked `FOR UPDATE`, so no
+  registration can commit between them. The data is protected either way; only
+  the response would differ;
 * `RESTRICT` rather than `CASCADE` is the whole point: `CASCADE` would delete the
   registrations silently, which is exactly what the brief forbids. `RESTRICT`
   (refuse immediately) and `NO ACTION` (checked at the end of the statement) are
