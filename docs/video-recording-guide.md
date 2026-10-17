@@ -1,8 +1,10 @@
 # How to record the demonstration video
 
 This is the operating sheet: which tool to use on this machine, what to prepare,
-and the exact URLs to type. The words to say are in `video-script.md`; this file
-is about the mechanics of recording them.
+and the exact URLs to type. The words to say are in your role's script -
+`docs/video-script-frontend.md` for the client side and
+`docs/video-script-backend.md` for the server side; this file is about the
+mechanics of recording them.
 
 Everything below refers to the software actually installed here, verified:
 
@@ -198,12 +200,6 @@ panel.
 > `http://localhost:4200/events/2` works when typed directly - which is what makes
 > the "link straight to a page" part of the demonstration possible.
 
-> **If you record the deployed site**, do not type an address from memory: use
-> **your own** row of the two-account table at the top of
-> `video-script-backend.md`. Each member has a separate cPanel account and a
-> separate host, so the other member's address is not yours - both rows are live,
-> but only one of them is your submission.
-
 ---
 
 ## 5. Silence the machine
@@ -221,22 +217,26 @@ panel.
 
 ## 6. Length and structure
 
-The limit is **15 minutes** and the brief marks three specific questions. The
-timeline in `video-script.md` is 15 minutes:
+The limit is **15 minutes** and the brief marks three specific questions. There are
+two role scripts, and each one's timeline is **14:30** - 30 seconds of slack:
 
-| Section | Length |
-| --- | --- |
-| Introduction, with your name and student number | 0:40 |
-| Question 1 - database and API architecture | 5:20 |
-| Question 2 - data flow between API and website | 3:00 |
-| Question 3 - the pages, live | 4:30 |
-| Work progress, testing and closing | 1:30 |
+| Section | Client-side script | Server-side script |
+| --- | --- | --- |
+| Introduction, with your name and student number | 0:50 | 0:45 |
+| Question 1 - database and API architecture | 2:30 | 8:45 |
+| Question 2 - data flow between API and website | 3:30 | 2:15 |
+| Question 3 - the pages, live | 5:00 | 1:30 |
+| The shared layer both applications run on | 1:30 | - |
+| Closing | 1:10 | 1:15 |
+
+Both columns add to 14:30. Record the one that matches your half; the client
+timeline puts its depth in Q2 and Q3, the server timeline in Q1.
 
 **Record in sections, not in one take.** Stop OBS after each section. Re-record
 only the part you fumbled, then join the parts in Clipchamp. A single continuous
 take almost always contains one sentence you want back.
 
-**Keep `video-script.md` open on paper or a second screen.** Reading a prepared
+**Keep your role's script open on paper or a second screen.** Reading a prepared
 script is normal and is not penalised.
 
 ---

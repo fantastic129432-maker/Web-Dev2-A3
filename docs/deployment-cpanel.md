@@ -830,7 +830,7 @@ node tools/verify-deployment.mjs --no-site
 - [ ] 三个 zip 上传到 Blackboard（**打包前确认 `dist/clientside`、`dist/adminside`、
       `api/dist` 都是最新的构建产物**）
 - [ ] GitHub 仓库链接（注意设为私有并邀请 marker，见 `docs/submission-checklist.md`）
-- [ ] 视频链接（不超过 15 分钟，用 `docs/video-script.md` 的时间表）
+- [ ] 视频链接（不超过 15 分钟，时间表见你那份角色稿：`docs/video-script-frontend.md` 或 `docs/video-script-backend.md`）
 - [ ] 同学互评表已单独发给 tutor（不是发给 UA）
 
 > **每个学生都要在自己的 cPanel 上部署一份。** 简报写明 "Each student must deploy

@@ -349,8 +349,11 @@ JOIN locations     l ON l.location_id     = e.location_id
 JOIN vw_event_progress p ON p.event_id    = e.event_id;
 
 -- =====================================================================
--- Convenience view used by the home and search endpoints so the
--- "current or upcoming" rule lives in exactly one place.
+-- Convenience view used by the public endpoints so the status = 'active'
+-- rule lives in exactly one place. It does NOT exclude past events: the
+-- API applies that separately with its own state / excludePast filter,
+-- and the home listing pins state = 'upcoming'
+-- (api/src/services/eventService.ts).
 -- =====================================================================
 CREATE OR REPLACE VIEW vw_public_events AS
 SELECT *

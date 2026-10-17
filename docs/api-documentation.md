@@ -686,8 +686,10 @@ registrations for that event).
 
 The brief requires that an event can only be deleted when it "has not yet
 received any registrations". That is a rule about **data**, not about HTTP, so
-it is enforced in three places at once, and the video script demonstrates all
-three.
+it is enforced in three places at once, and the two role scripts demonstrate
+all three: `docs/video-script-backend.md` for the API check and the foreign
+key, and `docs/video-script-frontend.md` for what the admin page makes of the
+409.
 
 ### 1. The API check, inside one transaction
 

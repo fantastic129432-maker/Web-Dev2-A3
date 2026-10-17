@@ -805,7 +805,8 @@ Full parameter list, sample responses and status codes:
 | [`docs/api-documentation.md`](docs/api-documentation.md) | Every endpoint, parameter and response |
 | [`docs/project-report.md`](docs/project-report.md) | Project report - **answer the prompts in your own words** |
 | [`docs/deployment-cpanel.md`](docs/deployment-cpanel.md) | Step-by-step deployment to the SCU cPanel, and the symptom-to-cause table |
-| [`docs/video-script.md`](docs/video-script.md) | Demo video script: the three required questions plus the A3 demonstration |
+| [`docs/video-script-frontend.md`](docs/video-script-frontend.md) | Demo video script, **client side**: Q1 the API contract, Q2 the registration page, Q3 the live pages |
+| [`docs/video-script-backend.md`](docs/video-script-backend.md) | Demo video script, **server side**: Q1 the schema and API, Q2 the request lifecycle, Q3 the data on the pages |
 | [`docs/video-recording-guide.md`](docs/video-recording-guide.md) | How to record it on this machine: the tool, the setup, the exact URLs |
 | [`docs/genai-declaration.md`](docs/genai-declaration.md) | The declaration statement to include |
 | [`docs/submission-checklist.md`](docs/submission-checklist.md) | Pre-submission checklist |
