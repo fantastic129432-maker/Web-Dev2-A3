@@ -63,17 +63,31 @@ export interface ConflictFacts {
   readonly eventName?: string;
   /** How many registrations block the delete, when the API reported a number. */
   readonly registrationCount?: number;
+  /**
+   * The API's stable code for the advice to offer, e.g. "suspend-instead".
+   *
+   * A code, never a sentence: the client maps it to its own translated wording
+   * and has a generic fallback for a code it does not recognise.
+   */
+  readonly suggestion?: string;
 }
 
 /**
- * The event a refused delete is about, and how many registrations protect it.
+ * The event a refused delete is about, how many registrations protect it, and the
+ * advice the API suggests.
  *
  * ApiError.conflictDetails is the documented accessor, and it is used first. It
- * only answers when the conflict payload carries a `message`, though, and this
- * API's 409 sends `{ eventId, eventName, registrationCount, suggestion }` with no
- * `message` - so the raw `details` record is read as a fallback. Without that
- * fallback the banner would show the event name and count only inside the API's
+ * answers for any object carrying a recognised conflict fact, so this API's 409 -
+ * `{ eventId, eventName, registrationCount, suggestion }`, with no `message` of
+ * its own - is read through it. The raw `details` record is still read as a
+ * fallback, so a payload the accessor declines cannot silently drop the facts:
+ * without it the banner would show the event name and count only inside the API's
  * own sentence, and nothing structured at all.
+ *
+ * `suggestion` is a CODE rather than wording, so it is kept as one here and the
+ * banner chooses the sentence in the reader's language. Only a non-empty string
+ * is accepted: anything else is dropped, and the banner's generic fallback then
+ * explains the refusal instead of the client guessing at advice it was not given.
  *
  * @param error - The 409 the API answered a delete with.
  * @returns Whatever the conflict payload named; an empty object when it carried
@@ -81,11 +95,12 @@ export interface ConflictFacts {
  */
 export function conflictFacts(error: ApiError): ConflictFacts {
   const direct = error.conflictDetails;
-  if (direct?.eventName || direct?.registrationCount !== undefined) {
+  if (direct?.eventName || direct?.registrationCount !== undefined || direct?.suggestion) {
     return {
       eventId: direct.eventId,
       eventName: direct.eventName,
       registrationCount: direct.registrationCount,
+      suggestion: nonEmptyString(direct.suggestion),
     };
   }
 
@@ -101,8 +116,34 @@ export function conflictFacts(error: ApiError): ConflictFacts {
     eventId: typeof eventId === 'number' ? eventId : undefined,
     eventName: typeof eventName === 'string' ? eventName : undefined,
     registrationCount: typeof registrationCount === 'number' ? registrationCount : undefined,
+    suggestion: nonEmptyString(record['suggestion']),
   };
 }
+
+/** A value as a usable string, or undefined when it is not a non-empty string. */
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * The dictionary key for each suggestion code the API can send.
+ *
+ * `suggestion` is a stable code because the API deliberately leaves the wording
+ * to the interface, so the client maps the code to a key and translates it when
+ * the banner is built. A code that is not listed here gets
+ * `delete.blockedSuggestionUnknown` rather than borrowing the suspend advice:
+ * the fallback still explains the refusal and points at the registrations, while
+ * guessing another code's meaning could tell staff to do the wrong thing.
+ *
+ * Adding a suggestion to the contract means adding one entry here (and its
+ * sentence to all four dictionaries), which is the whole point of the field.
+ */
+const SUGGESTION_KEYS: ReadonlyMap<string, string> = new Map([
+  ['suspend-instead', 'delete.blockedSuggestion'],
+]);
+
+/** The key used when the API's suggestion is missing or not a known code. */
+const SUGGESTION_FALLBACK_KEY = 'delete.blockedSuggestionUnknown';
 
 /**
  * Turn any thrown value into a banner.
@@ -135,7 +176,9 @@ export function errorBanner(
    * integrity rule refuses, and the API's own sentence is the most useful thing
    * to show: it names the event and how many registrations block it. The
    * structured part of `details` is listed underneath so the numbers are
-   * readable without parsing the sentence.
+   * readable without parsing the sentence, and the advice line is chosen from the
+   * API's `suggestion` code - not echoed from the API and not assumed - so an
+   * unknown code still gets a true, translated sentence.
    */
   if (error.isConflict) {
     const conflict = conflictFacts(error);
@@ -145,7 +188,7 @@ export function errorBanner(
     if (conflict.registrationCount !== undefined) {
       details.push(`${t('events.colRegistrations')}: ${conflict.registrationCount}`);
     }
-    details.push(t('delete.blockedSuggestion'));
+    details.push(t(SUGGESTION_KEYS.get(conflict.suggestion ?? '') ?? SUGGESTION_FALLBACK_KEY));
 
     return banner('warning', title, error.friendlyMessage(t), details);
   }

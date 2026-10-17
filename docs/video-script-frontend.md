@@ -125,10 +125,10 @@ delete that carries the structured facts.
 > invalid field, and a blocked delete carries the facts of the conflict —
 > `eventId`, `eventName` and `registrationCount`. Those are not cosmetic:
 > `details` is what lets my admin form paint each message next to its own control,
-> and for the delete the page reads the name and the count from that object, adds
-> the advice from its **own** dictionary, and offers a link to the registrations —
-> the server's `suggestion` code is not what renders. The advice is my sentence,
-> in the reader's language, not the server's."
+> and for the delete the page reads the name and the count from that object, maps
+> the `suggestion` code to the advice in its **own** dictionary — with a generic
+> fallback for a code it does not know — and offers a link to the registrations.
+> The advice is my sentence, in the reader's language, not the server's."
 
 > 【旁注】这一段的关键动作：**把 API 的响应当作"契约"来讲，而不是讲 SQL**。拿起
 > Postman 指 `details` 数组、`suggestion` 字段、`attendeeDisplayName` 各两秒就够了。
@@ -542,9 +542,11 @@ field, headed **Cities** and then **Venues**. Type `Lis`: three suggestions rema
 > How the server reaches that 409 is the other script's half; what mine has to do
 > is receive the refusal and show why. The banner carries one link, the generic
 > link to the registrations, and that is deliberate: the API sends a `suggestion`
-> code, but the page does not switch on it — the sentence a member of staff reads
-> is mine, in the language they chose. The structured facts are what I take from
-> the response; the words are the client's.
+> code, which the page maps to its own translated sentence (falling back to a
+> generic refusal-and-check-the-registrations sentence for a code it does not
+> recognise), so the sentence a member of staff reads is mine, in the language
+> they chose. The structured facts are what I take from the response; the words
+> are the client's.
 
 > And here is the other half: an event with no registrations deletes cleanly, a
 > success banner appears — 'Winter Lights Gala 2026 was deleted' — and the list

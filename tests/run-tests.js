@@ -1151,7 +1151,17 @@ async function testA3Api() {
     const body = await response.json();
     assert.equal(body.success, false);
     assert.equal(body.error.status, 409);
-    assert.equal(body.error.details.registrationCount, 1);
+    // One assertion for both halves of the facts object: the count that explains
+    // the refusal, and the stable code the client maps to its own translated
+    // advice (the client must not parse the sentence to learn what to suggest).
+    assert.deepEqual(
+      {
+        registrationCount: body.error.details.registrationCount,
+        suggestion: body.error.details.suggestion,
+      },
+      { registrationCount: 1, suggestion: 'suspend-instead' },
+      'the 409 reports how many registrations block the delete and which advice to offer'
+    );
     assert.match(body.error.message, /registration/i);
     assert.match(body.error.message, /cannot be deleted/i);
   });

@@ -676,9 +676,12 @@ DELETE /api/events/1
 ```
 
 The message names the event and the count so a member of staff knows what to do
-next, and `details.suggestion` gives the client a machine-readable way to offer
-the alternative (the admin site turns it into a link to Update and a link to the
-registrations for that event).
+next, and `details.suggestion` is the machine-readable code for the advice. The
+admin site maps the code to its own translated wording (`suspend-instead` selects
+the "suspend it instead" sentence) and falls back to a generic sentence that says
+the delete is refused while registrations exist and points at the registrations
+when it does not recognise a code, so an unfamiliar code can never be shown as
+the wrong advice. The banner also links to the registrations for that event.
 
 ---
 

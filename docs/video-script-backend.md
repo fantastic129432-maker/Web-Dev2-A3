@@ -450,10 +450,11 @@ This is the A3 requirement the brief singles out. Demonstrate it **both** ways.
 > part — `details` carries `eventId`, `eventName`, `registrationCount` and
 > `suggestion: "suspend-instead"` — and a client reads the name and the count from
 > that object instead of parsing my sentence. The `suggestion` is a stable code for
-> the advice rather than the wording of it: the admin page adds its own dictionary
-> sentence and links to the registrations, so the server sends the facts and the
-> client owns the words. Structured details rather than a sentence is what lets a
-> client act on the failure."
+> the advice rather than the wording of it: the admin page maps the code to its own
+> translated dictionary sentence and falls back to a generic sentence for a code it
+> does not recognise, so the server sends the facts and the client owns the words.
+> Structured details rather than a sentence is what lets a client act on the
+> failure."
 
 ### 8:50 - 9:30 | The successful delete, and the second line of defence
 
