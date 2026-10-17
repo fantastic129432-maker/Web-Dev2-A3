@@ -198,6 +198,12 @@ panel.
 > `http://localhost:4200/events/2` works when typed directly - which is what makes
 > the "link straight to a page" part of the demonstration possible.
 
+> **If you record the deployed site**, do not type an address from memory: use
+> **your own** row of the two-account table at the top of
+> `video-script-backend.md`. Each member has a separate cPanel account and a
+> separate host, so the other member's address is not yours - both rows are live,
+> but only one of them is your submission.
+
 ---
 
 ## 5. Silence the machine

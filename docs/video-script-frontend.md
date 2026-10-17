@@ -687,8 +687,9 @@ stops it coming back.
 
 ### 13:55 - 14:30 | Deployment and closing
 
-**Show:** the deployed public site and the deployed admin site, then
-`https://24832481.it.scu.edu.au/` refreshing on a deep link such as `/events/2`.
+**Show:** **your own** deployed public site and deployed admin site — the values in
+your row of the two-account table at the top of `video-script-backend.md` — then
+your public site refreshing on a deep link such as `/events/2`.
 
 > "Both websites are deployed to cPanel — the public site at the site root and the
 > admin site in the `admin` folder — and both point at the deployed API, which runs
