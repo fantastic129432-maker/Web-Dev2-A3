@@ -14,62 +14,87 @@ up to 15:00 with the A3 material included.
 | 2 | 2:30 - 4:30 | The full C.R.U.D. cycle in Postman | Q1 |
 | 3 | 4:30 - 6:00 | The delete data-integrity rule, blocked **and** allowed | Q1 |
 | 4 | 6:00 - 9:00 | Data flow: the registration page, end to end | Q2 |
-| 5 | 9:00 - 11:00 | The public pages, including the registrations table and the weather API | Q3 |
+| 5 | 9:00 - 11:00 | The public pages: home, the new location box, the registrations table and the four weather states | Q3 |
 | 6 | 11:00 - 13:30 | The admin website | Q3 |
 | 7 | 13:30 - 15:00 | Work progress, tests, deployment, closing | - |
 
-If you are running short, cut the **search page** demonstration (inside section
-5) first - it was the centrepiece of the A2 video and it is already documented.
-Never cut section 3: the delete rule is the A3 requirement the brief singles out.
+If you are running short, cut the **home and search tour** (inside section 5)
+first - it was the centrepiece of the A2 video and it is already documented - but
+keep the forty seconds on the **location box**, because that control is new this
+round and it is the one interaction a marker can see working. Never cut section
+3: the delete rule is the A3 requirement the brief singles out.
 
 ---
 
 ## Before you record - checklist
 
-Mechanics are in `video-recording-guide.md` (OBS setup, exact URLs,
+Mechanics are in `docs/video-recording-guide.md` (OBS setup, exact URLs,
 troubleshooting). The short version:
 
 - [ ] MySQL is running and `charityevents_db` exists
-      (`SELECT COUNT(*) FROM events;` returns 11 and
-      `SELECT COUNT(*) FROM event_registrations;` returns 20). If `api/.env` says
-      `DATA_SOURCE=local` the demo still works with no database server at all -
-      the API then answers from the generated mirror - but say which one you are
-      showing
+      (`SELECT COUNT(*) FROM events;` returns 11,
+      `SELECT COUNT(*) FROM event_registrations;` returns 20, and
+      `SELECT SUM(tickets_purchased) FROM event_registrations;` returns 49). If
+      `api/.env` says `DATA_SOURCE=local` the demo still works with no database
+      server at all - the API then answers from the generated mirror of
+      `database/02_seed.sql` - but say on camera which one you are showing
+- [ ] **The demo date is pinned.** Every beat below was checked with the demo
+      clock pinned to **2026-10-17**: put `DEMO_TODAY=2026-10-17` in `api/.env`
+      and restart (it ships commented out, so otherwise the API uses the real
+      clock). On that date six public events are upcoming, four are past, and
+      *Coastal Stars Gala Dinner* on 24 October is the only public event inside
+      Open-Meteo's sixteen-day window - which is what makes the weather beat in
+      section 5 possible
 - [ ] **The SQL dump was reloaded after the last demonstration**, so event 9
-      still exists and can be deleted on camera
+      still exists and can be deleted on camera, and the suspended event is named
+      **Midnight Desert Auction**. A database that has been edited by hand during
+      earlier practice may carry a suffix in the name such as "(suspended)", and
+      a renamed event is confusing to explain on camera
 - [ ] Everything is running: **`npm start`** from the project root, which
       compiles the TypeScript API, builds both Angular applications if either has
       not been built yet, and serves the API on 3000, the public site on 4200 and
-      the admin site on 4300
+      the admin site on 4300. It recompiles `api/dist/` on every start, which is
+      what makes the API behaviour in this script the behaviour you will see
 - [ ] **OBS Studio** open on the `Demo` scene, and the microphone bar moves when you talk
 - [ ] Browser tabs open in this order:
    1. `http://localhost:4200/` (home)
-   2. `http://localhost:4200/search` (search)
-   3. `http://localhost:4200/events/2` (event detail - registrations table and weather panel)
+   2. `http://localhost:4200/search` (search, and the location box)
+   3. `http://localhost:4200/events/2` (event detail - registrations table and the forecast)
    4. `http://localhost:4200/register/2` (registration page)
    5. `http://localhost:4300/` (admin dashboard)
    6. `http://localhost:4300/events` (admin event list, for the delete)
    7. `http://localhost:3000/api/events/2` (raw JSON, showing `registrations`)
-- [ ] **MySQL Workbench** connected to `charityevents_db`, SCHEMAS expanded so Tables and Views are both visible
+
+   The weather beat also visits `/events/1` (finished), `/events/3` (more than
+   sixteen days away) and `/events/8` (the online venue, which has no coordinates).
+   Open them as tabs or type them when you get there - they are the proof that the
+   weather module now explains itself instead of vanishing.
+- [ ] **MySQL Workbench** connected to `charityevents_db`, SCHEMAS expanded so Tables and Views are both visible - seven tables and five views
 - [ ] **Postman** with the collection imported:
       `docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json`
       (the A2 read requests plus the **Assessment 3 - the write endpoints**
-      folder)
+      folder, which ends with **Validation of the ticket allocation**)
 - [ ] VS Code open on the project, with these files one keystroke away:
       `api/server.ts`, `api/src/routes/apiRoutes.ts`,
-      `api/src/services/eventWriteService.ts`, `api/src/db/event_db.ts`,
+      `api/src/services/eventWriteService.ts`, `api/src/services/eventService.ts`,
+      `api/src/db/event_db.ts`,
       `api/src/repositories/write.repository.mysql.ts`,
+      `api/src/repositories/ticket-names.ts`,
       `clientside/src/app/pages/register/register.ts`,
+      `clientside/src/app/pages/search/search.ts`,
       `adminside/src/app/pages/event-list/event-list.ts`
 - [ ] Notifications off (`Win`+`A` > Do not disturb), other applications closed
 - [ ] Browser zoom 110-125%, bookmarks bar hidden
 - [ ] Have your GitHub repository open in one tab to show the commit history
 - [ ] Have `docs/submission-checklist.md` open in another tab to confirm the
       deployed URLs at the end
-- [ ] **Both sites are actually deployed** (checklist section **E**) if you
-      intend to show the deployed URLs in the closing section. If they are not
-      deployed yet, skip that line and show the local URLs instead - do not claim
-      a deployment on camera that has not happened
+- [ ] **Both sites are actually deployed on both hosts** (checklist section
+      **E**). Both submission hosts - `https://24832481.it.scu.edu.au/` and
+      `https://24832546.it.scu.edu.au/` - serve the public site at the site root,
+      the admin site under `/admin/`, and their own API under
+      `/charity-events-api/api`, and both pass all 28 deployment checks. If you
+      are showing the deployed URLs, show the one that belongs to the student
+      whose submission this is; do not claim a deployment that has not happened
 - [ ] Speak slowly, and state your name and student number at the start
 
 **Practice once without recording.** The most common reason for losing marks is
@@ -134,8 +159,10 @@ your own contribution clearly.
 > registrations'. I will show that working in a moment.
 
 > The other columns mirror what the brief says to store: the attendee's name,
-> email and optional phone, the number of tickets purchased, the date of
-> registration, and a notes field."
+> email, optional phone, the number of tickets purchased, the date of
+> registration, and a notes field. The email and the phone are stored because the
+> brief asks for them - and they are **not** published: the public event page
+> receives a masked display name instead, which I will show in section 5."
 
 **Do:** in Workbench, open a new SQL tab and run (the blue **Run** button, top
 right):
@@ -160,23 +187,26 @@ VALUES (1, 'Duplicate Tester', 'amelia.hartley@example.com', 1);
 
 **Show:** the five views in the SCHEMAS panel, then `api/src/db/event_db.ts`.
 
-> "The same one-place-for-each-rule idea applies to the views. A2 had two.
-> A3 adds `vw_event_columns`, which holds every event column joined to its
-> lookups plus `registration_count` and `tickets_sold`; `vw_public_events` is now
-> one line - `SELECT * FROM vw_event_columns WHERE status = 'active'` - so the
-> public rule is unchanged; `vw_all_events` is the same rows without the status
-> filter, and only the admin site reads it; and `vw_event_registrations` adds the
-> ticket name, the price and a computed `total_amount` to each registration.
-> Because both listings share one column list, they cannot drift apart.
+> "The same one-place-for-each-rule idea applies to the views, and this file now
+> defines five. `vw_event_columns` holds every event column joined to its lookups
+> plus `registration_count` and `tickets_sold`; `vw_public_events` is now one line
+> - `SELECT * FROM vw_event_columns WHERE status = 'active'` - so the public rule
+> is unchanged; `vw_all_events` is the same rows without the status filter, and
+> only the admin site reads it; and `vw_event_registrations` adds the ticket name,
+> the price and a computed `total_amount` to each registration. Because both
+> listings share one column list, they cannot drift apart.
 
 > `event_db.ts` is still the required file that connects Node to MySQL, and it is
 > TypeScript now. It uses a connection pool, and A3 added one thing: a
 > `transaction()` helper. It hands a callback one connection inside BEGIN and
-> COMMIT and rolls back if the callback throws. Two operations need that, and the
-> delete rule is one of them.
+> COMMIT and rolls back if the callback throws. Every write that touches more than
+> one row uses it - creating an event with its ticket tiers, replacing those
+> tiers, both registration writes, and the delete rule I will show in a moment.
 
 > Its `ping()` also reports whether the `event_registrations` table exists, so
-> `GET /api/health` answers 'was the new table created?' in one request.
+> `GET /api/health` answers 'was the new table created?' in one request. On the
+> local run the dashboard reports twelve objects in the schema: the seven tables
+> and five views.
 
 > The compiled JavaScript is what actually runs: `api/server.ts` and everything
 > under `api/src/` are compiled by `tsc` into `api/dist/`, and `api/dist/server.js`
@@ -212,7 +242,7 @@ In Postman this is already there, under **Event detail**:
 /events/{{eventId}}  (full detail)      a GET, and {{eventId}} = 1
 ```
 
-Every request in this section exists in the collection
+Every request in this section is in the collection
 `docs/postman/PROG2002-A2-Charity-Events-API.postman_collection.json`, so nothing
 has to be built by hand. Two things make that possible:
 
@@ -226,34 +256,40 @@ has to be built by hand. Two things make that possible:
   listed. The whole collection can also be run top to bottom with the Collection
   Runner.
 
+Only step 5 needs a hand: reuse the step 4 request and replace its JSON body with
+the four words on the right. Put the body back before step 6.
+
 | Step | Folder and request | Expect |
 | --- | --- | --- |
 | 1 | `Event detail` -> `/events/{{eventId}}  (full detail)` | 200 |
 | 2 | `Assessment 3 - the write endpoints` -> `Events` -> `POST /events  (create, and save the id)` | 201 |
 | 3 | `Events` -> `POST /events  (missing required fields)  -> 400` | 400 |
 | 4 | `Events` -> `PUT /events/{{newEventId}}  (partial update, two fields)` | 200 |
-| 5 | `Registrations` -> `POST /events/{{newEventId}}/registrations  (register, and save the id)` | 201 |
-| 6 | `Registrations` -> same request, sent again unchanged | 409 |
-| 7 | `Registrations` -> `DELETE /events/{{newEventId}}  (blocked while it has registrations)` | 409 |
-| 8 | `Registrations` -> `DELETE /registrations/{{registrationId}}  (204, unblock the event)` | 204 |
-| 9 | `Registrations` -> `DELETE /events/{{newEventId}}  (204, the event that was created)` | 204 |
+| 5 | `Events` -> the same `PUT`, body replaced with `{"dateStart": "2027-06-01"}` | 400 |
+| 6 | `Registrations` -> `POST /events/{{newEventId}}/registrations  (register, and save the id)` | 201 |
+| 7 | `Registrations` -> same request, sent again unchanged | 409 |
+| 8 | `Registrations` -> `DELETE /events/{{newEventId}}  (blocked while it has registrations)` | 409 |
+| 9 | `Registrations` -> `DELETE /registrations/{{registrationId}}  (204, unblock the event)` | 204 |
+| 10 | `Registrations` -> `DELETE /events/{{newEventId}}  (204, the event that was created)` | 204 |
 
-Steps 7 and 9 are the same endpoint on the same event; only the registration in
-between changes, which is the comparison worth pointing at.
+Steps 8 and 10 are the same endpoint on the same event; only the registration in
+between changes, which is the comparison worth pointing at. Step 5 writes
+nothing - it is refused - so the chain is unaffected by doing it.
 
 > "The detail endpoint now also returns this event's registrations, ordered by
 > `registered_at` descending - the brief asks for 'sorted by the latest date when
 > the tickets were purchased' - with `ticketName`, `ticketPrice` and a computed
 > `totalAmount`. The id is the tie-breaker, so two registrations made in the same
-> second still order predictably."
+> second still order predictably. Those rows carry a masked display name and no
+> email or phone at all, which is the privacy decision I will come back to."
 
 **Do:** in `Events`, send `POST /events  (create, and save the id)`.
 
 > "This is the create endpoint. It answers **201 Created** with a `Location`
-> header pointing at the new resource - `/api/events/12` - which is the RESTful
-> way to say 'it exists and here is where'. The body is the created event, read
-> back through the admin view, so a create response looks exactly like a later
-> read of the same event.
+> header pointing at the new resource - `/api/events/12` on a freshly reloaded
+> database - which is the RESTful way to say 'it exists and here is where'. The
+> body is the created event, read back through the admin view, so a create
+> response looks exactly like a later read of the same event.
 
 > That id is saved into the `{{newEventId}}` collection variable by this
 > request's test script, which is why every later request can refer to it
@@ -275,6 +311,38 @@ create request made with `goalAmount: 8000` and `capacity: 180`.
 > changed. Here just the goal and the capacity changed; the dates, the venue, the
 > description and the ticket tiers are untouched. The admin update page uses
 > exactly this - it sends only the fields the user edited."
+
+**Do:** send the same request again with its body replaced by
+`{ "dateStart": "2027-06-01" }`. Nothing else changes.
+
+> "**400**, and the detail names `dateEnd`: *the end date cannot be earlier than
+> the start date*. That is worth showing because the database cannot catch it
+> here. A partial update sends one field, so the service reads the stored row,
+> lays the change over it, and checks the pair it is about to create - otherwise
+> the row would end up with a start in 2027 and the end date it already had in
+> 2026. The schema declares `CHECK (date_end >= date_start)`, but the cPanel host
+> runs MySQL 5.7, which parses a CHECK constraint and then ignores it, so on the
+> deployed database the application layer is the only guard."
+
+**If time allows, three more answers worth knowing:**
+
+- `GET /api/admin/events?publishStatus=past` - type it into the URL field of the
+  `Admin view` request - is a **400** that names the allowed values
+  (`active, suspended, cancelled, all`). It used to be accepted and silently
+  treated as "all", which told the caller that every event had a status none of
+  them had. `?audience=publicly` is refused the same way, naming `public, admin`.
+- The `Validation of the ticket allocation` folder creates a small event and then
+  asks for more tickets than its tier has: **400**, *Only 3 tickets of "Single
+  seat" remain, but 4 were requested.* The check runs again inside the write
+  transaction with the tier row locked, so two people buying the last ticket at
+  the same moment cannot both succeed. And two ticket tiers that differ only by
+  an accent - `Café` and `Cafe` - are refused with a **409**, because the
+  column's collation is accent-insensitive; that rule lives in
+  `api/src/repositories/ticket-names.ts` so the offline mirror and MySQL give the
+  same answer.
+- Point at Postman's **Headers** tab: every response carries
+  `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`, the reset
+  included on the first response of a window and not only the later ones.
 
 **If time allows, show the registration endpoints:**
 
@@ -389,14 +457,24 @@ browser with DevTools open on the **Network** tab.
 
 > There is deliberately no route for a bare `/register`: a form that cannot know
 > what it is registering for is worse than an honest answer, so the catch-all
-> route shows the friendly 404 instead.
+> route shows the friendly 404 instead. And `/register/1` - a finished event -
+> answers with the closed panel rather than a form, which is the same rule from
+> the other side.
 
 > The form is one object held in an Angular signal - name, email, phone, date of
 > registration, ticket type, number of tickets and notes - which is one control
 > per stored column. The ticket dropdown is built from **this** event's tiers
 > only, and the running total is a `computed` value over the selected tier and
 > the quantity, so it cannot go stale: there is no 'update the total' call
-> anywhere."
+> anywhere.
+
+> Two details on screen are worth naming because they are deliberate. The ticket
+> count is a stepper - one value between a minus and a plus button - rather than
+> a number box, because the two legal answers are 'one more' and 'one fewer'. And
+> the dropdown opens on a tier the visitor can actually buy: on this event it is
+> **Single Seat - $185.00, 196 available**, with the total underneath already
+> reading *Total: 1 x $185.00 = $185*, while the second tier, Table of Ten, is
+> labelled **Sold out** and cannot be chosen."
 
 ### 6:40 - 7:20 | Step 2: client-side validation
 
@@ -468,22 +546,77 @@ status 201, the `Location` response header, and the JSON body.
 
 ## 9:00 - 11:00 | Question 3: Website functionality demo (ULO3: complete dynamic website)
 
-### 9:00 - 9:30 | Home and search, briefly
+### 9:00 - 9:35 | Home and search, and the location box that is now a real combobox
 
-**Show:** `http://localhost:4200/`, then `/search` with Lismore + Fun Run.
+**Show:** `http://localhost:4200/`, then `/search`.
 
 > "The home page mixes static organisation content with a dynamic listing from
 > `GET /api/events/upcoming`: name, category, date, venue, price and a live
-> progress bar. No past event and no suspended event appears, because the public
-> endpoints read the view that fixes `status = 'active'`.
+> progress bar. Six events are on it today, and no past event and no suspended
+> event appears, because the public endpoints read the view that fixes
+> `status = 'active'`.
 
 > The search page filters by date, location and category, singly or combined,
-> with removable chips and a Clear Filters button. The whole form is one value in
-> a signal, so clearing it is a single write and every control follows - there is
-> no loop over the DOM. The filters are also written into the URL, so a search
-> can be refreshed or shared."
+> with removable chips and a Clear Filters button. The filters are written into
+> the URL, so a search can be refreshed or shared."
 
-### 9:30 - 10:30 | The event page: registrations and the registration link
+**Do:** click the **City** field. The suggestion panel opens **downward**, under
+the field, with two headings - **Cities** first, then **Venues** - and fifteen
+entries in all. Type `Lis`: the list narrows to Lismore, Lismore City Hall and
+Lismore Riverside Park. Press Enter (or click Lismore).
+
+> "This is the one control I changed most this round, and the reason is what it
+> used to be. It was a native `<select>`, and a native dropdown is drawn by the
+> browser: near the bottom of the window it opens **upward**, over its own label
+> and the date fields - which is exactly what happened on a laptop screen. It also
+> said 'Start typing, e.g. Lis' under a control nobody could type into.
+
+> It is now a real combobox: typing filters its own list, the list is grouped into
+> cities and venues, and it opens downward because the page owns the list rather
+> than the browser. Picking Lismore applies the filter at once - the chip appears
+> above the results and one event matches - and typing on its own applies nothing,
+> because a half-typed word is not a filter the visitor has chosen.
+
+> The date fields next to it are still native `<input type="date">`, so their
+> placeholder is painted by the **browser** - `mm/dd/yyyy` or `yyyy/mm/日`,
+> depending on the browser's locale and not on the language you pick in the header.
+> No attribute changes that, so the page shows a valid example underneath instead.
+> The value it submits is always `yyyy-mm-dd`."
+
+**Do:** scroll to the very bottom of the home page, then back up past two section
+boundaries.
+
+> "One thing that changed on every public page is the vertical rhythm. Between one
+> section's content and the next the gap is **96 pixels** - 40 of padding below one
+> block and 56 above the next - and the footer begins 64 pixels below the last
+> block. It is all padding and no outer margins, which is what removed the
+> half-screen gap above the footer: a margin there used to stack on two paddings
+> and measured **193 pixels** of nothing on this page."
+
+**Show:** the language picker in the header. Switch to 中文, then back to English.
+
+> "Two things are worth watching while the language changes. The header does not
+> move: the labels never wrap, the bar is the same height in all four languages,
+> and the language picker and the theme button stay exactly where they are. The
+> sentence that explains the switch now sits in a band **below** the header, where
+> it cannot push anything around - before, it was a second line inside the header
+> that only three languages rendered, so the header grew by up to twenty-four
+> pixels and the menu moved.
+
+> And that sentence is the honest limit of the translation. The **interface** is
+> translated into four languages - 298 keys on this site, 252 on the admin site,
+> identical keys in every language, down to each page's browser tab title and the
+> home page's mission sentence - and a checker fails the build if an English word
+> is left inside a Chinese, Vietnamese or Japanese value, or if a user-facing string
+> is written into a template instead of a dictionary. The **content** - event names,
+> descriptions, venues, organisers - comes from the database in English, because
+> that is how the brief defines the data. Look at the tab while we are on the
+> Chinese event page: it reads the event's English name, then a Chinese
+> 'Unity Heart Foundation' - content first, interface second, in one title. The
+> site says which is which, in the visitor's language, rather than pretending
+> everything is translated."
+
+### 9:35 - 10:20 | The event page: registrations, privacy, and the registration link
 
 **Show:** `http://localhost:4200/events/2`, scrolled to the registrations panel.
 
@@ -494,9 +627,20 @@ status 201, the `Location` response header, and the JSON body.
 
 > Below the tickets is the registrations panel: an actual `<table>` with a
 > caption for screen readers and `scope` on the headings. Each row is one
-> registration - attendee and email, ticket type, how many tickets, what they are
+> registration - the backer, the ticket type, how many tickets, what they are
 > worth and when they were bought - newest purchase first, with a totals footer.
-> The hero also reports how many tickets have been sold so far.
+> Three registrations have taken fourteen tickets, worth seventeen thousand two
+> hundred and forty dollars, and the hero reports both figures by name:
+> '3 registrations · 14 tickets sold'.
+
+> The names are masked on purpose: the table reads **Grace T.**, not the full name
+> that is in the database, and it carries no email address and no phone number at
+> all - not hidden by the page, absent from the response. This page is public and
+> anonymous, so the API projects an `attendeeDisplayName` and omits the contact
+> columns; the page says so in one sentence under the heading, and staff still get
+> the full details from the admin screens. That is data minimisation under the
+> Australian Privacy Principles, and it is the sentence to have ready if you are
+> asked why the table used to show more.
 
 > The list is not re-sorted in the browser: the API returns it in
 > `registered_at` descending order and the page renders it in the order it
@@ -511,37 +655,61 @@ SELECT registration_id, attendee_name, registered_at
 ```
 
 > "Same order as the page, because it is the same rule: `registered_at`
-> descending, with the id breaking ties."
+> descending, with the id breaking ties. And the same table is what proves the
+> masking: the database says 'Grace Tan', the page says 'Grace T.'"
 
-### 10:30 - 11:00 | The optional external API
+**Show:** `http://localhost:3000/api/events/1` in the browser (tab 7 shows event
+2; either one works).
 
-**Show:** the weather panel on the same page (scroll up to the hero).
+> "The raw JSON shows the same thing: each registration carries
+> `attendeeName` and `attendeeDisplayName`, and no `attendeeEmail` or
+> `attendeePhone` key appears anywhere. The admin endpoint asks for them
+> explicitly, which is why the staff pages still have them."
 
-> "The brief allows an optional external API, so the event page shows the
-> forecast for the event day from Open-Meteo. No API key and no registration are
-> needed, which matters because nothing secret has to be shipped to the marker.
+### 10:20 - 11:00 | The optional external API, in all four of its states
 
-> The integration lives in `shared/src/weather/weather.service.ts`: it takes the
-> venue's latitude and longitude and the event date, and asks for one day in the
-> Sydney timezone - the weather code, the temperature range, the rain chance and
-> the wind. The WMO weather codes are mapped to translation keys in
-> `weather.model.ts`, so the panel follows the language switcher.
+**Show:** the weather panel on `http://localhost:4200/events/2` (scroll up to the
+middle column).
 
-> It degrades by design, because it is a bonus feature and must never break the
-> page it decorates. No coordinates - like the online venue - a date beyond the
-> sixteen-day forecast window, or a past event, and the panel is **not shown at
-> all**. If the panel is shown and the request then fails, it says in one line that
-> no forecast is available instead of claiming to be loading forever: the service
-> resolves `null` rather than raising an error, and the component distinguishes
-> "still loading" from "there is nothing to show". Let me prove the hidden cases."
+> "The brief allows an optional external API, so every event page carries a weather
+> module for the day of the event, from Open-Meteo. No API key and no registration
+> are needed, which matters because nothing secret has to be shipped to the marker.
 
-**Do:** open `/events/9` (a past event) and then `/events/8` (the online venue,
-which has no coordinates).
+> The integration is in `shared/src/weather/weather.service.ts`: it takes the
+> venue's latitude and longitude and the event date and asks for one day in the
+> Sydney timezone - the weather code, the temperature range, the rain chance and the
+> wind. The WMO codes are mapped to translation keys in `weather.model.ts`, so the
+> panel follows the language switcher.
 
-> "No panel, no error, and the page is complete without it.
+> This is the only event whose page can show a forecast today, because it is the
+> only public event inside Open-Meteo's sixteen-day window - the one other event
+> that close is the suspended auction, which has no public page. The panel reads
+> partly cloudy, a high of twenty-seven and a low of sixteen, a sixty-seven per cent
+> chance of rain and twenty-two kilometres an hour of wind when I checked. The
+> figures move with the real forecast; the module does not.
 
-> The same service is used on the admin side, as a live preview on the event form
-> - which I will show in a moment."
+> The module is **always there** now, and that is the change this round. It used to
+> be wrapped in a condition, so nine of the ten public event pages carried no
+> weather module at all and a visitor could not tell 'this event is too far ahead'
+> from 'this page is broken'. It now names which of the four cases it is. Let me
+> show you the other three."
+
+**Do:** open `/events/1` (finished), `/events/3` (more than sixteen days away) and
+`/events/8` (the online venue).
+
+> "`/events/1` has already happened, so the module says *this event has already
+> finished, so there is no forecast to show*. `/events/3` is more than sixteen days
+> away, and it says so with the number in it - read from the same configuration
+> value the rule uses, not typed into four translations. `/events/8` is the online
+> venue: it has no map coordinates at all, so the module says that. And while a
+> forecast is being fetched it says 'loading', because the page distinguishes 'still
+> loading' from 'there is nothing to show'.
+
+> The service resolves `null` for every failure - no coordinates, out of range, a
+> past date, or Open-Meteo unreachable - so a bonus feature can never break the
+> page. The module is quiet about all four: no alert, no error panel, one sentence.
+> The same service drives the live preview on the admin form, which I will show in
+> a moment."
 
 ---
 
@@ -558,8 +726,18 @@ which has no coordinates).
 > only its own layout, its own routing table and its own dictionary.
 
 > The menu is defined once in the application shell - `app.html` plus the
-> `admin-header` component - so no page can forget it, and the header carries the
-> same language and theme controls as the public site."
+> `admin-header` and `admin-nav` components - so no page can forget it, and the
+> header carries the same language and theme controls as the public site. The
+> menu also pins now: while the table scrolls, the header goes up and the menu
+> stays at the top of the window. It did not before - it is a sticky element
+> whose containing block was its own wrapper, so it scrolled away with the
+> header and `top: 0` never took effect.
+
+> The dashboard in front of you is the summary: six upcoming events, eight
+> categories, six organisations, ninety-nine thousand two hundred and ninety
+> dollars raised, twenty registrations and forty-nine tickets sold - and a card
+> that needs attention, because Midnight Desert Auction is suspended and
+> deliberately not on the public website."
 
 ### 11:00 - 11:40 | The list: every event, regardless of status
 
@@ -568,7 +746,7 @@ which has no coordinates).
 > "This is the requirement that the public API cannot satisfy: a complete list of
 > all events regardless of status. It reads `GET /api/admin/events`, which uses
 > `vw_all_events` instead of the public view, so the suspended event and the past
-> events are all here.
+> events are all here - eleven of eleven.
 
 > Each row shows the id, the event with its category and organisation, the
 > publishing status and the derived upcoming or past state, the dates, the venue,
@@ -592,14 +770,33 @@ which has no coordinates).
 > request - and the form is only drawn once those lists arrive, which is what
 > stops a typo becoming a foreign-key error.
 
+> The layout was reworked this round and the screen shows it. The page title and
+> the form start on the **same left edge** - 'Add a charity event' sits directly
+> above the first field rather than centred over the page. The form is two
+> columns whose **first controls line up**: Event name on the left and the
+> publishing status on the right begin at the same height. The ticket rows run the
+> **full width** underneath both columns. And the right column **follows the
+> scroll**, with the save button in it, so Save is on screen at every scroll
+> position instead of about sixteen hundred pixels down the form, which is where
+> it used to be. There is no 'Clear the form' button any more: one misclick
+> destroyed everything typed.
+
+> Three smaller things are visible too. 'This is a free event' now sits directly
+> above the ticket types it governs - it used to be three sections away under the
+> fundraising goal - and ticking it locks and zeroes every price beside it. The
+> description box resizes vertically only. And the weather card in the right
+> column opens with a short prompt, *choose a venue and a date to see the
+> forecast*, instead of the grey 'no forecast available' paragraph it used to
+> show on an empty form.
+
 > Ticket-tier rows can be added and removed, the same client-side validation runs
 > before anything is sent, and the submission is `POST /api/events`.
 
-> Below the fields is a live weather preview for the venue and date that have
-> been chosen. That is the same Open-Meteo service the public event page uses, and
-> it works **before the event exists in the database** - which is the point of it:
-> staff can see that the beach fun run is forecast to be wet and move it while it
-> is still a draft."
+> Once a venue and a date are chosen, that weather card becomes the live forecast
+> for them - the same Open-Meteo service the public event page uses, working
+> **before the event exists in the database**. That is the point of it: staff can
+> see the beach fun run is forecast to be wet and move it while it is still a
+> draft."
 
 > "The update page, `/events/2/edit`, uses the **same** form component and loads
 > `GET /api/admin/events/2`, which returns a suspended event as a 200 where the
@@ -637,8 +834,14 @@ button on that row.
 > including the `suggestion` the API sent: suspend it instead, by opening the
 > event and setting its status to Suspended. It also links straight to the
 > registrations, and it disables and relabels that row's Delete button
-> ("Deletion blocked", with the reason in its tooltip), so the rule stays visible
+> ('Deletion blocked', with the reason in its tooltip), so the rule stays visible
 > next to the data after the banner has been dismissed.
+
+> That link is worth following for one second: it opens the registrations page
+> filtered to this event, which is where staff go to clear the block. Twenty
+> registrations are in the system, ten to a page, so the pager has two pages - the
+> pager is capped at seven entries with the first and last always present when
+> there are more, but with two pages you just see one and two.
 
 > That is the whole point of returning structured details rather than a sentence:
 > the client can act on the numbers instead of only printing text."
@@ -646,8 +849,8 @@ button on that row.
 **Do:** click **Delete** on event 9, confirm, and let the list reload.
 
 > "And here is the other half: an event with no registrations deletes cleanly, a
-> success banner appears and the list reloads without it. Blocked and allowed,
-> from the user's side."
+> success banner appears - 'Winter Lights Gala 2026 was deleted' - and the list
+> reloads without it. Blocked and allowed, from the user's side."
 
 ### 13:10 - 13:30 | One styling note worth mentioning
 
@@ -672,15 +875,17 @@ button on that row.
 > "I committed regularly with descriptive messages, so the history shows how the
 > work was built: the database first, then the API, then the client, and for
 > Assessment 3 the table and views, the write endpoints, the delete rule, the
-> registration page, the admin site and the tests as separate commits."
+> registration page, the admin site and the tests as separate commits - and then
+> the rounds of review fixes, one commit per defect, which is why the last dozen
+> commit messages each name the thing that was wrong."
 
-### 14:00 - 14:30 | Tests
+### 14:00 - 14:30 | Tests and the project's own checkers
 
 **Show:** a terminal running `npm test`.
 
 > "I extended the automated test suite, and there are four layers now.
 
-> `npm test` runs 131 checks: the HTTP contract against the real Express API,
+> `npm test` runs **131 checks**: the HTTP contract against the real Express API,
 > endpoint by endpoint, plus a jsdom regression suite that loads the **archived**
 > Assessment 2 frontend - it is kept under `legacy/` as the behavioural reference
 > for the pages I rewrote. It starts its own API instance on its own free port,
@@ -690,31 +895,46 @@ button on that row.
 > refused with a 409, then the registrations are removed and the same event is
 > deleted successfully. Checking it both ways is what proves the block is caused
 > by the registrations and not by something else. `npm run test:mysql` runs the
-> identical checks against the real database, which is how the MySQL and offline
-> repositories are shown to behave the same.
+> identical **131** checks against the real database, which is how the MySQL and
+> offline repositories are shown to behave the same.
 
 > The Angular applications are covered separately by `npm run test:e2e`, which
-> drives a headless browser through both sites against the compiled API - 40
-> checks - and by `npm run check:angular`, 16 checks that fail if the required
-> architecture changes: no NgModule anywhere, zoneless, every component with an
-> HTML template and a doc comment, both applications importing the shared
+> drives a headless browser through both sites against the compiled API - **40**
+> checks - and by `npm run check:angular`, **16** checks that fail if the
+> required architecture changes: no NgModule anywhere, zoneless, every component
+> with an HTML template and a doc comment, both applications importing the shared
 > library, the API source being TypeScript with no `.js` left, and both
 > `index.html` files still carrying the early-theme script.
 
-> `npm run check:translations` then checks the data: four languages per
-> dictionary, identical key sets, and every key the templates ask for actually
-> exists."
+> `npm run check:translations` then checks the data: **12** checks over two
+> dictionaries, four languages each, 298 keys on the public site and 252 on the
+> admin site, identical key sets, and the two rules I mentioned a moment ago - no
+> English inside a translated value, and no user-facing string outside a
+> dictionary. That is the difference between 'translated' and 'claims to be
+> translated'.
+
+> `npm run check:docs` counts the documented symbols - **249** - and
+> `npm run check:contrast` measures every text element on eight pages in both
+> themes against the WCAG AA contrast minimum."
 
 ### 14:30 - 15:00 | Deployment and closing
 
-**Show:** the deployed public site and the deployed admin site in the browser
-(or the two local URLs if you have not deployed yet - say which), then the three
-zips in the file explorer.
+**Show:** the deployed public site and the deployed admin site in the browser,
+then the three zips in the file explorer.
 
-> "Both websites are deployed to the SCU cPanel host - the public site at the
-> site root and the admin site in the `admin` folder - and both point at the
-> deployed API. The API is uploaded as its compiled `api/dist` plus
-> `api/package.json`, because the host's Node version cannot run TypeScript.
+> "Both websites are deployed to cPanel - the public site at the site root and
+> the admin site in the `admin` folder - and both point at the deployed API, which
+> runs on MySQL on the host. There are two submission hosts, one per student, and
+> each carries its own copy of all three parts; `npm run deploy:verify` runs 28
+> checks against a host and both of them pass all 28.
+
+> The API is uploaded as its compiled `api/dist` plus `api/package.json`, because
+> the host's Node version cannot run TypeScript, and Passenger starts
+> `api/dist/server.js`. The deep links work because each site directory carries
+> an `.htaccess`: a real path like `/events/2` is handed to the application shell,
+> while a path that looks like a missing file - a `chunk-*.js` - still returns a
+> real 404 instead of the shell, which is what stops a missing file looking like a
+> mysterious MIME error.
 
 > The submission has three zips: `<username>A3-api.zip`, which carries the
 > TypeScript API source and the compiled `dist/`; `<username>A3-clientside.zip`,
@@ -724,9 +944,11 @@ zips in the file explorer.
 > frontend under `legacy/` is deliberately **not** in any of them.
 
 > To summarise: the database now records registrations with the uniqueness and
-> delete rules enforced by the schema, the API has the full C.R.U.D. cycle with
-> one transactional delete rule, the public site can register someone end to end,
-> and a separate admin site can manage events. Thank you for watching."
+> delete rules enforced by the schema, and stores the contact details the brief
+> asks for without publishing them; the API has the full C.R.U.D. cycle with one
+> transactional delete rule and one validation layer; the public site can register
+> someone end to end and explains its own weather module in four languages; and a
+> separate admin site can manage events. Thank you for watching."
 
 **Stop recording.**
 
@@ -741,6 +963,12 @@ zips in the file explorer.
 - [ ] Confirm the registration page is shown end to end: validation, submission,
       and the confirmation read back from the API
 - [ ] Confirm the admin list visibly contains the suspended event
+- [ ] Confirm the weather beat shows **four** different states - a forecast, a
+      finished event, an event beyond the sixteen-day window, and a venue with no
+      coordinates - and that no page shows an error panel instead of a reason
+- [ ] Confirm the registrations table shows a masked name and no email address,
+      and that you said out loud why
+- [ ] Confirm the location box was shown opening **downward** with its two groups
 - [ ] Confirm the video says what **you** built and can defend, in your own words
 - [ ] Upload to SCU OneDrive, set the sharing so your marker can view it, and test the link in a private browser window
 - [ ] Put the shareable link in your submission
@@ -757,8 +985,11 @@ zips in the file explorer.
 8. **Why 409 and not 400 for a blocked delete?** (The request is well formed and the event exists; the *state of the data* is what prevents it.)
 9. **Why is the ticket tier NOT a composite foreign key, when that would enforce the same-event rule in the database?** (Because MySQL refuses it here, for two reasons: a foreign key may not reference a unique key sharing its leading column with another unique index on that table — `ERROR 6125` — and the usual workaround, a derived key column, may not refer to an `AUTO_INCREMENT` column — `ERROR 3109`. The rule is enforced by the API instead, and the foreign key still guarantees the tier exists.)
 10. **Why does the admin site read a different view from the public site?** (`vw_all_events`, because the brief requires every status; the public view stays active-only.)
-11. **What happens to the weather panel when Open-Meteo is unreachable, and why?** (It stays on the page and says in one quiet line that no forecast is available - it is never hidden, because "no module" and "no forecast" looked identical to a visitor; the service resolves `null` rather than throwing, so a bonus feature can never break the page.)
-12. **Which parts of the client code would you change to add a new filter?** (The `FilterForm` value and `buildQuery()` in `search.ts`, the query parameters the API accepts, and the template - the shared API service does not change.)
-13. **If you had to add authentication, where would it go?** (In front of the `/api/admin/...` routes and the write methods, which are already grouped for that purpose, plus an HTTP interceptor in each Angular application.)
-14. **Why is the API a separate TypeScript build?** (The cPanel's Node version cannot execute TypeScript, and a `ts-node`/`tsx` loader would mean shipping a development dependency into the deployment, so `tsc` compiles to `api/dist` and that is what runs everywhere.)
-15. **Why do both applications share one `shared/` folder instead of a library build?** (One path alias, no second build product and no stale-library failure mode; the only real loss - no independent type-check - is covered by `npm run check:shared`.)
+11. **What happens to the weather module when there is no forecast, and why keep it on the page?** (It names the reason - finished, no coordinates, no confirmed date, or beyond the sixteen-day window - and says so in one quiet line; while a request is in flight it says it is loading. It used to be hidden, which made "no module" and "no forecast" look identical to a visitor. The service resolves `null` instead of throwing, so a bonus feature can never break the page.)
+12. **Why does the public event page not show the attendee's email any more, when the table stores it?** (Data minimisation: the registration list is on a public, anonymous page, so the API projects a masked display name and omits the contact columns; staff read them from `GET /api/admin/events/:id`, which asks for them explicitly. The brief requires the data to be *stored*, not published.)
+13. **What happens when an unknown `publishStatus` or `audience` reaches the API?** (A 400 naming the allowed values, in the same single 400 as every other bad parameter. Before, the value was silently replaced by the default - so the caller was told, in the shape of a successful response, that every event had a status none of them had.)
+14. **Why must a partial update check the merged row rather than just the body?** (An update sends one half of a pair; the other half is what the row already holds, and on the cPanel host MySQL 5.7 ignores CHECK constraints, so the application layer is the only guard.)
+15. **Which parts of the client code would you change to add a new filter?** (The `FilterForm` value and `buildQuery()` in `search.ts`, the query parameters the API accepts, and the template - the shared API service does not change.)
+16. **If you had to add authentication, where would it go?** (In front of the `/api/admin/...` routes and the write methods, which are already grouped for that purpose, plus an HTTP interceptor in each Angular application.)
+17. **Why is the API a separate TypeScript build?** (The cPanel's Node version cannot execute TypeScript, and a `ts-node`/`tsx` loader would mean shipping a development dependency into the deployment, so `tsc` compiles to `api/dist` and that is what runs everywhere.)
+18. **Why do both applications share one `shared/` folder instead of a library build?** (One path alias, no second build product and no stale-library failure mode; the only real loss - no independent type-check - is covered by `npm run check:shared`.)

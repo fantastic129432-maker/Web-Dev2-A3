@@ -29,30 +29,37 @@ database and API as a contract it depends on.
 | 12:30 - 13:30 | A real bug the front end had, and how the tests caught it | - | **deep** |
 | 13:30 - 14:30 | Tests, deployment and closing | - | brief |
 
-If you are running long, cut the **search page** demonstration first (it was the
-centre of the A2 video). Never cut the registration page, the admin delete, or the
-bug section — those are the three things only this video shows.
+If you are running long, cut the **home page** tour first (it was the centre of the
+A2 video). Never cut the registration page, the admin delete, the weather beat or
+the bug section — those are the four things only this video shows.
 
 ---
 
 ## Before you record
 
 Mechanics (OBS, exact URLs, what to have open, how to silence the machine) are in
-`video-recording-guide.md`. The short version:
+`docs/video-recording-guide.md`. The short version:
 
 1. `npm start` from the project root. It compiles the API and serves all three
    parts. **Do not skip this**: if `dist/` holds a production build from a previous
    deployment, `npm start` rebuilds it for local use first, so you are always
    demoing the code in front of you.
-2. Open: `http://localhost:4200/`, `http://localhost:4300/`, VS Code, MySQL
+2. **Pin the demo date.** Every beat below was checked with the demo clock pinned
+   to **2026-10-17**: put `DEMO_TODAY=2026-10-17` in `api/.env` and restart (it
+   ships commented out, so otherwise the API follows the real clock). On that date
+   six public events are upcoming and the gala on 24 October is the only public
+   event inside Open-Meteo's sixteen-day window — which is what makes the weather
+   beat possible.
+3. Open: `http://localhost:4200/`, `http://localhost:4300/`, VS Code, MySQL
    Workbench, Postman, and a terminal.
-3. In the browser, open DevTools → **Network** and leave it open; this video leans
+4. In the browser, open DevTools → **Network** and leave it open; this video leans
    on it.
-4. Rehearse once without recording.
+5. Rehearse once without recording.
 
 > 【录制前检查】**先把 `npm start` 跑起来再开 OBS**。DevTools 的 Network 面板要**提前
 > 打开并清空**，否则第 3 步"提交表单"时你看不到那一条 POST。把浏览器缩放调到 125%，
-> 否则代码字体在录像里看不清。
+> 否则代码字体在录像里看不清。**把 `DEMO_TODAY` 写进 `api/.env` 并重启**，否则天气那
+> 一段会变成"每个页面都没有预报"，和稿子里写的四态对不上。
 
 ---
 
@@ -83,13 +90,14 @@ Mechanics (OBS, exact URLs, what to have open, how to silence the machine) are i
 **Question 1 asks about the database and API design.** It is my teammate's part, so
 I will not re-explain his SQL. What I need to answer is the part that is genuinely
 mine: the design decisions that **forced a specific behaviour in my user interface**.
-Three of them did.
+Four of them did.
 
 **Show:** MySQL Workbench with `charityevents_db`, the **Tables** and **Views**
 panels expanded, then `database/01_schema.sql` section 7, `event_registrations`.
 
-> "The new table is `event_registrations`. Three of its constraints are rules from
-> the brief written into the schema, and each one changed what I had to build.
+> "The new table is `event_registrations` — one of seven tables, and the schema also
+> carries five views. Three of its constraints are rules from the brief written into
+> the schema, and each one changed what I had to build.
 
 > **First, the unique key is on the pair `(event_id, attendee_email)`.** That is
 > what makes 'a user may register for multiple events but only once per event'
@@ -106,10 +114,17 @@ panels expanded, then `database/01_schema.sql` section 7, `event_registrations`.
 > `registered_at` descending**, newest purchase first. The brief asks for that
 > order, and the API owns it — which means my event page must **not** re-sort the
 > list. If I sorted in the browser there would be two places responsible for one
-> rule, and they would drift."
+> rule, and they would drift.
+
+> The fourth is not a constraint but a projection, and it is the one I depend on
+> most now: **the public response carries a masked display name and no contact
+> details.** The table stores the attendee's email and phone because the brief says
+> to; `GET /api/events/:id` sends neither, and sends `attendeeDisplayName` instead —
+> 'Grace T.' rather than 'Grace Tan'. That is a privacy decision made on the API
+> side, and it decided what my registrations table could show."
 
 **Show:** `.env`-free view of the response shape — Postman, `GET /events/1`, the
-`registrations` array, and the `totalAmount` field.
+`registrations` array, the `attendeeDisplayName` and `totalAmount` fields.
 
 > "The other thing I depend on is the **shape of the response**: every endpoint
 > answers with the same `{ success, meta, data }` envelope, a 400 carries a
@@ -123,9 +138,9 @@ panels expanded, then `database/01_schema.sql` section 7, `event_registrations`.
 > against it, which is why the two halves plugged together without a rewrite."
 
 > 【旁注】这一段的关键动作：**把 API 的响应当作"契约"来讲，而不是讲 SQL**。拿起
-> Postman 指 `details` 数组和 `suggestion` 字段各两秒就够了。如果被问"这个表为什么
-> 这样设计"，回答：**"That is my teammate's part — what I can tell you is what I
-> needed from it and why"**，然后讲上面三点，不要硬答列类型。
+> Postman 指 `details` 数组、`suggestion` 字段、`attendeeDisplayName` 各两秒就够了。
+> 如果被问"这个表为什么这样设计"，回答：**"That is my teammate's part — what I can
+> tell you is what I needed from it and why"**，然后讲上面四点，不要硬答列类型。
 
 ---
 
@@ -155,17 +170,25 @@ interface.
 
 > There is deliberately no route for a bare `/register`. A form that cannot know
 > what it is registering for is worse than an honest answer, so the catch-all route
-> shows the friendly 404 page instead.
+> shows the friendly 404 page instead. The same rule runs the other way: try
+> `/register/1`, a finished event, and you get the closed panel — 'this event
+> finished on Sunday 11 October 2026' — instead of a form that could only refuse
+> the submission.
 
 > The form itself is **one object held in an Angular signal** — name, email, phone,
 > date of registration, ticket tier, number of tickets and notes, one control per
-> stored column. Because it is one value, saving and restoring a draft is one write,
-> and clearing the form is one write; there is no loop over the DOM anywhere.
+> stored column. Because it is one value, every derived figure on the screen is a
+> `computed` over it rather than a variable somebody has to remember to update:
+> the running total is computed from the selected tier and the quantity, so it
+> **cannot go stale**, and the ceiling on the stepper is computed from the event's
+> own remaining tickets.
 
-> The two derived values on this screen are `computed` signals over that form: the
-> running total is computed from the selected tier and the quantity, so it **cannot
-> go stale** — there is no 'update the total' function to forget to call. The tier
-> dropdown is built from **this event's** tiers only."
+> The ticket count is a **stepper** — one value between a minus and a plus button —
+> rather than a number box, because the two legal answers are 'one more' and 'one
+> fewer'. The tier dropdown is built from **this event's** tiers only, and it opens
+> on a tier a visitor can actually buy: on this event **Single Seat — $185.00, 196
+> available**, with the total already reading *Total: 1 x $185.00 = $185*, while
+> the second tier, Table of Ten, is labelled **Sold out** and cannot be chosen."
 
 ### 3:10 - 3:50 | Step 2: client-side validation happens first
 
@@ -268,7 +291,8 @@ Network tab: status **201**, the `Location` response header, the JSON body.
 > — the translation service and the four dictionaries;
 > — the theme service;
 > — the formatters for dates, money and event state;
-> — and the Open-Meteo weather service.
+> — and the Open-Meteo weather service, which both the public event page and the
+>   admin form's live preview use.
 
 > Two of those are worth showing because they are the kind of detail that shows up
 > in use but not in a file listing."
@@ -283,6 +307,26 @@ button, then reload the page.
 > a stored choice, then a `?lang=` query parameter — so a shareable link can force a
 > language — then the **browser's own preference**, then English.
 
+> Watch the header while I do it, because that was a defect this round. The labels
+> never wrap, the header is **65 pixels tall in all four languages**, and the
+> language picker and the theme button stay exactly where they are. It used to
+> move: a sentence about the switcher lived inside the header, only appeared when
+> the interface was not English, and made the header up to **twenty-four pixels**
+> taller — 85 in Chinese, 90 in Vietnamese and Japanese, against 65 in English at
+> 1920 wide — and the extra width it took pushed the navigation aside. That
+> sentence now sits in its own band **below** the header, where it can grow without
+> touching anything: *'Interface language only; event details stay in English.'*
+
+> And that sentence is the honest limit of the translation. All the **interface**
+> text is translated — 298 keys on this site, 252 on the admin site, the same keys
+> in all four languages, down to each page's browser tab title and the home page's
+> mission sentence — and a checker that fails if an English word is left inside
+> a Chinese, Vietnamese or Japanese value or if a user-facing string is typed
+> straight into a template. The **content** — event names, descriptions, venues,
+> organisers — is English by design, because it comes from the database and the
+> brief defines that data in English. The band under the header says so, rather
+> than pretending otherwise.
+
 > The theme is light, dark or system, and it is written onto the `<html>` element as
 > a `data-theme` attribute. There is also a small inline script in both
 > `index.html` files that applies the stored theme **before** Angular loads. Without
@@ -291,7 +335,9 @@ button, then reload the page.
 
 > 【旁注】这一段是"架构决策"得分点，务必说出**代价**（没有独立类型检查 → 用
 > check:shared 补上）。只讲好处会被追问。主题闪烁那段很适合现场演示：切到 dark，
-> 按 F5，说明为什么不会白闪。
+> 按 F5，说明为什么不会白闪。**语言切换那一下要盯着页头看**：四个语言页头一样高、
+> 控件不动，切换说明的那句话在页头**下面**——这是本轮修复，值得说 20 秒。
+> 同时要把"内容仍是英文"说清楚，别把"界面翻译"说成"整站翻译"。
 
 ---
 
@@ -300,15 +346,18 @@ button, then reload the page.
 **Question 3 is website functionality.** This is where I show what a visitor
 actually gets.
 
-### 8:00 - 8:40 | Home and search, briefly
+### 8:00 - 8:35 | Home and search, and the location box that is now a real combobox
 
-**Show:** `http://localhost:4200/`, then `/search` with Lismore + Fun Run.
+**Show:** `http://localhost:4200/`, then `/search`.
 
 > "The home page mixes static organisation content with a dynamic listing from
 > `GET /api/events/upcoming`: name, category, date, venue, price and a live progress
-> bar. No past event and no suspended event appears, because the public endpoints
-> read the view that fixes `status = 'active'` — the API's rule, honoured here by
-> rendering whatever it sends.
+> bar. Six events are on it today. No past event and no suspended event appears,
+> because the public endpoints read the view that fixes `status = 'active'` — the
+> API's rule, honoured here by rendering whatever it sends. Scroll it once: the
+> sections are on one rhythm — 96 pixels between section contents, 64 above the
+> footer, padding only and no outer margins — which is what removed the half-screen
+> gap that used to sit above the dark band."
 
 > The search page filters by date, location and category, singly or combined, with
 > removable chips and a Clear Filters button. The whole filter form is one value in
@@ -316,7 +365,31 @@ actually gets.
 > **URL**, so a search can be refreshed, bookmarked or sent to someone else — and
 > that is also why opening a shared link restores the filters *and* the results."
 
-### 8:40 - 9:50 | The event page: registrations and the registration link
+**Do:** click the **City** field. The suggestion panel opens **downward** under the
+field, headed **Cities** and then **Venues**. Type `Lis`: three suggestions remain —
+Lismore, Lismore City Hall, Lismore Riverside Park. Press Enter.
+
+> "This is the control I rebuilt this round. It was a native `<select>`, and the
+> popup of a native select is drawn by the browser: near the bottom of the window it
+> opens **upward**, over its own label and the date fields. That is not a CSS bug I
+> could fix — the honest way to own the direction was to own the list. It also had
+> a placeholder that said 'Start typing, e.g. Lis' on a control nobody could type
+> into.
+
+> Now typing filters the list, the list is grouped into cities and venues, and it
+> opens downward because the page draws it. Picking Lismore applies at once — the
+> chip appears above the results, one event matches, and the URL carries
+> `city=Lismore`. Typing on its own applies nothing: a half-typed word is not a
+> filter the visitor has chosen.
+
+> One honest detail about the two date fields beside it: they are native
+> `<input type="date">` controls, and the placeholder inside them is painted by the
+> **browser** — `mm/dd/yyyy` or `yyyy/mm/日` depending on the browser's own locale,
+> not on the language picked in the header. No attribute changes that, so the field
+> shows a valid example underneath instead. The value it submits is always
+> `yyyy-mm-dd`."
+
+### 8:35 - 9:40 | The event page: registrations, privacy and the registration link
 
 **Show:** `http://localhost:4200/events/2`, scrolled to the registrations panel.
 
@@ -328,9 +401,19 @@ actually gets.
 
 > Below the tickets is the registrations panel: a real `<table>` with a caption for
 > screen readers and `scope` on the column headings. Each row is one registration —
-> attendee and email, ticket type, how many tickets, what they are worth and when
-> they were bought — newest purchase first, with a totals footer. The hero also
-> reports how many tickets have been sold so far.
+> the backer, the ticket type, how many tickets, what they are worth and when they
+> were bought — newest purchase first, with a totals footer. Three registrations
+> have taken fourteen tickets, worth seventeen thousand two hundred and forty
+> dollars, and the hero reports both counts by name: '3 registrations · 14 tickets
+> sold'.
+
+> The names are masked, and that is the newest thing on this page. The row reads
+> **Grace T.** — the database holds 'Grace Tan' — and there is no email address and
+> no phone number anywhere in the table, because the public response does not carry
+> them: the API sends `attendeeDisplayName` and omits the contact columns entirely.
+> The sentence under the heading says so, in the visitor's language. The visitor
+> who booked can still recognise their own row from the ticket count and the date
+> beside it; nobody else's identity is published on a page anyone can open.
 
 > That list is **not sorted in the browser**. The API returns it in
 > `registered_at` descending order and this page renders it in the order it
@@ -347,15 +430,16 @@ SELECT registration_id, attendee_name, registered_at
 > "Same order as the page, because it is the same rule — `registered_at`
 > descending, with the registration id breaking ties. I am running the query to
 > show you that the page is not inventing an order; the database and the screen
-> agree."
+> agree. It also shows the masking: the database says 'Grace Tan', the page says
+> 'Grace T.'"
 
-### 9:50 - 10:30 | The optional external API
+### 9:40 - 11:00 | The optional external API, in its four states
 
-**Show:** the weather panel on the same page.
+**Show:** the weather module on `http://localhost:4200/events/2`.
 
-> "The brief allows an optional external API, so the event page shows the forecast
-> for the event day from Open-Meteo. It needs no key and no registration, which
-> matters: nothing secret has to be sent to the marker.
+> "The brief allows an optional external API, so every event page carries a weather
+> module for the day of the event, from Open-Meteo. It needs no key and no
+> registration, which matters: nothing secret has to be sent to the marker.
 
 > It lives in `shared/src/weather/weather.service.ts`. It takes the venue's
 > latitude and longitude and the event date, and asks for one day in the Sydney
@@ -363,22 +447,39 @@ SELECT registration_id, attendee_name, registered_at
 > The WMO weather codes are mapped to **translation keys**, so the panel follows the
 > language switcher like everything else.
 
-> It is a bonus feature, so it is not allowed to break the page. If the venue has no
-> coordinates, or the date is outside the sixteen-day forecast window, or the event
-> is in the past, the panel is simply **not shown**. And if the panel is shown but
-> the request fails, it says so in one line rather than claiming to be loading
-> forever — the service resolves `null` instead of raising, and the panel
-> distinguishes 'still loading' from 'there is nothing to show'."
+> This is the only page that can show a forecast today, because this is the only
+> public event inside Open-Meteo's sixteen-day window: partly cloudy, a high of
+> twenty-seven and a low of sixteen, a sixty-seven per cent chance of rain and
+> twenty-two kilometres an hour of wind when I checked. The figures move with the
+> real forecast; the module does not.
 
-**Do:** open `/events/9` (a past event) and `/events/8` (the online venue, which has
-no coordinates).
+> The module is **on every event** now — that is the change this round. It used to
+> be wrapped in a condition, so nine of the ten public event pages had no weather
+> module at all, and a visitor could not tell 'this event is too far ahead' from
+> 'this page is broken'. It now names the case instead of hiding: let me show you
+> the other three."
 
-> "No panel, no error, and the page is complete without it. The same service is used
-> on the admin side as a live preview on the event form."
+**Do:** open `/events/1` (finished), `/events/3` (more than sixteen days away) and
+`/events/8` (the online venue, which has no coordinates).
 
-> 【旁注】这里演示"优雅降级"时，**先说"这个功能本来可以不显示任何东西"**，再演示两个
-> 不会出现面板的场景。注意 `/events/9` 和 `/events/8` 的 id 要以你本机数据为准，录制
-> 前先点一遍确认。
+> "`/events/1` has already happened, so it says *this event has already finished, so
+> there is no forecast to show*. `/events/3` is more than sixteen days away, and it
+> says so with the number in it — that number comes from the same configuration
+> value the rule uses, so it cannot drift from four translated copies of itself.
+> `/events/8` is the online venue, which has no map coordinates, so it says that.
+> And if you catch a page while its request is in flight it says 'loading the
+> forecast', not nothing.
+
+> No error panel anywhere, because it is a bonus feature and not allowed to break
+> the page. The service resolves `null` instead of raising for every failure — no
+> coordinates, too far ahead, a past date, or Open-Meteo itself being unreachable —
+> and the page distinguishes 'still loading' from 'there is nothing to show'. The
+> same service is used on the admin side as a live preview on the event form."
+
+> 【旁注】这里演示"优雅降级+说明原因"时，**先说"这个模块以前会整个消失"**，再依次
+> 打开四个页面：有预报、已结束、超出 16 天、无坐标。**注意 `/events/1`、`/events/3`、
+> `/events/8` 的 id 和日期要以你本机数据为准，录制前先点一遍确认**；日期没按稿子钉住
+> 的话，`/events/3` 可能变成"已结束"，说的话就对不上了。
 
 ---
 
@@ -393,24 +494,27 @@ no coordinates).
 > the four languages, the theme and the formatters are literally the same code.
 
 > The menu is defined once in the application shell, so no page can forget it, and
-> the header carries the same language and theme controls as the public site."
+> the header carries the same language and theme controls as the public site. The
+> menu also **pins** now: scroll this table and the header goes up while the menu
+> stays at the top. It did not before — it was a sticky element whose containing
+> block was its own wrapper, so `top: 0` never took effect."
 
-### 11:00 - 11:30 | The list: every event, regardless of status
+### 11:00 - 11:25 | The list: every event, regardless of status
 
 **Show:** `http://localhost:4300/events`.
 
 > "This is the requirement the public API cannot satisfy: **every** event regardless
 > of status. It reads `GET /api/admin/events`, which uses the admin view, so the
-> suspended event and the past events are all here. Each row shows the id, the event
-> with its category and organisation, the publishing status and the derived
-> upcoming-or-past state, the dates, the venue, registrations against capacity, and
-> tickets sold. The filters narrow by status, time and keyword, and they go into the
-> URL, so a filtered view can be refreshed or shared.
+> suspended event and the past events are all here — eleven of eleven. Each row
+> shows the id, the event with its category and organisation, the publishing status
+> and the derived upcoming-or-past state, the dates, the venue, registrations
+> against capacity, and tickets sold. The filters narrow by status, time and
+> keyword, and they go into the URL, so a filtered view can be refreshed or shared.
 
 > The 'sold' column comes from `registration_count` and `tickets_sold` in the view,
 > so listing eleven events is still **one** query rather than eleven."
 
-### 11:30 - 12:00 | Create and update
+### 11:25 - 12:00 | Create and update: the form I rebuilt
 
 **Show:** `http://localhost:4300/events/new`.
 
@@ -421,12 +525,29 @@ no coordinates).
 > in one request — and the form is only drawn once those lists arrive, which is what
 > stops a typo becoming a foreign-key error.
 
+> The layout is the part I reworked this round, and everything I am about to say is
+> visible on this screen. The page title 'Add a charity event' and the form start on
+> the **same left edge**. The form is two columns whose **first controls line up** —
+> Event name on the left, 'Artwork and publishing' status on the right. The ticket
+> rows run the **full width** beneath both columns. The right-hand column **follows
+> the scroll** and carries the save button, so Save is on screen at every scroll
+> position instead of about sixteen hundred pixels down the page. And there is no
+> 'Clear the form' button any more: one misclick destroyed everything typed.
+
+> Three smaller changes are worth pointing at. 'This is a free event' now sits
+> directly above the ticket types it governs, and ticking it locks and zeroes every
+> price below it — it used to live three sections away under the fundraising goal.
+> The description box resizes vertically only. And the weather card in the right
+> column opens with a short prompt, *choose a venue and a date to see the forecast*,
+> instead of the grey 'no forecast available' paragraph it used to show on a form
+> where nothing had been chosen yet.
+
 > Ticket-tier rows can be added and removed, the same client-side validation runs
 > before anything is sent, and the artwork picker offers the nine illustrations the
 > project ships with, with a live preview, so staff can see what the card will look
 > like.
 
-> Below the fields is a live weather preview for the chosen venue and date — the
+> Choose a venue and a date and that card becomes the live forecast for them — the
 > same service, used **before the event exists in the database**. That is the point
 > of it: staff can see the beach fun run is forecast to be wet and move it while it
 > is still a draft."
@@ -436,7 +557,11 @@ no coordinates).
 > "Look at the request body: **only the field I changed**. The component compares the
 > form against the event it loaded and sends a partial update, so there is no chance
 > of a stale value silently overwriting a change someone else made. Submitting with
-> nothing changed is refused with a message instead of sending a pointless request."
+> nothing changed is refused with a message instead of sending a pointless request.
+
+> Further down the same page is this event's registration list, read-only, with a
+> delete on each row and a standing warning: registrations block the event delete.
+> That is the rule made visible in the interface rather than only in the API."
 
 ### 12:00 - 12:30 | The delete, blocked with a clear message
 
@@ -454,8 +579,8 @@ no coordinates).
 > button so the rule stays visible next to the data after the banner is dismissed.
 
 > And here is the other half: an event with no registrations deletes cleanly, a
-> success banner appears, and the list reloads without it. Blocked and allowed, from
-> the user's side."
+> success banner appears — 'Winter Lights Gala 2026 was deleted' — and the list
+> reloads without it. Blocked and allowed, from the user's side."
 
 > 【旁注】这一段的落点句是：**"结构化的 details 让我能把一个 409 变成两个可点的操作，
 > 而不是印一句话。"** 这是前后端配合最好的例子，也顺便解释了同伴为什么这样设计
@@ -472,16 +597,15 @@ stops it coming back.
 **Show:** `/register/2` with the ticket-tier dropdown, then
 `clientside/src/app/pages/register/register.html` around the tier `<option>`.
 
-> "On the registration page the tier dropdown is **pre-selected to the cheapest paid
-> tier**, and the running total underneath is computed from that same value. A
-> visitor who changes nothing books that tier.
+> "On the registration page the tier dropdown opens on a tier the visitor can buy,
+> and the running total underneath is computed from that same value. On this event
+> it opens on Single Seat and the total reads *1 x $185.00 = $185*.
 
-> But the dropdown was displaying a **different** tier from the one it was going to
-> book. On an event whose first tier is a free one, the page showed 'Free Community
-> Entry' in the dropdown while the total underneath read '1 × $45.00 = $45' and the
-> POST sent the paid tier. The dropdown also fired no change event when you picked
-> the tier it was already displaying, so choosing the free tier appeared to do
-> nothing.
+> But on a page where the first tier in the list was a free one, the dropdown was
+> displaying a **different** tier from the one it was going to book. It showed 'Free
+> Community Entry' while the total underneath said *1 x $25.00 = $25* and the POST
+> sent the paid tier. The dropdown also fired no change event when you picked the
+> tier it was already displaying, so choosing the free tier appeared to do nothing.
 
 > The cause was an Angular detail I had got wrong in three places at once. The
 > dropdown's value was bound with `[value]`, and its `<option>` elements are created
@@ -498,8 +622,17 @@ stops it coming back.
 > the **venue filter** on the search page, which filtered the results while the
 > picker showed nothing selected.
 
-> Three symptoms, one cause, and none of them was visible in a screenshot: the
-> interface was in the right state, only the control disagreed."
+> Two of those three fixes are still exactly as they were. The venue control is
+> the exception: I replaced that `<select>` with the combobox you saw earlier,
+> whose text is a **computed label for the applied filter** rather than a value
+> written into a control before its options exist — there is nothing to discard, so
+> that trap cannot come back there.
+
+> You cannot reproduce the broken state on the seeded data any more either: the
+> only event that puts a free tier in front of a paid one has already finished, so
+> its registration page now refuses before the form is drawn. That is exactly why
+> this is held in place by a check rather than by a screenshot — the interface was
+> always in the right state; only the control disagreed."
 
 **Show:** `tests/angular-e2e.mjs`, the language-picker check, then run
 `npm run test:e2e` and let the summary print.
@@ -508,13 +641,16 @@ stops it coming back.
 > assert a particular language — it asserts an **invariant**: the picker's value must
 > be a prefix of the `<html lang>` attribute the translation service maintains. That
 > works in any language, on any machine, and it fails if the two ever disagree
-> again. The end-to-end suite is up to thirty-eight checks and drives both
-> applications in a real browser against the compiled API."
+> again. It runs against both applications, which is why the same defect in the
+> admin switcher could not survive either. The end-to-end suite is up to **forty**
+> checks and drives both applications in a real browser against the compiled API."
 
 > 【旁注】**这一段是你整份稿子里最有说服力的部分，一定要留足 1 分钟讲慢一点。**
 > 顺序：现象（显示免费、实收付费）→ 原因（`[value]` 先于 `@for` 创建 option）→
 > 影响范围（三处）→ 修复（给 option 加 `[selected]`）→ 回归测试（不测具体语言，测
-> 不变量）。如果时间紧，宁可砍掉首页/搜索演示，也要保住这段。
+> 不变量）。**注意：本轮把搜索页的地点选择器换成了 combobox，所以第三处"现在不再
+> 需要那个补丁"要主动说出来**，否则细心的评分人会问"那第三处现在怎么防"。如果时间
+> 紧，宁可砍掉首页/搜索演示，也要保住这段。
 
 ---
 
@@ -527,7 +663,9 @@ stops it coming back.
 > "The project has four layers of automated checks. `npm test` runs **131** checks:
 > the HTTP contract against the real Express API endpoint by endpoint, plus a jsdom
 > regression suite that loads the **archived** Assessment 2 frontend, which is kept
-> under `legacy/` as the behavioural reference for the pages I rewrote.
+> under `legacy/` as the behavioural reference for the pages I rewrote. `npm run
+> test:mysql` runs the identical 131 against MySQL, which is how the two data sources
+> are shown to agree.
 
 > The front end is covered by `npm run test:e2e` — **40** checks that drive a
 > headless browser through both websites against the compiled API, including the
@@ -536,28 +674,41 @@ stops it coming back.
 > component with an HTML template and a doc comment, both applications importing the
 > shared library, and both `index.html` files still carrying the early-theme script.
 
-> `npm run check:translations` then checks the data: four languages per dictionary,
-> identical key sets, and every key the templates ask for actually existing. That
-> check is why the translated 409 message I mentioned earlier can be trusted to
-> exist in all four languages."
+> `npm run check:translations` then checks the data: **12** checks over both
+> dictionaries, four languages each, 298 keys on the public site and 252 on the
+> admin site, identical key sets, every key the templates ask for actually existing
+> — and the two rules I mentioned under the language switch. That check is why the
+> translated 409 message can be trusted to exist in all four languages, and why the
+> note under the header is telling the truth.
+
+> Two smaller gates: `npm run check:docs` counts the documented symbols — 249 — and
+> `npm run check:contrast` measures every text element on eight pages in both
+> themes against the WCAG AA contrast minimum."
 
 ### 13:55 - 14:30 | Deployment and closing
 
 **Show:** the deployed public site and the deployed admin site, then
 `https://24832481.it.scu.edu.au/` refreshing on a deep link such as `/events/2`.
 
-> "Both websites are deployed to the SCU cPanel host — the public site at the site
-> root and the admin site in the `admin` folder — and both point at the deployed
-> API. They are built for production, so the API address is compiled in rather than
-> guessed at run time, and the deep links work because of two small `.htaccess`
-> rules: a real path like `/events/2` is handed to the application shell, and a path
-> that looks like a missing file returns an honest 404 instead of the shell.
+> "Both websites are deployed to cPanel — the public site at the site root and the
+> admin site in the `admin` folder — and both point at the deployed API, which runs
+> on MySQL on the host. There are two submission hosts, one per student, each with
+> its own copy of all three parts, and both pass all **28** of the deployment checks.
+
+> They are built for production, so the API address is compiled in rather than
+> guessed at run time, and the deep links work because each site directory carries
+> an `.htaccess` fallback: a real path like `/events/2` is handed to the application
+> shell, and a path that looks like a missing file returns an honest 404 instead of
+> the shell — which is what stops a missing `chunk-*.js` turning into a mysterious
+> MIME error.
 
 > To summarise my half: the public site can take a registration from the form to the
-> database and show the receipt the API returned; the admin site manages events with
-> the same shared library, and turns the schema's uniqueness and delete rules into
-> messages and actions a member of staff can act on; and thirty-eight end-to-end
-> checks exercise both of them in a real browser. Thank you for watching."
+> database and show the receipt the API returned; it lists who is coming without
+> publishing anyone's contact details; it explains its own weather module in four
+> languages instead of hiding it; the admin site manages events with the same shared
+> library, and turns the schema's uniqueness and delete rules into messages and
+> actions a member of staff can act on; and forty end-to-end checks exercise both of
+> them in a real browser. Thank you for watching."
 
 **Stop recording.**
 
@@ -574,6 +725,13 @@ stops it coming back.
       the confirmation **read back from the API**
 - [ ] Confirm the admin list visibly contains the suspended event
 - [ ] Confirm the blocked delete (**409**) and a successful delete (**204**) are both shown
+- [ ] Confirm the four weather states were all shown — a forecast, a finished event,
+      an event beyond the sixteen-day window, and a venue with no coordinates — and
+      that the words "no coordinates" were actually said
+- [ ] Confirm the registrations table showed a masked name and no email, and that you
+      said out loud why
+- [ ] Confirm the language switch was shown with the header in frame, so the fixed
+      header is visible rather than merely claimed
 - [ ] Confirm the tier-dropdown bug section is intact — it is the strongest evidence
       of your own contribution
 - [ ] Confirm you never explain the SQL design as if it were yours; say whose it is
@@ -601,19 +759,34 @@ stops it coming back.
 8. **What was the `[value]` versus `[selected]` bug, and why did it happen?** (The
    select's value is written before a loop-created option exists, so the first write
    is discarded and the browser shows the first option; fixed by marking the option
-   selected, with an invariant-based end-to-end check.)
-9. What happens to the weather panel when Open-Meteo is unreachable? (The section is
-   always there — the heading is unconditional — and it says in one quiet line that no
-   forecast is available. When there could never be one it names the reason instead:
-   the event is past, the venue has no coordinates, the date is unconfirmed, or the
-   event is beyond the 16-day window. The service resolves `null` instead of throwing,
-   so it never loads forever and never shows an error.)
-10. How does the admin delete turn a 409 into something usable? (The response's
+   selected, with an invariant-based end-to-end check. The search venue control has
+   since been replaced by a combobox whose label is computed, so it no longer needs
+   the workaround.)
+9. **What does the weather module do when there is no forecast, and why keep it?**
+   (It names the case — the event is past, the venue has no coordinates, the date is
+   unconfirmed, or the event is beyond the 16-day window — and says so in one quiet
+   line; while a request is in flight it says it is loading. It used to be hidden,
+   which made "no module" and "no forecast" look identical. The service resolves
+   `null` instead of throwing, so it never loads forever and never shows an error.)
+10. **Why does the public registrations table not show the attendee's email, when
+    the database stores it?** (Data minimisation: the page is public and anonymous,
+    so the API projects a masked display name and omits the contact columns; staff
+    read them from the admin endpoint, which asks for them explicitly.)
+11. **How does the header stay still when the language changes?** (Nothing
+    language-dependent lives in the header any more: the note about the
+    interface-only switch moved into its own band below the header, the nav labels
+    hold one line, so the header measures the same 65px in all four languages and
+    the picker and theme button keep their x position.)
+12. How does the admin delete turn a 409 into something usable? (The response's
     `details` and `suggestion` fields drive a banner, a link to the registrations,
     and a disabled row button — structured data, not a sentence.)
-11. Where would authentication go if it were added? (In front of the
+13. **Why is the location field a combobox instead of a `<select>`?** (A native
+    popup's direction is the browser's choice — it opened upward over its own label
+    near the bottom of the window — and its placeholder invited typing the control
+    could not do. Owning the list owns the direction, and the grouping.)
+14. Where would authentication go if it were added? (In front of the
     `/api/admin/...` routes on the server, plus an HTTP interceptor in each Angular
     application.)
-12. Which files would you change to add a new search filter? (The `FilterForm`
+15. Which files would you change to add a new search filter? (The `FilterForm`
     value and `buildQuery()` in `search.ts`, the API's accepted query parameters,
     and the template — the shared API service does not change.)
