@@ -230,13 +230,19 @@ One label/value pair a page can render itself if it wants more than a banner.
 
 #### function `conflictFacts`
 
-The event a refused delete is about, and how many registrations protect it.
+The event a refused delete is about, how many registrations protect it, and the
+advice the API suggests.
 ApiError.conflictDetails is the documented accessor, and it is used first. It
-only answers when the conflict payload carries a `message`, though, and this
-API's 409 sends `{ eventId, eventName, registrationCount, suggestion }` with no
-`message` - so the raw `details` record is read as a fallback. Without that
-fallback the banner would show the event name and count only inside the API's
+answers for any object carrying a recognised conflict fact, so this API's 409 -
+`{ eventId, eventName, registrationCount, suggestion }`, with no `message` of
+its own - is read through it. The raw `details` record is still read as a
+fallback, so a payload the accessor declines cannot silently drop the facts:
+without it the banner would show the event name and count only inside the API's
 own sentence, and nothing structured at all.
+`suggestion` is a CODE rather than wording, so it is kept as one here and the
+banner chooses the sentence in the reader's language. Only a non-empty string
+is accepted: anything else is dropped, and the banner's generic fallback then
+explains the refusal instead of the client guessing at advice it was not given.
 - `@param error - The 409 the API answered a delete with.`
 - `@returns Whatever the conflict payload named; an empty object when it carried`
 nothing structured.
