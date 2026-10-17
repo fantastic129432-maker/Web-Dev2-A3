@@ -50,6 +50,62 @@ import type { DataRecord } from '../types';
 /** The shared pool, created on first use (see getPool). */
 let pool: mysql.Pool | null = null;
 
+/**
+ * Pooled connections whose session time has already been pinned to DEMO_TODAY.
+ *
+ * `SET timestamp` is session state, so it has to be applied once per physical
+ * connection rather than once per process. The WeakSet lets a connection that is
+ * reused from the pool skip the statement without keeping it alive.
+ */
+const demoPinnedConnections = new WeakSet<object>();
+
+/**
+ * The validated DEMO_TODAY pin, or `undefined` when the real date should be used.
+ *
+ * @returns `YYYY-MM-DD` when the demo date is pinned, otherwise `undefined`.
+ */
+function demoTodayValue(): string | undefined {
+  const value = process.env.DEMO_TODAY;
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  return value;
+}
+
+/** The small part of a pooled connection this module needs for the pin. */
+interface SessionConnection {
+  /** Run a statement on this one connection. */
+  query(sql: string, params?: any[]): Promise<unknown>;
+}
+
+/**
+ * Pin one pooled connection's session time to DEMO_TODAY, once.
+ *
+ * WHY THIS EXISTS
+ *   DEMO_TODAY fixes "today" for the offline demo, but MySQL's derived
+ *   upcoming/ongoing/past state and its DATEDIFF() read CURDATE()/NOW(), which
+ *   the pin did not reach. The test suite pins the date to 2026-09-28 so the
+ *   seed stays comparable, and it runs the same checks against both data
+ *   sources; once the real clock moved past the seed's dates, MySQL called the
+ *   seed's events "past" while the offline mirror still had them upcoming, and
+ *   seven checks that passed offline failed against MySQL. Pinning the session
+ *   makes DEMO_TODAY mean the same thing on both paths.
+ *
+ *   It is opt-in: api/.env leaves DEMO_TODAY unset, so production still answers
+ *   the server's real CURDATE(). `SET timestamp` changes only the current
+ *   session, so it cannot affect another connection or another user.
+ *
+ * @param connection - The pooled connection about to run a statement or a transaction.
+ * @returns Nothing; the connection is pinned until it is closed.
+ */
+async function pinDemoToday(connection: SessionConnection): Promise<void> {
+  const day = demoTodayValue();
+  if (!day || demoPinnedConnections.has(connection)) return;
+
+  // UNIX_TIMESTAMP() is evaluated by the server, so the calendar date is the
+  // same date the server would report for CURDATE(), whatever its time zone.
+  await connection.query('SET timestamp = UNIX_TIMESTAMP(?)', [day]);
+  demoPinnedConnections.add(connection);
+}
+
 /** The exact connection settings being used (password never logged). */
 const connectionSettings: mysql.PoolOptions = {
   host: env.DB_HOST,
@@ -112,8 +168,23 @@ function getPool(): mysql.Pool {
  * @returns The rows for a SELECT, or the result header for an INSERT or UPDATE.
  */
 async function query(sql: string, params: any[] = []): Promise<any> {
-  const [rows] = await getPool().execute(sql, params);
-  return rows;
+  const pool = getPool();
+
+  // Fast path, and the production path: with no DEMO_TODAY there is no session
+  // state to apply, so the statement goes through the pool exactly as before.
+  if (!demoTodayValue()) {
+    const [rows] = await pool.execute(sql, params);
+    return rows;
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await pinDemoToday(connection);
+    const [rows] = await connection.execute(sql, params);
+    return rows;
+  } finally {
+    connection.release();
+  }
 }
 
 /**
@@ -147,6 +218,10 @@ async function transaction<T>(
 ): Promise<T> {
   const connection = await getPool().getConnection();
   try {
+    // The transaction must see the same DEMO_TODAY "today" as every other
+    // statement, because the timestamps it writes and the dates it compares
+    // both come from the session clock.
+    await pinDemoToday(connection);
     await connection.beginTransaction();
     // The cast is the one place the statement result is widened to `any`; see
     // TransactionConnection above.

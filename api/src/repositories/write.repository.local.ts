@@ -22,6 +22,7 @@
 import store = require('./local-store');
 import type { DataRecord, EventWriteRepository } from '../types';
 import registrationStore = require('./registration.repository.local');
+import { assertUniqueTicketTypeNames } from './ticket-names';
 
 /**
  * Report whether a seeded lookup table contains a row with this id.
@@ -86,42 +87,23 @@ function assertReferences(values: DataRecord): void {
   }
 }
 
-/**
- * Refuse two ticket tiers of one event that share a name.
+/*
+ * The duplicate-name rule itself now lives in ticket-names.ts.
  *
- * MySQL enforces this with uq_ticket_event_name and answers 409 through
- * translateMysqlError when ER_DUP_ENTRY comes back; offline there is no key to
- * lean on, so the rule is stated explicitly. The name is compared as text, which
- * is what a case-insensitive database collation does with 'General' and
- * 'general', so both data sources refuse the same submissions.
+ * It has to be stated explicitly here because the mirror has no
+ * `uq_ticket_event_name` to lean on, and MySQL enforces the same pair through
+ * that key (answering 409 through translateMysqlError when ER_DUP_ENTRY comes
+ * back). The check is shared with write.repository.mysql.ts now, so the MySQL
+ * write path runs the identical comparison before it inserts and both data
+ * sources answer the same 409 - same field, same offending name, same hint -
+ * instead of the MySQL side depending on the driver naming the index.
  *
  * It is called before anything is stored as well as before the tiers are
  * written, because the offline store has no transaction to roll back: a create
  * the database would refuse has to leave no event behind at all, and the check
  * is only cheap enough to run twice because a submission carries a handful of
  * tiers at most.
- *
- * @param ticketTypes - The validated tiers about to be written. May be omitted, in which case there is nothing to check.
- * @throws HttpError with status 409 when two tiers share a name.
  */
-function assertUniqueTicketTypeNames(ticketTypes?: DataRecord[]): void {
-  if (!Array.isArray(ticketTypes)) return;
-
-  const { HttpError } = require('../utils/errors') as typeof import('../utils/errors');
-  const seen = new Set<string>();
-
-  for (const ticket of ticketTypes) {
-    const name = String(ticket.ticketName);
-    if (seen.has(name.toLowerCase())) {
-      throw HttpError.conflict('A record with these details already exists.', {
-        field: 'ticketTypes',
-        ticketName: name,
-        hint: 'Two ticket types of one event cannot share a name; rename one of them.',
-      });
-    }
-    seen.add(name.toLowerCase());
-  }
-}
 
 /**
  * The camelCase payload field for each database column.
@@ -402,9 +384,11 @@ function saveTicketTypes(eventId: number, ticketTypes: DataRecord[]): void {
  *   They are the reasoning this file exists to record, and their own blocks
  *   carry it: `assertReferences` names the three foreign keys and why the
  *   offline half reproduces them (see also the note in
- *   write.repository.mysql.ts), and `assertUniqueTicketTypeNames` records why
- *   the twin of `uq_ticket_event_name` has to be stated explicitly when there is
- *   no key to lean on. Deleting the exports removes an unused way IN, not the
- *   rules themselves.
+ *   write.repository.mysql.ts). `assertUniqueTicketTypeNames` is still called
+ *   from the same two places in this file, but its block now lives in
+ *   ticket-names.ts so the MySQL write path can run the identical comparison;
+ *   the reason the twin of `uq_ticket_event_name` has to be stated explicitly
+ *   when there is no key to lean on is recorded there. Deleting the attachments
+ *   removed an unused way IN, not the rules themselves.
  */
 export = writeRepository;

@@ -273,10 +273,24 @@ const registrationRepository: RegistrationWriteRepository = {
    * before it is written, so the unique key still means what it meant on insert;
    * ER_DUP_ENTRY is translated so a collision is a 409 rather than a 500.
    *
+   * The tier's remaining allocation is re-checked INSIDE the transaction that
+   * writes the row, with the tier row locked, exactly as insertRegistration does
+   * before its INSERT. The service layer checks the same allocation first, but
+   * that read happens outside any lock: two concurrent updates that each raise
+   * ticketsPurchased (or move a row onto another tier) could both pass it and
+   * then both commit, selling more tickets than the tier publishes. The lock is
+   * what makes the second update wait for the first to commit and then count the
+   * first update's row. The row being changed is excluded from the count - its own
+   * tickets are already accounted for, so re-sending the quantity it already has
+   * stays valid while an increase beyond the tier's remaining allocation is
+   * refused - and that exclusion is expressed in SQL (`registration_id <> ?`)
+   * rather than by trusting the pre-read, so it stays correct even if the row
+   * changed between the read and the lock.
+   *
    * @param registrationId - The id of the registration to change.
    * @param values - The validated fields to change, in camelCase.
    * @returns The updated registration, read back in the API shape, or `null` when no row has that id.
-   * @throws HttpError with status 400 when the tier belongs to another event or a value is refused by the database, and 409 when the new email is already registered for that event.
+   * @throws HttpError with status 400 when the tier belongs to another event, the update would oversell the tier, or a value is refused by the database, and 409 when the new email is already registered for that event.
    */
   async updateRegistration(registrationId, values) {
     const existing = await mysqlRepository.registrationQueries.findById(registrationId);
@@ -292,8 +306,8 @@ const registrationRepository: RegistrationWriteRepository = {
       registeredAt: 'registered_at',
     };
 
-    const columns = [];
-    const params = [];
+    const columns: string[] = [];
+    const params: any[] = [];
 
     for (const [key, column] of Object.entries(mapping)) {
       if (values[key] === undefined) continue;
@@ -316,13 +330,63 @@ const registrationRepository: RegistrationWriteRepository = {
       params.push(value === null ? null : value);
     }
 
+    // The tier and the quantity the row will have once the update is applied: an
+    // absent field keeps the stored value, which is what makes the locked check
+    // below a check of the outcome rather than of the payload. They are computed
+    // before the transaction because the values that are not being changed come
+    // from the row that was just read.
+    const targetTicketTypeId =
+      values.ticketTypeId === undefined ? existing.ticketTypeId : values.ticketTypeId;
+    const requested =
+      values.ticketsPurchased === undefined
+        ? Number(existing.ticketsPurchased)
+        : Number(values.ticketsPurchased);
+
     if (columns.length > 0) {
       const assignments = columns.map((column) => `${column} = ?`).join(', ');
       try {
-        await q.query(
-          `UPDATE event_registrations SET ${assignments} WHERE registration_id = ?`,
-          [...params, registrationId]
-        );
+        await db.transaction(async (connection) => {
+          if (targetTicketTypeId !== null && targetTicketTypeId !== undefined) {
+            // The lock comes first, exactly as it does on the create path: a
+            // concurrent update of a registration on the same tier blocks here
+            // and then counts the committed row of the request ahead of it.
+            const [tiers] = await connection.execute(
+              `SELECT ticket_name, quantity_available
+                 FROM ticket_types
+                WHERE ticket_type_id = ? AND event_id = ?
+                FOR UPDATE`,
+              [targetTicketTypeId, existing.eventId]
+            );
+
+            if (tiers.length > 0) {
+              const tier = tiers[0];
+              const quantityAvailable =
+                tier.quantity_available === null || tier.quantity_available === undefined
+                  ? null
+                  : Number(tier.quantity_available);
+
+              if (quantityAvailable !== null) {
+                const [soldRows] = await connection.execute(
+                  `SELECT COALESCE(SUM(tickets_purchased), 0) AS sold
+                     FROM event_registrations
+                    WHERE event_id = ? AND ticket_type_id = ? AND registration_id <> ?`,
+                  [existing.eventId, targetTicketTypeId, registrationId]
+                );
+                assertTicketsRemain({
+                  ticketName: tier.ticket_name,
+                  quantityAvailable,
+                  sold: soldRows[0] ? Number(soldRows[0].sold) : 0,
+                  requested,
+                });
+              }
+            }
+          }
+
+          await connection.execute(
+            `UPDATE event_registrations SET ${assignments} WHERE registration_id = ?`,
+            [...params, registrationId]
+          );
+        });
       } catch (error) {
         const code = error.code || (error.errors || []).find((item: any) => item && item.code)?.code;
         if (code === 'ER_DUP_ENTRY') {
@@ -339,6 +403,8 @@ const registrationRepository: RegistrationWriteRepository = {
             { code }
           );
         }
+        // An HttpError raised by the allocation check above is already the answer
+        // the client should see; db.transaction has rolled the update back.
         throw error;
       }
     }

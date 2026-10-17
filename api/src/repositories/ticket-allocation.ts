@@ -1,13 +1,14 @@
 /**
  * @file The ticket-allocation rule, implemented once for every caller.
  *
- * Booking a ticket tier has to answer the same question in three places: the
+ * Booking a ticket tier has to answer the same question in four places: the
  * event service's pre-check before a create, its check on an update, and - the
- * one that actually closes the race - the count taken inside the transaction
- * that writes the row (registration.repository.mysql.ts), where the tier row is
- * locked first. Keeping the arithmetic and the 400 in one module is what stops
- * those three answers drifting apart: the message, the status and the per-field
- * detail are byte-for-byte the same whichever path refused the request.
+ * two that actually close the race - the counts taken inside the transactions
+ * that write the rows (insertRegistration and updateRegistration in
+ * registration.repository.mysql.ts), where the tier row is locked first. Keeping
+ * the arithmetic and the 400 in one module is what stops those four answers
+ * drifting apart: the message, the status and the per-field detail are
+ * byte-for-byte the same whichever path refused the request.
  *
  * The rule itself: a tier whose `quantity_available` is NULL is unlimited, which
  * is how the virtual challenge tiers are seeded, and the tickets sold are

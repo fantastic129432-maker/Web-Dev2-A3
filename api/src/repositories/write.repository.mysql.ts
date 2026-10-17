@@ -28,6 +28,7 @@ import db = require('../db/event_db');
 import type { DataRecord, EventWriteRepository } from '../types';
 import { HttpError } from '../utils/errors';
 import mysqlRepository = require('./repository.mysql');
+import { assertUniqueTicketTypeNames } from './ticket-names';
 
 const q = db;
 
@@ -421,6 +422,13 @@ const writeRepository: EventWriteRepository = {
  * means "the create failed" (insertEvent, where the event must not survive) or
  * "the tiers were not saved" (replaceTicketTypes, where it must).
  *
+ * The duplicate-name check runs first, using the comparison the offline twin
+ * also uses (ticket-names.ts). The unique key is still the final authority - it
+ * knows the collation's rules in full - but the shared check means the ordinary
+ * accent or case duplicate is answered with the same field-level 409 as the
+ * offline data source, including the offending tier name, instead of depending
+ * on the driver's `sqlMessage` naming the index.
+ *
  * @param connection - The connection the surrounding transaction is using.
  * @param eventId - The event the tiers belong to.
  * @param ticketTypes - The validated tiers to insert, each with a name, a price and optional quantity and description.
@@ -430,6 +438,8 @@ async function insertTicketTypes(
   eventId: number,
   ticketTypes: DataRecord[]
 ): Promise<void> {
+  assertUniqueTicketTypeNames(ticketTypes);
+
   for (const ticket of ticketTypes) {
     // eslint-disable-next-line no-await-in-loop
     await connection.execute(
@@ -481,6 +491,11 @@ async function replaceTicketTypes(eventId: number, ticketTypes: DataRecord[]) {
       await insertTicketTypes(connection, eventId, ticketTypes);
     });
   } catch (error) {
+    // The shared duplicate-name check raises the 409 itself, before the INSERT
+    // reaches the unique key. That is an answer the client can act on, so it is
+    // raised rather than logged and swallowed like an unexplained driver failure;
+    // translateMysqlError() only handles driver errors and returns null here.
+    if (error instanceof HttpError) throw error;
     const translated = translateMysqlError(error);
     if (translated) throw translated;
     // A ticket tier problem must not hide the fact that the event was saved.

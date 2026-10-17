@@ -31,6 +31,8 @@ const data = store.data;
  *
  * DATA_SOURCE=local + DEMO_TODAY=2026-09-28 makes the demo reproducible; when
  * DEMO_TODAY is not set the real current date is used, matching CURDATE().
+ * db/event_db.ts pins the MySQL session clock to the same value, so CURDATE()
+ * answers the same day when DATA_SOURCE=mysql and the suite is pinned too.
  *
  * That date is the HOST'S LOCAL date, not the UTC one. CURDATE() answers in the
  * database server's own time zone, which on the deployment host is local time,
@@ -97,6 +99,43 @@ function daysBetween(fromDate: string, toDate: string): number {
 }
 
 /**
+ * Compute the progress percentage with the rounding rule MySQL applies.
+ *
+ * vw_event_progress computes LEAST(ROUND(raised / goal * 100, 1), 100), and both
+ * operands are DECIMAL: MySQL rounds a decimal tie away from zero, so
+ * 610.00 / 20000.00 * 100 = 3.05 becomes 3.1. The mirror used to call
+ * Number((...).toFixed(1)), and toFixed rounds the binary double the division
+ * produced - 3.05 is stored as 3.0499999999999998 - so it answered 3.0. The two
+ * data sources therefore disagreed by 0.1 on exactly the half-way values, and
+ * the seed happens to contain none of them.
+ *
+ * The arithmetic runs in integer hundredths so the tie is exact before it is
+ * rounded: both amounts are DECIMAL columns with two decimal places, so cents
+ * represent them exactly and the tenth-of-a-percent numerator keeps every digit.
+ * Half-up is the rule for the non-negative values the columns can hold, and the
+ * clamp at 100 mirrors LEAST(..., 100).
+ *
+ * @param raisedAmount - The money raised, already rounded to cents.
+ * @param goalAmount - The event's goal, as the DECIMAL column stores it.
+ * @returns The percentage to one decimal place, exactly as vw_event_progress reports it.
+ */
+function progressPercent(raisedAmount: number, goalAmount: number): number {
+  if (!(goalAmount > 0)) return 0;
+
+  const raisedCents = Math.round(Number(raisedAmount) * 100);
+  const goalCents = Math.round(Number(goalAmount) * 100);
+
+  // percent * 10 = raised / goal * 1000, evaluated over a common denominator so
+  // the quotient and the remainder are both exact integers.
+  const numerator = raisedCents * 1000;
+  const whole = Math.floor(numerator / goalCents);
+  const remainder = numerator - whole * goalCents;
+  const rounded = remainder * 2 >= goalCents ? whole + 1 : whole;
+
+  return Math.min(rounded / 10, 100);
+}
+
+/**
  * Join the lookup tables, the ticket tiers and the donation totals for one event.
  *
  * These names must stay identical to the aliases in repository.mysql.ts, because
@@ -159,10 +198,7 @@ function decorate(row: DataRecord): DataRecord {
         ? Number(location.longitude)
         : null,
     raisedAmount,
-    progressPercent:
-      goalAmount > 0
-        ? Math.min(Number(((raisedAmount / goalAmount) * 100).toFixed(1)), 100)
-        : 0,
+    progressPercent: progressPercent(raisedAmount, goalAmount),
     donationCount: gifts.length,
     eventState: eventState(row),
     // A3: the admin list shows how much interest an event has attracted.

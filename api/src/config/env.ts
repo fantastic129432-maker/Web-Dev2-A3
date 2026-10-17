@@ -174,6 +174,24 @@ const fileValues: FileEnv = {
   MAX_PAGE_SIZE: Number(get('MAX_PAGE_SIZE', 100)),
 };
 
+/*
+ * Make DEMO_TODAY from api/.env visible to the two readers that use it.
+ *
+ * It is the one setting that is deliberately read from process.env at call time
+ * rather than through `env`: repository.local.ts has to be able to clear it in
+ * the unit check that proves the real local date is used, and db/event_db.ts
+ * pins the MySQL session clock at connect time. Because those reads bypass this
+ * module, a value written in api/.env used to be ignored completely. Copying it
+ * into the process environment once, at load, makes the documented setting work
+ * for both data sources while a real environment variable still wins - the test
+ * suite sets DEMO_TODAY before requiring the API, so the copy never overwrites
+ * the pin it chose.
+ */
+const demoTodayFromFile = fileEnv.DEMO_TODAY;
+if (demoTodayFromFile && process.env.DEMO_TODAY === undefined) {
+  process.env.DEMO_TODAY = demoTodayFromFile;
+}
+
 /**
  * The configuration the rest of the API reads.
  *

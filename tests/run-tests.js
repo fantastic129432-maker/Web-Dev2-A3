@@ -487,13 +487,12 @@ async function testApi() {
       "state=upcoming must keep meaning 'has not finished yet'"
     );
 
-    // The demo date is pinned to 2026-09-28 offline and the seed has no event
-    // running that day, so the narrower question is empty here. MySQL answers
-    // CURDATE() instead, which the suite cannot pin, so the exact count is only
-    // asserted for the offline mirror.
-    if (ongoing.body.meta.dataSource === 'local') {
-      assert.equal(ongoing.body.meta.total, 0, 'no seeded event runs on the pinned demo date');
-    }
+    // The demo date is pinned to 2026-09-28 for BOTH data sources: the offline
+    // mirror reads DEMO_TODAY, and event_db.ts pins the MySQL session clock to
+    // it, so CURDATE() answers the same day. The seed has no event running that
+    // day, so the narrower question is empty, and the exact count can now be
+    // asserted for MySQL too instead of depending on the machine's real date.
+    assert.equal(ongoing.body.meta.total, 0, 'no seeded event runs on the pinned demo date');
 
     // Whatever the date, every ongoing event is also "not past".
     const upcomingIds = new Set(upcoming.body.data.map((event) => event.eventId));
